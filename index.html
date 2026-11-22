@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#05070c" />
+    <meta name="application-name" content="PUNKGUN" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <title>PUNKGUN</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+      <div id="approach-vignette" class="approach-vignette"></div>
+
+      <div id="crosshair" aria-hidden="true"><i class="hitmark"></i></div>
+
+      <div id="hud">
+        <div class="hud-corner hud-tl">
+          <span class="hud-label">HOSTILES</span>
+          <span id="hud-enemies" class="hud-big">00</span>
+          <div class="hud-loot">
+            <span class="hud-label">LOOT</span>
+            <span id="hud-loot" class="hud-loot-value">$0</span>
+          </div>
+          <div id="hud-heat" class="hud-heat">
+            <span class="hud-label">HEAT</span>
+            <div class="hud-heat-bar"><span id="hud-heat-fill"></span></div>
+          </div>
+          <div id="hud-abilities" class="hud-abilities off"></div>
+        </div>
+        <div class="hud-corner hud-tr">
+          <span id="hud-weapon" class="hud-weapon">FISTS</span>
+          <span id="hud-weapon-type" class="hud-weapon-type">MELEE</span>
+          <span id="hud-ammo" class="hud-ammo">—</span>
+          <span id="hud-mod" class="hud-mod"></span>
+          <div id="hud-armor-line" class="hud-armor-line off">
+            <span class="hud-label">ARMOR</span>
+            <span id="hud-armor" class="hud-armor"></span>
+          </div>
+        </div>
+        <div class="hud-corner hud-br">
+          <span id="hud-status" class="hud-status">EXIT SEALED</span>
+          <span id="hud-time" class="hud-time">00:00.0</span>
+        </div>
+        <div id="hud-objective" class="hud-objective">
+          <span id="hud-objective-label" class="hud-label">OBJECTIVE</span>
+          <span id="hud-objective-text" class="hud-objective-text">—</span>
+        </div>
+        <div id="hud-approach" class="hud-approach"></div>
+        <div id="hud-exit" class="hud-exit">
+          <span id="hud-exit-arrow" class="arrow"></span>
+          <span id="hud-exit-label" class="exit-label">EXIT</span>
+        </div>
+        <div id="hud-boss" class="hud-boss off">
+          <span id="hud-boss-name" class="hud-boss-name">AUGMENTED PSYCHO</span>
+          <div class="hud-boss-bar"><span id="hud-boss-fill"></span></div>
+          <span id="hud-boss-label" class="hud-boss-label">ARMOR 3/3</span>
+        </div>
+        <div id="hud-damage-dir" class="hud-damage-dir"></div>
+        <div id="hud-consumable" class="hud-consumable off"></div>
+        <div id="hud-prompt" class="hud-prompt"></div>
+        <div class="hud-keys">WASD MOVE &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; SHIFT SANDEVISTAN &middot; C CAMO &middot; E USE &middot; M MUTE</div>
+      </div>
+
+      <div id="hub" class="hub hidden">
+        <div class="hub-top">
+          <div class="kicker">// SAFEHOUSE</div>
+          <div class="hub-title">PUNK<span>GUN</span></div>
+        </div>
+        <div class="hub-stats">
+          <span id="hub-level">LVL 1</span>
+          <span id="hub-money">$0</span>
+        </div>
+        <div id="hub-prompt" class="hub-prompt">TAB — OPEN TERMINAL</div>
+        <div class="hub-keys">WASD MOVE &middot; E INTERACT &middot; TAB TERMINAL &middot; M MUTE</div>
+      </div>
+
+      <div id="overlay-safehouse" class="overlay safehouse hidden">
+        <div class="safehouse-panel">
+          <header class="sh-header">
+            <div>
+              <div class="kicker">// SAFEHOUSE</div>
+              <div class="sh-logo">PUNK<span>GUN</span></div>
+            </div>
+            <div class="sh-header-right">
+              <div class="sh-money">
+                <span class="hud-label">CREDITS</span>
+                <span id="sh-money">$0</span>
+                <div id="sh-level" class="sh-level">LVL 1 · 0/100 XP · 0 PP</div>
+              </div>
+              <button id="sh-close" class="sh-close" type="button" data-act="close-panel">CLOSE [ESC]</button>
+            </div>
+          </header>
+
+          <div class="sh-body">
+            <section class="sh-col">
+              <h2>CONTRACTS</h2>
+              <div id="sh-contracts" class="sh-contracts"></div>
+              <div id="sh-contract-detail" class="sh-contract-detail"></div>
+
+              <h2>LOADOUT</h2>
+              <div id="sh-equipped" class="sh-equipped"></div>
+              <h2>STORAGE</h2>
+              <div id="sh-stash" class="sh-list"></div>
+              <h2>CONTRABAND</h2>
+              <div id="sh-contraband" class="sh-list"></div>
+              <p id="sh-intel" class="sh-note"></p>
+              <p class="sh-note">
+                Carry one weapon into the sector. Clear it to extract with whatever you're holding
+                and any loot you grabbed — die and everything is gone.
+              </p>
+            </section>
+            <section class="sh-col">
+              <h2>BLACK MARKET</h2>
+              <div id="sh-shop" class="sh-list"></div>
+              <h2>SUPPLIES</h2>
+              <div id="sh-supplies" class="sh-list"></div>
+              <div id="sh-kit" class="sh-kit"></div>
+              <p class="sh-note">Kit is packed for one run. Unused charges are lost on deploy.</p>
+
+              <h2>RECORD</h2>
+              <div id="sh-stats" class="sh-stats"></div>
+              <p class="sh-note">
+                Ammo is bought per weapon in storage. Sell guns and contraband here. Loot only
+                extracts on a clean exit.
+              </p>
+            </section>
+          </div>
+
+          <div class="sh-controls">WASD MOVE &middot; MOUSE AIM &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE</div>
+          <footer class="sh-footer">
+            <div id="sh-msg" class="sh-msg"></div>
+            <div id="sh-summary" class="sh-summary"></div>
+            <div class="sh-footer-actions">
+              <button id="sh-case" class="sh-augments" type="button" data-act="open-case">CASE</button>
+              <button id="sh-workbench" class="sh-augments" type="button" data-act="open-workbench">WORKBENCH</button>
+              <button id="sh-augments" class="sh-augments" type="button" data-act="open-augments">AUGMENTS</button>
+              <button id="sh-manual" class="sh-augments" type="button" data-act="manual">MANUAL</button>
+              <button id="sh-reset" class="sh-reset" type="button" data-act="reset">RESET SAVE</button>
+              <button id="sh-deploy" class="sh-deploy" type="button" data-act="open-deploy">DEPLOY TO SECTOR 07</button>
+            </div>
+          </footer>
+        </div>
+      </div>
+
+      <div id="overlay-station" class="overlay station hidden">
+        <div class="station-panel">
+          <header class="sh-header station-header">
+            <div>
+              <div id="station-kicker" class="kicker">// STATION</div>
+              <div id="station-title" class="station-heading">STATION</div>
+            </div>
+            <div class="sh-header-right">
+              <div class="sh-money">
+                <span class="hud-label">CREDITS</span>
+                <span id="station-money" class="station-money">$0</span>
+                <div id="station-level" class="sh-level">LVL 1 · 0/100 XP · 0 PP</div>
+              </div>
+              <button id="station-close" class="sh-close" type="button" data-act="close-station">CLOSE [ESC]</button>
+            </div>
+          </header>
+          <div id="station-body" class="station-body"></div>
+          <div id="station-msg" class="sh-msg station-msg"></div>
+        </div>
+      </div>
+
+      <div id="overlay-case" class="overlay case hidden">
+        <div class="case-panel">
+          <header class="sh-header">
+            <div>
+              <div class="kicker">// OPERATOR LOADOUT</div>
+              <div class="case-title">ATTACHÉ CASE</div>
+            </div>
+            <div class="sh-header-right">
+              <div class="sh-money">
+                <span class="hud-label">CREDITS</span>
+                <span id="case-money" class="station-money">$0</span>
+                <div id="case-level" class="sh-level">LVL 1 · 0/100 XP · 0 PP</div>
+              </div>
+              <button id="case-close" class="sh-close" type="button" data-act="close-case">CLOSE [ESC]</button>
+            </div>
+          </header>
+          <div class="case-main">
+            <div id="case-grid" class="case-grid"></div>
+            <aside class="case-side">
+              <div id="case-detail" class="case-detail"></div>
+              <div class="case-actions">
+                <button id="case-auto" type="button" data-act="case-auto">AUTO-ARRANGE</button>
+                <button id="case-rotate" type="button" data-act="case-rotate">ROTATE [R]</button>
+                <button id="case-equip" type="button" data-act="case-equip">EQUIP</button>
+              </div>
+              <p class="sh-note">
+                Drag weapons to arrange the case. Click to select; EQUIP or double-click to carry.
+                ROTATE turns the selected weapon. Ten by six cells.
+              </p>
+            </aside>
+          </div>
+          <div id="case-msg" class="sh-msg case-msg"></div>
+        </div>
+      </div>
+
+      <div id="overlay-augments" class="overlay augments hidden">
+        <div class="augments-panel">
+          <header class="aug-header">
+            <div class="kicker">// AUGMENTATION CLINIC</div>
+            <div class="aug-top">
+              <div class="aug-stat">
+                <span class="hud-label">LEVEL</span>
+                <span id="aug-level" class="aug-big">1</span>
+              </div>
+              <div class="aug-xp">
+                <div class="aug-xp-row">
+                  <span class="hud-label">EXPERIENCE</span>
+                  <span id="aug-xp-text">0 / 100</span>
+                </div>
+                <div class="sh-xpbar"><span id="aug-xpbar"></span></div>
+              </div>
+              <div class="aug-stat">
+                <span class="hud-label">PERK POINTS</span>
+                <span id="aug-points" class="aug-big magenta">0</span>
+              </div>
+              <div class="aug-stat">
+                <span class="hud-label">CREDITS</span>
+                <span id="aug-money" class="aug-big amber">$0</span>
+              </div>
+              <button id="aug-close" class="aug-close" type="button" data-act="close-augments">CLOSE [ESC]</button>
+            </div>
+          </header>
+          <div id="aug-attrs" class="aug-attrs"></div>
+          <div class="aug-body">
+            <section class="aug-col">
+              <h2>CYBERWARE</h2>
+              <div id="aug-cyberware" class="aug-list"></div>
+              <p class="sh-note">Permanent installs. Paid with credits.</p>
+            </section>
+            <section class="aug-col">
+              <h2>PERKS</h2>
+              <div id="aug-perks" class="aug-list"></div>
+              <p class="sh-note">Trained with perk points earned on level-up.</p>
+            </section>
+          </div>
+          <div id="aug-msg" class="sh-msg"></div>
+        </div>
+      </div>
+
+
+
+      <div id="overlay-workbench" class="overlay workbench hidden">
+        <div class="workbench-panel">
+          <header class="aug-header">
+            <div class="kicker">// WEAPON WORKBENCH</div>
+            <div class="aug-top">
+              <div class="aug-stat">
+                <span class="hud-label">CREDITS</span>
+                <span id="wb-money" class="aug-big amber">$0</span>
+              </div>
+              <button id="wb-close" class="aug-close" type="button" data-act="close-workbench">CLOSE [ESC]</button>
+            </div>
+          </header>
+          <div class="wb-body">
+            <section>
+              <h2>STORED FIREARMS</h2>
+              <div id="wb-guns" class="wb-guns"></div>
+              <p class="sh-note">Attachments live on the gun. They travel with it into the sector and extract with it.</p>
+            </section>
+            <section>
+              <h2>ATTACHMENTS</h2>
+              <div id="wb-attachments" class="aug-list"></div>
+              <p class="sh-note">One attachment per weapon. Installing a new one destroys the old one.</p>
+            </section>
+          </div>
+          <div id="wb-msg" class="sh-msg"></div>
+        </div>
+      </div>
+
+      <div id="overlay-brief" class="overlay brief hidden">
+        <div class="brief-card">
+          <div class="brief-kicker" id="brief-kicker">// DEPLOYMENT</div>
+          <div class="brief-title" id="brief-title">CONTRACT</div>
+          <div class="brief-faction" id="brief-faction">FACTION</div>
+          <div class="brief-objective" id="brief-objective">OBJECTIVE</div>
+          <div class="brief-handler" id="brief-handler">MOTH: ...</div>
+          <div class="brief-scan" aria-hidden="true"></div>
+          <div class="brief-hint">// DEPLOYING</div>
+        </div>
+      </div>
+
+      <div id="overlay-dialogue" class="overlay dialogue hidden">
+        <div class="dialogue-card">
+          <div class="dialogue-kicker">// PRE-OP BRIEFING · THE SUBLEVEL</div>
+          <div id="dialogue-speaker" class="dialogue-speaker">MOTH</div>
+          <div id="dialogue-text" class="dialogue-text"></div>
+          <div class="dialogue-foot">
+            <span id="dialogue-progress" class="dialogue-progress"></span>
+            <button id="dialogue-cancel" class="sh-close" type="button" data-act="dialogue-cancel">CANCEL</button>
+            <button id="dialogue-next" class="sh-deploy" type="button" data-act="dialogue-next">CONTINUE</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="overlay-pause" class="overlay pause hidden">
+        <div class="pause-panel">
+          <div class="kicker">// SIMULATION SUSPENDED</div>
+          <h2 class="pause-title">PAUSED</h2>
+          <div class="pause-actions">
+            <button data-act="resume">RESUME [ESC]</button>
+            <button data-act="settings">SETTINGS</button>
+            <button data-act="manual">MANUAL</button>
+            <button data-act="abandon" class="danger">ABANDON RUN</button>
+          </div>
+          <div id="pause-settings" class="pause-settings hidden">
+            <label>MASTER VOLUME <input id="set-volume" type="range" min="0" max="100" step="1" value="85" /></label>
+            <label>SCREEN SHAKE <input id="set-shake" type="range" min="0" max="150" step="1" value="100" /></label>
+            <label>BLOOM <input id="set-bloom" type="range" min="0" max="150" step="1" value="100" /></label>
+            <label class="pause-check"><input id="set-flash" type="checkbox" checked /> DAMAGE FLASH</label>
+            <label class="pause-check"><input id="set-scanlines" type="checkbox" checked /> SCANLINES</label>
+            <label class="pause-check"><input id="set-cones" type="checkbox" checked /> ENEMY VISION CONES</label>
+            <label class="pause-check"><input id="set-weather" type="checkbox" checked /> WEATHER / PARTICLES</label>
+            <label class="pause-check"><input id="set-reduced-motion" type="checkbox" /> REDUCED MOTION</label>
+          </div>
+          <div class="pause-hint">ESC TO RESUME. ABANDONING FORFEITS THE CURRENT LOADOUT AND LOOT.</div>
+        </div>
+      </div>
+
+      <div id="overlay-manual" class="overlay manual hidden">
+        <div class="manual-panel">
+          <header class="manual-header">
+            <div>
+              <div class="kicker">// OPERATOR MANUAL</div>
+              <h2 class="manual-title">PUNKGUN</h2>
+            </div>
+            <button id="manual-close" class="aug-close" type="button" data-act="close-manual">CLOSE [ESC]</button>
+          </header>
+          <div class="manual-grid">
+            <section>
+              <h3>MOVEMENT &amp; COMBAT</h3>
+              <p><b>WASD</b> move · <b>MOUSE</b> aim · <b>LMB</b> strike/shoot · <b>R</b> reload · <b>RMB</b> throw weapon</p>
+              <p>Everyone dies in one hit. Armor plates from cyberware absorb one hit each and give a short grace window.</p>
+              <p><b>SHIELD</b> units block the front — flank, backstab, or throw. <b>SNIPERS</b> paint a red laser before firing. <b>RUSHERS</b> close fast with melee. <b>GRENADIERS</b> lob red fused grenades and keep their distance. <b>BLADES</b> are unarmed cyberpsychos that close faster than anything else. <b>NETRUNNERS</b> channel a visible hack that scrambles the HUD and locks active cyberware; break sight or kill them first. <b>OPERATORS</b> deploy turrets and carry a sidearm.</p>
+              <p><b>EXPLOSIVE BARRELS</b> chain-react. Shoot one beside a group, or throw a weapon into it. <b>SECURITY CAMERAS</b> sweep corridors and alert the sector; shoot them out. <b>TURRETS</b> paint a red line before firing — break line of sight or destroy them. <b>LASER GRIDS</b> pulse across corridors; cross on the dark phase or shoot the emitter.</p>
+            </section>
+            <section>
+              <h3>CONTRACTS</h3>
+              <p><b>PURGE</b> kill every hostile · <b>HIT</b> kill the amber-marked target · <b>RECOVER</b> extract marked caches. Exit opens when the objective is done.</p>
+              <p><b>THE SUBLEVEL</b> is a boss contract: break three armor plates off the augmented psycho. Every shattered plate summons adds and releases a radial shockwave. From phase 2 it also telegraphs a charge — break line of sight or sidestep. After a charge or plate break the magenta core is exposed; a hit in that window removes two plates.</p>
+              <p><b>SAFEHOUSE</b> stations are focused consoles: CONTRACTS, MARKET, SUPPLIES, WORKBENCH, CLINIC, ARCHIVE, FABRICATOR, and DEPLOY. <b>TAB</b> opens the terminal overview and the attaché case. The deploy pad always asks which contract to run before launch.</p>
+            </section>
+            <section>
+              <h3>LOOT &amp; MONEY</h3>
+              <p><b>E</b> grabs caches, weapons, and slams doors. Loot becomes contraband only on a clean exit; sell it in the safehouse. Contract pay + time bonus are banked on clear.</p>
+              <p><b>Q</b> uses your packed supply: stim armor, smoke, flashbang, or frag grenade.</p>
+              <p><b>COMPONENTS</b> drop from kills; the FABRICATOR turns them into ammo, attachments, stims, and weapons that stow in the attaché case.</p>
+            </section>
+            <section>
+              <h3>AUGMENTS &amp; XP</h3>
+              <p>Clears grant XP and levels. Levels give perk points for the clinic; credits buy permanent cyberware. Armor, speed, spread, and enemy vision all come from your build.</p>
+              <p><b>ACTIVE 'WARE</b> — <b>SHIFT</b> Sandevistan slows the world; <b>C</b> Optical Camo breaks line of sight. Second Heart, Biomonitor, Mantis Blades, and Gorilla Arms are passive installs.</p>
+            </section>
+            <section>
+              <h3>STEALTH &amp; HEAT</h3>
+              <p>Vision cones show enemy sight. Approach from behind and press <b>E</b> for a silent takedown. Gunfire raises heat; at high heat, reinforcements breach the sector.</p>
+            </section>
+            <section>
+              <h3>DEATH &amp; RETRY</h3>
+              <p>On death, <b>R</b> retries the same contract with fists; <b>SPACE</b> returns to the safehouse. A clear extracts whatever weapon you are holding and pays out.</p>
+            </section>
+          </div>
+          <div class="manual-foot">
+            PUNKGUN 0.1.0 · THREE.JS · PROCEDURAL ART + AUDIO · <b>NO EXTERNAL ASSETS</b><br />
+            FIRST DEPLOYMENT BRIEFING — CLOSE TO CONTINUE.
+          </div>
+        </div>
+      </div>
+
+      <div id="overlay-death" class="overlay hidden">
+        <div class="ov-inner">
+          <div class="kicker red">// SIGNAL LOST</div>
+          <h1 class="end-title red">WASTED</h1>
+          <p id="death-stats" class="stats"></p>
+          <p id="death-note" class="result-note red"></p>
+          <div class="cta red">[ R ] QUICK RETRY · FISTS</div>
+          <div class="cta-sub">[ SPACE ] RETURN TO SAFEHOUSE</div>
+        </div>
+      </div>
+
+      <div id="overlay-win" class="overlay hidden">
+        <div class="ov-inner">
+          <div class="kicker">// SECTOR CLEARED</div>
+          <h1 class="end-title">CLEAN.</h1>
+          <p id="win-stats" class="stats"></p>
+          <p id="win-note" class="result-note"></p>
+          <div class="cta">[ R ] RETURN TO SAFEHOUSE</div>
+        </div>
+      </div>
+
+      <div id="fatal" class="fatal hidden" role="alert" aria-live="assertive">
+        <div class="fatal-panel">
+          <div class="kicker red">// RUNTIME FAILURE</div>
+          <h1 class="end-title red">SIGNAL LOST</h1>
+          <p id="fatal-message" class="stats"></p>
+          <p class="fatal-note">The run is not saved automatically. Reload to restore the last save state.</p>
+          <button id="fatal-reload" class="fatal-reload" type="button">RELOAD CLIENT</button>
+        </div>
+      </div>
+      <input id="save-import" type="file" accept=".json,application/json" hidden />
+      <div id="screen-transition" aria-hidden="true"></div>
+      <div id="damage" aria-hidden="true"></div>
+      <div id="vignette" aria-hidden="true"></div>
+      <div id="scanlines" aria-hidden="true"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

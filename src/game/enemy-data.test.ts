@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ENEMY_KIND_ROLLS,
+  ENEMY_TRAITS,
+  pickEnemyKind,
+  rollEnemyLoadout,
+} from './enemy-data';
+
+describe('enemy archetype data', () => {
+  it('maps roll buckets to the declared archetypes', () => {
+    expect(pickEnemyKind(0.07)).toBe('shield');
+    expect(pickEnemyKind(0.1)).toBe('sniper');
+    expect(pickEnemyKind(0.2)).toBe('rusher');
+    expect(pickEnemyKind(0.3)).toBe('gunner');
+    expect(pickEnemyKind(0.36)).toBe('marksman');
+    expect(pickEnemyKind(0.4)).toBe('heavy');
+    expect(pickEnemyKind(0.46)).toBe('grenadier');
+    expect(pickEnemyKind(0.52)).toBe('blade');
+    expect(pickEnemyKind(0.58)).toBe('netrunner');
+    expect(pickEnemyKind(0.62)).toBe('operator');
+    expect(pickEnemyKind(0.65)).toBe('grunt');
+    expect(pickEnemyKind(0.99)).toBe('grunt');
+    expect(ENEMY_KIND_ROLLS.map((entry) => entry.below)).toEqual([
+      0.08, 0.15, 0.26, 0.34, 0.39, 0.44, 0.5, 0.56, 0.61, 0.65,
+    ]);
+  });
+
+  it('rolls the documented loadouts without hidden randomness', () => {
+    const seq = (values: number[]) => {
+      let i = 0;
+      return () => values[i++] ?? 0;
+    };
+
+    expect(rollEnemyLoadout('boss', () => 0.99)).toEqual({ weapon: 'shotgun', ammo: 10 });
+    expect(rollEnemyLoadout('rusher', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('gunner', () => 0.99)).toEqual({ weapon: 'smg', ammo: 36 });
+    expect(rollEnemyLoadout('heavy', () => 0.99)).toEqual({ weapon: 'lmg', ammo: 80 });
+    expect(rollEnemyLoadout('grenadier', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('blade', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('netrunner', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('operator', () => 0.99)).toEqual({ weapon: 'pistol', ammo: 5 });
+    expect(rollEnemyLoadout('shield', seq([0.54]))).toEqual({ weapon: 'bat', ammo: 0 });
+    expect(rollEnemyLoadout('shield', seq([0.56]))).toEqual({ weapon: 'pistol', ammo: 4 });
+    expect(rollEnemyLoadout('grunt', seq([0.1, 0.99]))).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('grunt', seq([0.2, 0.99]))).toEqual({ weapon: 'bat', ammo: 0 });
+    expect(rollEnemyLoadout('grunt', seq([0.9, 0.5]))).toEqual({ weapon: 'lmg', ammo: 8 });
+  });
+
+  it('keeps archetype traits distinct and boss-heavy', () => {
+    expect(ENEMY_TRAITS.rusher.speedMult).toBeGreaterThan(ENEMY_TRAITS.heavy.speedMult);
+    expect(ENEMY_TRAITS.marksman.visionMult).toBeGreaterThan(ENEMY_TRAITS.grunt.visionMult);
+    expect(ENEMY_TRAITS.heavy.armor).toBe(2);
+    expect(ENEMY_TRAITS.boss).toMatchObject({ radius: 24, armor: 3 });
+  });
+});
