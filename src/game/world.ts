@@ -472,6 +472,9 @@ export class World {
       deathVx: 0,
       deathVy: 0,
       corpseFound: false,
+      patrolX: x,
+      patrolY: y,
+      patrolT: 0,
       baseAngle,
       targetAngle: baseAngle,
       scanT: 0.5 + this.rand() * 2,
@@ -1259,12 +1262,41 @@ export class World {
       }
 
       if (e.state === 'idle') {
-        e.scanT -= dt;
-        if (e.scanT <= 0) {
-          e.targetAngle = e.baseAngle + (this.rand() - 0.5) * 1.8;
-          e.scanT = 1.4 + this.rand() * 2.4;
+        if (e.kind === 'boss') {
+          e.scanT -= dt;
+          if (e.scanT <= 0) {
+            e.targetAngle = e.baseAngle + (this.rand() - 0.5) * 1.8;
+            e.scanT = 1.4 + this.rand() * 2.4;
+          }
+          e.angle = turnToward(e.angle, e.targetAngle, dt * 2);
+        } else {
+          e.patrolT -= dt;
+          if (e.patrolT <= 0) {
+            for (let i = 0; i < 5; i++) {
+              const a = this.rand() * Math.PI * 2;
+              const r = 36 + this.rand() * 92;
+              const tx = e.x + Math.cos(a) * r;
+              const ty = e.y + Math.sin(a) * r;
+              if (this.solidAt(tx, ty)) continue;
+              e.patrolX = tx;
+              e.patrolY = ty;
+              break;
+            }
+            e.patrolT = 2.2 + this.rand() * 2.6;
+          }
+          const pd = dist(e.x, e.y, e.patrolX, e.patrolY);
+          if (pd > 8) {
+            this.steer(e, e.patrolX, e.patrolY, ENEMY_SPEED * 0.3 * e.speedMult, dt);
+            e.angle = turnToward(e.angle, Math.atan2(e.vy, e.vx) || e.angle, dt * 4);
+          } else {
+            e.scanT -= dt;
+            if (e.scanT <= 0) {
+              e.targetAngle = e.baseAngle + (this.rand() - 0.5) * 1.8;
+              e.scanT = 1.4 + this.rand() * 2.4;
+            }
+            e.angle = turnToward(e.angle, e.targetAngle, dt * 2);
+          }
         }
-        e.angle = turnToward(e.angle, e.targetAngle, dt * 2);
         if (sees) this.spot(e);
         continue;
       }

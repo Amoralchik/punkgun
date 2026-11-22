@@ -101,6 +101,9 @@ export interface Enemy {
   deathVy: number;
   /** A living enemy has already discovered this corpse. */
   corpseFound: boolean;
+  patrolX: number;
+  patrolY: number;
+  patrolT: number;
   baseAngle: number;
   targetAngle: number;
   scanT: number;
