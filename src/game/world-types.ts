@@ -19,6 +19,8 @@ export interface MissionSpec {
   modifiers?: ModifierId[];
   bossId?: BossId;
   boons?: RunBoon[];
+  /** Fight the four bosses back-to-back in one arena. */
+  bossRush?: boolean;
 }
 
 export type ObjectiveNodeKind = 'terminal' | 'case' | 'zone';
@@ -52,6 +54,8 @@ export type EnemyKind =
   | 'stalker'
   | 'breacher'
   | 'drone'
+  | 'hound'
+  | 'medic'
   | 'boss';
 
 export interface Player {
@@ -105,6 +109,11 @@ export interface Player {
   revived: boolean;
   regenT: number;
   hackedT: number;
+  dashT: number;
+  dashCd: number;
+  dashDirX: number;
+  dashDirY: number;
+  quickhackCd: number;
 }
 
 export interface Enemy {
@@ -164,6 +173,18 @@ export interface Enemy {
   bossChargeCd: number;
   /** Exposed-core window after a charge or plate break. */
   bossWeakT: number;
+  squad: number;
+  suppressT: number;
+  coverT: number;
+  coverX: number;
+  coverY: number;
+  flankT: number;
+  flankX: number;
+  flankY: number;
+  leapT: number;
+  leapCd: number;
+  healCd: number;
+  medicCharges: number;
 }
 
 export interface Bullet {
@@ -231,11 +252,22 @@ export interface Explosion {
   maxLife: number;
 }
 
+export interface Steam {
+  id: number;
+  x: number;
+  y: number;
+  r: number;
+  phase: number;
+  active: boolean;
+}
+
 export interface Door {
   cx: number;
   cy: number;
   axis: 'h' | 'v';
   open: boolean;
+  /** Sealed by the LOCKDOWN modifier; only a player kick can reopen it. */
+  locked: boolean;
   angle: number;
   target: number;
   speed: number;

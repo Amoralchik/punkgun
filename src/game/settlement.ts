@@ -10,6 +10,7 @@ import {
   ventureRepBonus,
 } from './ventures';
 import { repPayBonus } from './reputation';
+import { challengePayBonus } from './challenges';
 import { xpForNext } from './progression';
 import type { Contract } from './missions';
 import type { Profile } from './profile';
@@ -44,6 +45,7 @@ export function settleRun(
   score -= world.peakHeat * 0.35;
   score += (accuracy ?? 0.6) * 18;
   score += world.stealthKills * 6;
+  score += (world.bestCombo ?? 0) * 3;
   score += world.loot.filter((item) => item.collected).length * 4;
   score += world.aliveEnemies === 0 ? 5 : 0;
   score = Math.max(0, Math.min(150, score));
@@ -57,7 +59,25 @@ export function settleRun(
     (base + bonus + rankBonus) * (venturePayMult(profile.data.ventures) - 1),
   );
   const venturePassive = ventureIncome(profile.data.ventures);
-  const payout = base + bonus + rankBonus + boonBonus + roleBonus + ventureBonus + venturePassive;
+  const dividend = profile.exchangeDividend();
+  const dailyBonus =
+    contract?.daily && profile.markDailyCleared(rank)
+      ? Math.round((base + bonus + rankBonus) * 0.35)
+      : 0;
+  const challengeBonus = Math.round(
+    (base + bonus + rankBonus) * challengePayBonus(contract?.challenge),
+  );
+  const payout =
+    base +
+    bonus +
+    rankBonus +
+    boonBonus +
+    roleBonus +
+    ventureBonus +
+    venturePassive +
+    dividend +
+    dailyBonus +
+    challengeBonus;
 
   let extractionAmmo = player.ammo + player.clip;
   if (player.attachment && player.weapon !== 'bat' && player.weapon !== 'fists') {
@@ -71,6 +91,8 @@ export function settleRun(
     attachment: player.attachment,
     variant: player.variant,
   });
+  profile.advanceExchange();
+  profile.clearInsurance();
   if (contract?.chapter === 'final') {
     profile.data.finalCleared = true;
     profile.data.bossesCleared.board = true;
@@ -108,8 +130,15 @@ export function settleRun(
           ? 30
           : 0;
   const rankXp = rank === 'S' ? 30 : rank === 'A' ? 15 : 0;
-  const xpGain = riskXp + objectiveXp + world.kills * 4 + Math.round(bonus * 0.25) + rankXp;
+  const xpGain =
+    riskXp +
+    objectiveXp +
+    world.kills * 4 +
+    (world.bestCombo ?? 0) * 2 +
+    Math.round(bonus * 0.25) +
+    rankXp;
   const levelInfo = profile.addXp(xpGain);
+  profile.maybeQueueVentureEvent();
 
   const reward: RewardSummary = {
     contractTitle: contract?.title ?? 'CONTRACT',
@@ -138,10 +167,26 @@ export function settleRun(
     roleBonus,
     ventureBonus,
     ventureIncome: venturePassive,
+    exchangeDividend: dividend,
+    dailyBonus,
+    challengeBonus,
     accuracy,
     stealthKills: world.stealthKills,
     peakHeat: world.peakHeat,
+    bestCombo: world.bestCombo ?? 0,
   };
+
+  profile.recordRun({
+    title: reward.contractTitle,
+    layoutName: contract?.layoutName ?? '',
+    time: world.time,
+    kills: world.kills,
+    payout: reward.payout,
+    rank: reward.rank,
+    success: true,
+    daily: contract?.daily === true,
+    challenge: contract?.challenge ?? 'standard',
+  });
 
   return { reward, levelsGained: levelInfo.levels };
 }

@@ -10,8 +10,9 @@ export const TILE = 64;
  * g gunner  r marksman  h heavy (typed enemy spawns)
  * X exit   w pistol   s shotgun   b bat   k smg   f rifle   a ak   m lmg
  * B boss spawn
+ * G breakable glass wall   S steam vent
  * o explosive barrel   c security camera   t automated turret   l laser grid
- * C contracts  W workbench  A clinic  M market  U supplies  Y archive  T fabricator  O operator
+ * C contracts  W workbench  A clinic  M market  U supplies  Y archive  T fabricator  O operator  R sanctuary
  * 1 datashard  2 credchip  3 optic (sellable loot)
  */
 
@@ -28,6 +29,8 @@ export type LayoutId =
   | 'arcology'
   | 'freighter'
   | 'nightclub'
+  | 'rooftops'
+  | 'neon_alley'
   | 'safehouse';
 
 export interface LayoutDef {
@@ -304,13 +307,66 @@ export const LAYOUTS: LayoutDef[] = [
     ],
   },
   {
+    id: 'rooftops',
+    name: 'THE ROOFTOPS',
+    tagline: 'Rain, skylights, and a clean line across the skyline.',
+    rows: [
+      '################################',
+      '#.P....#........#..............#',
+      '#......#...E....#....1.....E...#',
+      '#..w...#........D..............#',
+      '#......#...o....#....#####.....#',
+      '###D####........#....#...#.....#',
+      '#......#........#....#.S.#.....#',
+      '#..E...#...G....#....#...#.....#',
+      '#......#........#....#####.....#',
+      '#..c...#........D..............#',
+      '#......#........#....E....2....#',
+      '####D###........#....#####.....#',
+      '#......#........#....#...#.....#',
+      '#...1..#...E....#....#.G.#.....#',
+      '#......#........#....#...#.....#',
+      '#..a...#........#....#####.....#',
+      '#......D........D..............#',
+      '#..E...#...S....#.....E........#',
+      '#......#........#...........X..#',
+      '################################',
+    ],
+  },
+  {
+    id: 'neon_alley',
+    name: 'NEON ALLEY',
+    tagline: 'Steam, wet concrete, and a market that never asks your name.',
+    rows: [
+      '##############################',
+      '#............................#',
+      '#.P....#####.....#####.......#',
+      '#......#...#.....#...#...1...#',
+      '#..E...#.S.#.....#.G.#.......#',
+      '#......#...#.....#...#.......#',
+      '#......#####.....#####.......#',
+      '#............................#',
+      '#..o....c....S......E........#',
+      '#............................#',
+      '#....#####.....#####.........#',
+      '#....#...#.....#...#.....2...#',
+      '#....#.G.#.....#.S.#.........#',
+      '#....#...#.....#...#....E....#',
+      '#....#####.....#####.........#',
+      '#............................#',
+      '#..E.........o...........X...#',
+      '#............................#',
+      '##############################',
+    ],
+  },
+  {
     id: 'safehouse',
     name: 'SAFEHOUSE',
     tagline: 'Your room. Your gear. Your contracts.',
     rows: [
       '##################',
       '#................#',
-      '#.C....W....A....#',
+      '#.C..R.W....A....#',
       '#................#',
       '#.M.Y.OP..T.U....#',
       '#................#',
@@ -343,6 +399,7 @@ export type StationKind =
   | 'archive'
   | 'fabricator'
   | 'operator'
+  | 'sanctuary'
   | 'deploy';
 
 export interface Station {
@@ -386,6 +443,10 @@ export interface Level {
   h: number;
   /** Tile grid: 1 = wall, 0 = floor. Doors are floor tiles plus a DoorSpawn. */
   walls: Uint8Array;
+  /** 1 = breakable glass wall tile. Intact glass blocks movement but not sight. */
+  glass: Uint8Array;
+  /** Steam vents that pulse sight-blocking clouds. */
+  steam: { x: number; y: number }[];
   doors: DoorSpawn[];
   spawn: { x: number; y: number };
   enemies: { x: number; y: number; kind?: EnemyKind }[];
@@ -434,6 +495,8 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
   const h = rows.length;
   const w = rows[0].length;
   const walls = new Uint8Array(w * h);
+  const glass = new Uint8Array(w * h);
+  const steam: { x: number; y: number }[] = [];
   const doors: DoorSpawn[] = [];
   const enemies: { x: number; y: number; kind?: EnemyKind }[] = [];
   const weapons: WeaponSpawn[] = [];
@@ -454,6 +517,11 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
       const ch = row[cx];
       const pos = tileCenter(cx, cy, h);
       if (ch === '#') walls[cy * w + cx] = 1;
+      if (ch === 'G') {
+        walls[cy * w + cx] = 1;
+        glass[cy * w + cx] = 1;
+      }
+      if (ch === 'S') steam.push(pos);
       if (ch === 'D') doors.push({ cx, cy, axis: 'h' });
       if (ch === 'P') spawn = pos;
       if (ch === 'E') enemies.push(pos);
@@ -483,9 +551,11 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
                       ? 'fabricator'
                       : ch === 'O'
                         ? 'operator'
-                        : ch === 'X'
-                          ? 'deploy'
-                          : null;
+                        : ch === 'R'
+                          ? 'sanctuary'
+                          : ch === 'X'
+                            ? 'deploy'
+                            : null;
       if (stationKind) {
         stations.push({ ...pos, kind: stationKind });
         walls[cy * w + cx] = 1;
@@ -509,6 +579,8 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
     w,
     h,
     walls,
+    glass,
+    steam,
     doors,
     spawn,
     enemies,

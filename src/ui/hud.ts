@@ -26,6 +26,9 @@ export class Hud {
   private readonly damageDirEl = document.getElementById('hud-damage-dir')!;
   private readonly heatFillEl = document.getElementById('hud-heat-fill')!;
   private readonly abilitiesEl = document.getElementById('hud-abilities')!;
+  private readonly comboEl = document.getElementById('hud-combo')!;
+  private readonly comboXEl = document.getElementById('hud-combo-x')!;
+  private readonly comboFillEl = document.getElementById('hud-combo-fill')!;
   private readonly bossEl = document.getElementById('hud-boss')!;
   private readonly bossNameEl = document.getElementById('hud-boss-name')!;
   private readonly bossFillEl = document.getElementById('hud-boss-fill')!;
@@ -64,6 +67,7 @@ export class Hud {
   private lastArmor = '';
   private lastHeat = -1;
   private lastAbilities = '';
+  private lastCombo = '';
   private lastBoss = '';
   private lastConsumable = '';
   private lastStatus = '';
@@ -207,6 +211,20 @@ export class Hud {
         </div>`;
       })
       .join('');
+  }
+
+  setCombo(combo: number, comboT: number, max: number): void {
+    const visible = combo >= 2;
+    const pct = visible ? Math.max(0, Math.min(100, (comboT / Math.max(0.01, max)) * 100)) : 0;
+    const key = visible ? `${combo}:${Math.round(pct)}` : '';
+    if (key === this.lastCombo) return;
+    this.lastCombo = key;
+    this.comboEl.classList.toggle('off', !visible);
+    this.comboEl.classList.toggle('hot', combo >= 5);
+    if (visible) {
+      this.comboXEl.textContent = `x${combo}`;
+      this.comboFillEl.style.width = `${pct}%`;
+    }
   }
 
   setPsychosis(stage: number, label: string): void {

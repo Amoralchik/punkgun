@@ -13,6 +13,7 @@ export interface SettingsData {
   weather: boolean;
   reducedMotion: boolean;
   tutorialSeen: boolean;
+  tourSeen: boolean;
   palette: Palette;
   subtitles: boolean;
   dialogueLog: boolean;
@@ -29,6 +30,7 @@ const DEFAULTS: SettingsData = {
   weather: true,
   reducedMotion: false,
   tutorialSeen: false,
+  tourSeen: false,
   palette: 'default',
   subtitles: true,
   dialogueLog: true,
@@ -93,6 +95,7 @@ export class Settings {
         reducedMotion:
           typeof p.reducedMotion === 'boolean' ? p.reducedMotion : DEFAULTS.reducedMotion,
         tutorialSeen: typeof p.tutorialSeen === 'boolean' ? p.tutorialSeen : DEFAULTS.tutorialSeen,
+        tourSeen: typeof p.tourSeen === 'boolean' ? p.tourSeen : DEFAULTS.tourSeen,
         palette: PALETTES.includes(p.palette as Palette)
           ? (p.palette as Palette)
           : DEFAULTS.palette,

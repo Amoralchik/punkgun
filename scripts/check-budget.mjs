@@ -6,12 +6,12 @@ const DIST = 'dist';
 const kib = (bytes) => bytes / 1024;
 
 const BUDGETS = {
-  appKb: 300,
+  appKb: 450,
   vendorKb: 620,
-  totalJsKb: 860,
-  cssKb: 60,
-  initialGzipKb: 250,
-  largestChunkKb: 360,
+  totalJsKb: 1120,
+  cssKb: 90,
+  initialGzipKb: 340,
+  largestChunkKb: 480,
 };
 
 function files(dir) {

@@ -1,22 +1,12 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/math';
+import { districtFor } from '../game/districts';
+import type { LayoutId } from '../game/map';
 
 export type WeatherKind = 'rain' | 'ash' | 'embers' | 'none';
 
 export function weatherForLevel(id: string): WeatherKind {
-  if (
-    id === 'nightmarket' ||
-    id === 'docks' ||
-    id === 'sector07' ||
-    id === 'transit' ||
-    id === 'freighter' ||
-    id === 'nightclub'
-  ) {
-    return 'rain';
-  }
-  if (id === 'tenements' || id === 'spire' || id === 'arcology') return 'ash';
-  if (id === 'sublevel') return 'embers';
-  return 'none';
+  return districtFor(id as LayoutId).weather;
 }
 
 const MAX_DROPS = 460;

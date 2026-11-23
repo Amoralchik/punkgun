@@ -4,6 +4,7 @@ import { BOSSES, BossId } from './bosses';
 import { factionForLayout, FactionId } from './lore';
 import { LAYOUTS, layoutCacheCount, LayoutId } from './map';
 import { ModifierId, rollModifiers } from './modifiers';
+import type { ChallengeId } from './challenges';
 
 export type ObjectiveKind =
   | 'purge'
@@ -32,6 +33,12 @@ export interface Contract {
   bossId?: BossId;
   /** Authored campaign beat rather than a generated board entry. */
   authored?: boolean;
+  /** Seeded once-per-day contract. */
+  daily?: boolean;
+  /** Selected challenge mode. */
+  challenge?: ChallengeId;
+  /** Four-boss arena mode. */
+  bossRush?: boolean;
   /** Boss/chapter access gate. */
   locked?: boolean;
   requiredClears?: number;
@@ -255,6 +262,21 @@ export function createBossContract(
     bossId,
     modifiers: [],
     seed,
+  };
+}
+
+/** Four bosses, one arena, no extraction between them. */
+export function createBossRushContract(seed = randomSeed(), playerLevel = 1): Contract {
+  const base = createBossContract(playerLevel, seed, 'psycho');
+  return {
+    ...base,
+    id: `boss-rush-${seed.toString(36)}`,
+    title: 'BOSS RUSH',
+    layoutName: 'THE SUBLEVEL',
+    reward: 1400 + Math.max(0, playerLevel - 1) * 20,
+    tagline: 'Four doors. Four monsters. No extraction until the last one stops moving.',
+    bossRush: true,
+    modifiers: ['elite'],
   };
 }
 

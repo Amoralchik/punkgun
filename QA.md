@@ -16,8 +16,8 @@ Smoke output is `tmp-smoke/smoke.png`; it is disposable and gitignored.
 |---|---|---|
 | Chrome (evergreen, Windows) | primary | Smoke-tested headless (Chrome 157) + manual |
 | Edge (evergreen, Windows) | primary Chromium | Smoke-tested headless (`npm run smoke:edge`) |
-| Firefox (evergreen) | supported | Playwright harness ready (`npm run smoke:firefox`); browser binary download did not complete here |
-| WebKit / Safari engine | QA target | Playwright harness ready (`npm run smoke:webkit`); binary not installed here; native Safari not certified |
+| Firefox (evergreen) | supported | Smoke-tested headless via Playwright (`npm run smoke:firefox`) |
+| WebKit / Safari engine | QA target | Smoke-tested headless via Playwright (`npm run smoke:webkit`); native Safari not certified |
 | Safari (macOS/iOS) | QA target, not a claim | WebKit engine proxy only; native Safari app not certified |
 | WebGL unavailable | fail closed | `SIGNAL LOST` boot screen |
 | WebGL context lost | recover | fatal boundary + reload CTA |
@@ -32,7 +32,9 @@ changes.
 
 - no fatal overlay, canvas present, hub visible;
 - browser selector: Chrome default, Edge with `--browser=edge`;
-- Playwright browsers require `npx playwright install firefox webkit`;
+- Playwright browsers installed with `npx playwright install firefox webkit`;
+- daily contract on the board, challenge selector, faction broker, run-history rendering, sanctuary diorama, exchange ticker/buy button, first-minute tour and lifepath new-game reset render;
+- Chrome/Edge smoke covers the full hub path; Firefox/WebKit smoke covers boot/deploy;
 - board has at least three contracts and save export is v2;
 - every combat layout has a reachable exit and every cache/weapon spawn is reachable (unit test);
 - deploy a non-boss contract, authored dialogue choice, simulation advance, HUD objective render;

@@ -17,7 +17,7 @@ import { WEAPON_ECONOMY } from './economy';
 describe('expanded build content', () => {
   it('ships the promised cyberware/perk/weapon counts with valid ranks', () => {
     expect(CYBERWARE_DEFS).toHaveLength(22);
-    expect(PERK_DEFS).toHaveLength(15);
+    expect(PERK_DEFS).toHaveLength(17);
     expect(GUN_IDS).toHaveLength(12);
     expect(NAMED_WEAPONS).toHaveLength(8);
     for (const def of CYBERWARE_DEFS) {
@@ -134,6 +134,18 @@ describe('modifier defaults', () => {
       abilityCd: 1,
       pierce: 0,
       humanityStage: 0,
+      dashCd: 1,
+      comboWindow: 0,
     });
+  });
+
+  it('turns the new mobility perks into run modifiers', () => {
+    const mods = computeMods(
+      EMPTY_CYBERWARE,
+      { ...EMPTY_PERKS, slipstream: 2, chainKiller: 2 },
+    );
+    expect(mods.dashCd).toBeCloseTo(0.8);
+    expect(mods.dashInvuln).toBeCloseTo(0.04);
+    expect(mods.comboWindow).toBe(1);
   });
 });

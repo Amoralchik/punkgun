@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 88 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 123 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -51,11 +51,11 @@ working checklist.
 
 1. **Release guardrails** — done: save backup/quarantine, budget gate, smoke test,
    QA matrix, PWA cache version.
-2. **Operator depth** — done: 22 cyberware, 15 perks, humanity/cyberpsychosis,
+2. **Operator depth** — done: 22 cyberware, 17 perks, humanity/cyberpsychosis,
    ripperdoc rejection risk, 12 weapon families / 8 named, loadout presets,
    stock rotation, price drift, faction discounts across stations.
 3. **Contract depth** — done: 8 objectives, 12 modifiers, 12 authored contracts,
-   three chapter gates, four bosses, three endings, ending archive entries.
+   three chapter gates, four bosses, four endings, ending archive entries.
 4. **Presentation** — done for this tranche: 4-frame walk, holo ads, contract
    palettes, fog/blackout, faction music layers, positional SFX, subtitles/log.
    Remaining: bespoke boss choreography and full localization extraction.
@@ -71,6 +71,28 @@ working checklist.
 3. Extract remaining station/manual/dialogue strings and add a second locale fixture.
 4. Install Firefox/WebKit binaries and run the Playwright certification harnesses.
 5. Add role-specific dialogue checks, venture room visuals/event chains, long-session memory sampling.
+
+## 0.2 CITY PRESSURE status
+
+- Core fixes: NaN run counters normalized, overflow extraction preserved, lockdown
+  doors close/seat behind the player, sirens shift reinforcement waves.
+- Combat: Space dash, kill combo + HUD, stunned-target execution, Z targeted
+  quickhack, two mobility perks, hound/medic archetypes, squad flanking, cover and
+  suppression.
+- Space: 12 combat layouts including rooftops and neon alley; breakable glass,
+  steam vents, district palettes/decals, district weather.
+- Safehouse/economy: sanctuary room upgrades with diorama, five-ticker exchange
+  and dividends, twelve venture events, weapon insurance, faction broker stock,
+  case overflow/capacity/filters, seeded daily contract, four challenge stamps,
+  NG+ with retained build, local run history/leaderboard, and a first-minute
+  safehouse tour.
+- Story: three lifepaths, role/lifepath dialogue checks, Sublevel REMEMBER choice,
+  fourth secret ending, epilogue overlay, ending archive across campaigns,
+  faction sell/clinic consequences.
+- Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
+  manual/README controls.
+- Verification: 123 unit tests, 16-archetype gym, three-build balance matrix,
+  Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 
 ## Non-goals (unchanged)
 

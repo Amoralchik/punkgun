@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { TextureBank } from './textures';
 import { WeatherField, weatherForLevel } from './weather';
-import { Level, TILE } from '../game/map';
+import { Level, TILE, tileCenter } from '../game/map';
 import { World } from '../game/world';
 import type { Enemy, EnemyKind, ObjectiveNode, Player } from '../game/world-types';
 import { WEAPONS, WeaponId } from '../game/weapons';
@@ -105,6 +105,11 @@ export class Renderer {
   private readonly smokeViews = new Map<number, THREE.Mesh>();
   private readonly grenadeViews = new Map<number, THREE.Mesh>();
   private readonly explosionViews = new Map<number, THREE.Mesh>();
+  private readonly glassViews = new Map<
+    number,
+    { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }
+  >();
+  private readonly steamViews = new Map<number, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }>();
 
   private readonly decalPools: THREE.Mesh[][] = [[], [], []];
   private readonly sparkPool: THREE.Mesh[] = [];
@@ -112,6 +117,9 @@ export class Renderer {
   private readonly bulletPool: THREE.Mesh[] = [];
   private slashMesh!: THREE.Mesh;
   private slashMat!: THREE.MeshBasicMaterial;
+  private readonly dashTrail: THREE.Mesh;
+  private readonly quickhackRing: THREE.Mesh;
+  private readonly quickhackMat: THREE.MeshBasicMaterial;
 
   private readonly laserMat = new THREE.MeshBasicMaterial({
     color: 0xff3b4e,
@@ -168,6 +176,34 @@ export class Renderer {
     this.slashMesh.visible = false;
     this.slashMesh.position.z = 1.8;
     this.fx.add(this.slashMesh);
+
+    this.dashTrail = new THREE.Mesh(
+      QUAD,
+      new THREE.MeshBasicMaterial({
+        map: this.textures.dot,
+        color: 0x5ef1ff,
+        transparent: true,
+        opacity: 0.25,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    this.dashTrail.visible = false;
+    this.dashTrail.position.z = 1.25;
+    this.fx.add(this.dashTrail);
+
+    this.quickhackMat = new THREE.MeshBasicMaterial({
+      map: this.textures.dot,
+      color: 0x5ef1ff,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.quickhackRing = new THREE.Mesh(QUAD, this.quickhackMat);
+    this.quickhackRing.visible = false;
+    this.quickhackRing.position.z = 1.4;
+    this.fx.add(this.quickhackRing);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -295,9 +331,13 @@ export class Renderer {
     for (const mesh of this.explosionViews.values()) {
       (mesh.material as THREE.Material).dispose();
     }
+    for (const view of this.glassViews.values()) view.mat.dispose();
+    for (const view of this.steamViews.values()) view.mat.dispose();
     this.smokeViews.clear();
     this.grenadeViews.clear();
     this.explosionViews.clear();
+    this.glassViews.clear();
+    this.steamViews.clear();
     this.exitMesh = null;
     this.exitMat = null;
 
@@ -327,6 +367,41 @@ export class Renderer {
       group.add(leaf);
       this.dynamic.add(group);
       this.doorViews.set(d.cy * level.w + d.cx, { group, door: d });
+    }
+
+    for (let index = 0; index < level.glass.length; index++) {
+      if (level.glass[index] !== 1) continue;
+      const cx = index % level.w;
+      const cy = Math.floor(index / level.w);
+      const center = tileCenter(cx, cy, level.h);
+      const mat = new THREE.MeshBasicMaterial({
+        map: this.textures.glass,
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const mesh = new THREE.Mesh(QUAD, mat);
+      mesh.position.set(center.x, center.y, 0.8);
+      mesh.scale.set(60, 60, 1);
+      this.dynamic.add(mesh);
+      this.glassViews.set(index, { mesh, mat });
+    }
+
+    for (const steam of world.steams) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: this.textures.steam,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const mesh = new THREE.Mesh(QUAD, mat);
+      mesh.position.set(steam.x, steam.y, 0.75);
+      mesh.scale.set(steam.r * 2, steam.r * 2, 1);
+      mesh.visible = steam.active;
+      this.dynamic.add(mesh);
+      this.steamViews.set(steam.id, { mesh, mat });
     }
 
     this.unitViews.set(world.player.id, this.createUnitView('player', 0));
@@ -395,9 +470,13 @@ export class Renderer {
                         ? 0x9f7aff
                         : enemyKind === 'operator'
                           ? 0xffd166
-                          : enemyKind === 'boss'
-                            ? 0xffc46b
-                            : null;
+                          : enemyKind === 'hound'
+                            ? 0xff7a4c
+                            : enemyKind === 'medic'
+                              ? 0x7dffcf
+                              : enemyKind === 'boss'
+                                ? 0xffc46b
+                                : null;
     if (tint !== null) bodyMat.color.setHex(tint);
     const body = new THREE.Mesh(QUAD, bodyMat);
     body.scale.set(86, 86, 1);
@@ -470,6 +549,7 @@ export class Renderer {
     root.add(shieldMesh, laserMesh, bossRing, weakRing, reloadRing);
     if (enemyKind === 'boss') root.scale.setScalar(1.4);
     else if (enemyKind === 'heavy') root.scale.setScalar(1.12);
+    else if (enemyKind === 'hound') root.scale.setScalar(0.78);
 
     let vision: THREE.Mesh | null = null;
     let visionMat: THREE.MeshBasicMaterial | null = null;
@@ -652,6 +732,8 @@ export class Renderer {
     world.enemies.forEach((e, i) => this.syncUnit(e, i % 2, false, dt));
     this.syncCones(world);
     this.syncDoors(world);
+    this.syncGlass(world);
+    this.syncSteam(world);
     this.syncBarrels(world);
     this.syncCameras(world);
     this.syncTurrets(world);
@@ -663,6 +745,7 @@ export class Renderer {
     this.syncEffects(world);
     this.syncMelee(world);
     this.syncExit(world);
+    this.syncCombatFx(world);
     this.updateCamera(world, dt, false);
     this.weather.update(this.camX, this.camY, this.viewH * this.aspect, this.viewH, dt);
     const holoT = performance.now() * 0.0014;
@@ -921,6 +1004,25 @@ export class Renderer {
     for (const view of this.doorViews.values()) {
       const door = view.door;
       view.group.rotation.z = door.axis === 'h' ? door.angle : Math.PI / 2 + door.angle;
+    }
+  }
+
+  private syncGlass(world: World): void {
+    const shimmer = 0.42 + Math.sin(performance.now() * 0.002) * 0.08;
+    for (const [index, view] of this.glassViews) {
+      view.mesh.visible = !world.glassBroken.has(index);
+      view.mat.opacity = shimmer;
+    }
+  }
+
+  private syncSteam(world: World): void {
+    for (const steam of world.steams) {
+      const view = this.steamViews.get(steam.id);
+      if (!view) continue;
+      view.mesh.visible = steam.active;
+      view.mat.opacity = 0.1 + Math.sin(performance.now() * 0.003 + steam.id) * 0.05;
+      const pulse = 1 + Math.sin(performance.now() * 0.002 + steam.id) * 0.05;
+      view.mesh.scale.set(steam.r * 2 * pulse, steam.r * 2 * pulse, 1);
     }
   }
 
@@ -1274,6 +1376,24 @@ export class Renderer {
       mesh.scale.set(30, 8, 1);
     }
     for (let i = bulletIdx; i < this.bulletPool.length; i++) this.bulletPool[i].visible = false;
+  }
+
+  private syncCombatFx(world: World): void {
+    const p = world.player;
+    this.dashTrail.visible = p.alive && p.dashT > 0;
+    if (this.dashTrail.visible) {
+      this.dashTrail.position.set(p.x, p.y, 1.25);
+      this.dashTrail.scale.set(90, 90, 1);
+    }
+    const fx = world.quickhackFxT;
+    this.quickhackRing.visible = fx > 0;
+    if (fx > 0) {
+      const k = 1 - fx / 0.3;
+      this.quickhackRing.position.set(world.quickhackX, world.quickhackY, 1.4);
+      const size = 20 + k * 70;
+      this.quickhackRing.scale.set(size, size, 1);
+      this.quickhackMat.opacity = 0.55 * (1 - k);
+    }
   }
 
   private syncExit(world: World): void {

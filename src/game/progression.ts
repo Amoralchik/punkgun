@@ -40,7 +40,9 @@ export type PerkId =
   | 'adrenalineJunkie'
   | 'demolitionist'
   | 'vulture'
-  | 'bladeDancer';
+  | 'bladeDancer'
+  | 'slipstream'
+  | 'chainKiller';
 
 export interface CyberwareDef {
   id: CyberwareId;
@@ -329,6 +331,18 @@ export const PERK_DEFS: PerkDef[] = [
     desc: 'MELEE KILLS IMMEDIATELY RESET THE SWING. CHAIN THE ROOM.',
     maxRank: 1,
   },
+  {
+    id: 'slipstream',
+    name: 'SLIPSTREAM',
+    desc: 'DASH COOLDOWN -10% AND +0.02S I-FRAMES PER RANK.',
+    maxRank: 2,
+  },
+  {
+    id: 'chainKiller',
+    name: 'CHAIN KILLER',
+    desc: 'COMBO WINDOW +0.5S PER RANK. CHAIN THE ROOM.',
+    maxRank: 2,
+  },
 ];
 
 export type CyberwareRanks = Record<CyberwareId, number>;
@@ -378,6 +392,9 @@ export interface RunMods {
   overclock: number;
   deck: number;
   regenBoost: number;
+  dashCd: number;
+  dashInvuln: number;
+  comboWindow: number;
   humanityStage: number;
 }
 
@@ -415,6 +432,9 @@ export function baseMods(): RunMods {
     overclock: 0,
     deck: 0,
     regenBoost: 0,
+    dashCd: 1,
+    dashInvuln: 0,
+    comboWindow: 0,
     humanityStage: 0,
   };
 }
@@ -502,6 +522,9 @@ export function computeMods(
     overclock: clamp(cyberware.overclock, 0, 2),
     deck: clamp(cyberware.cyberdeck, 0, 2),
     regenBoost: clamp(cyberware.bioplastic, 0, 2),
+    dashCd: clamp(1 - perks.slipstream * 0.1, 0.6, 1),
+    dashInvuln: clamp(perks.slipstream * 0.02, 0, 0.04),
+    comboWindow: clamp(perks.chainKiller * 0.5, 0, 1),
     humanityStage: strain,
   };
 }

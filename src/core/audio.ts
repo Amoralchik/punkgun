@@ -41,7 +41,13 @@ export class AudioEngine {
       if (this.ctx.state === 'suspended') void this.ctx.resume();
       return;
     }
-    const ctx = new AudioContext();
+    // Safari exposes the constructor under a prefixed name.
+    const webkitWindow = window as unknown as {
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const Ctor = window.AudioContext ?? webkitWindow.webkitAudioContext;
+    if (!Ctor) return;
+    const ctx = new Ctor();
     this.ctx = ctx;
     const master = ctx.createGain();
     master.gain.value = this.muted ? 0 : this.volume * 0.7;
@@ -367,6 +373,48 @@ export class AudioEngine {
     this.tone('sawtooth', 420, 820, 0.55, 0.075, t);
     this.tone('sawtooth', 820, 420, 0.55, 0.075, t + 0.55);
     this.noise(1.0, 0.08, 'bandpass', 900, 1.4, t);
+  }
+
+  dash(): void {
+    this.noise(0.16, 0.16, 'bandpass', 700, 1.1, 0, undefined, 2600);
+    this.tone('triangle', 320, 920, 0.12, 0.06);
+  }
+
+  execution(): void {
+    this.noise(0.12, 0.24, 'lowpass', 900, 0.9);
+    this.tone('square', 180, 42, 0.18, 0.2);
+    this.tone('triangle', 760, 140, 0.12, 0.08);
+  }
+
+  quickhack(): void {
+    this.tone('square', 1200, 180, 0.18, 0.1);
+    this.tone('sawtooth', 220, 1600, 0.16, 0.08);
+    this.noise(0.12, 0.12, 'highpass', 4200, 0.8);
+  }
+
+  quickhackFail(): void {
+    this.tone('square', 220, 120, 0.12, 0.06);
+  }
+
+  glassBreak(): void {
+    this.noise(0.22, 0.3, 'highpass', 2600, 0.6);
+    this.noise(0.12, 0.18, 'bandpass', 5200, 1.4);
+  }
+
+  medicHeal(): void {
+    this.tone('triangle', 420, 840, 0.2, 0.08);
+    this.tone('sine', 660, 990, 0.16, 0.05);
+  }
+
+  houndLeap(): void {
+    this.tone('sawtooth', 90, 240, 0.16, 0.12);
+    this.noise(0.12, 0.12, 'bandpass', 600, 1.6);
+  }
+
+  combo(count: number): void {
+    if (count < 2) return;
+    const f = 330 * Math.pow(2, Math.min(count, 8) / 12);
+    this.tone('triangle', f, f * 1.5, 0.09, 0.07);
   }
 
   kill(): void {

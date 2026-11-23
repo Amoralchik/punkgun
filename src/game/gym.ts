@@ -17,6 +17,8 @@ export const GYM_KINDS: EnemyKind[] = [
   'stalker',
   'breacher',
   'drone',
+  'hound',
+  'medic',
 ];
 
 /** A flat, sealed arena used by the deterministic combat gym and balance matrix. */
@@ -39,6 +41,8 @@ export function gymLevel(kind: EnemyKind): Level {
     w,
     h,
     walls,
+    glass: new Uint8Array(w * h),
+    steam: [],
     doors: [],
     spawn,
     enemies: [{ x: spawn.x + 190, y: spawn.y, kind }],

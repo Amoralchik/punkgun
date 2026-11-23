@@ -21,6 +21,7 @@ export class CaseView {
   private readonly rotateEl = document.getElementById('case-rotate') as HTMLButtonElement;
 
   private selectedId: string | null = null;
+  private filter: 'all' | 'guns' | 'melee' = 'all';
   private message = '';
   private error = false;
   private drag: {
@@ -83,6 +84,8 @@ export class CaseView {
     this.grid.innerHTML = items
       .map((item) => {
         if (item.cellX < 0 || item.cellY < 0) return '';
+        if (this.filter === 'guns' && item.weapon === 'bat') return '';
+        if (this.filter === 'melee' && item.weapon !== 'bat') return '';
         const size = caseSize(item.weapon, item.turned);
         const name = item.variant ? NAMED_MAP[item.variant].name : WEAPONS[item.weapon].name;
         const ammo = item.weapon === 'bat' ? 'MELEE' : `${item.ammo} RDS`;
@@ -107,12 +110,33 @@ export class CaseView {
       const mod = selected.attachment ? ATTACHMENT_MAP[selected.attachment].name : 'NO ATTACHMENT';
       const variant = selected.variant ? 'NAMED VARIANT' : 'STANDARD FRAME';
       const carry = selected.id === equippedId;
+      const overflow = items.filter((item) => item.cellX < 0 || item.cellY < 0);
+      const capacity = items
+        .filter((item) => item.cellX >= 0 && item.cellY >= 0)
+        .reduce((sum, item) => {
+          const size = caseSize(item.weapon, item.turned);
+          return sum + size.w * size.h;
+        }, 0);
       this.detailEl.innerHTML = `<div class="kicker">// SELECTED</div>
         <div class="case-detail-name">${name}</div>
         <div class="case-detail-meta">${ammo} · ${mod}</div>
         <div class="case-detail-meta">${variant} · SELL $${this.profile.sellValue(selected)}</div>
-        <div class="case-detail-note">${carry ? 'CURRENTLY CARRIED. THIS IS YOUR DEPLOYMENT LOADOUT.' : 'IN STORAGE. EQUIP TO CARRY IT INTO THE NEXT SECTOR.'}</div>`;
+        <div class="case-detail-meta">CAPACITY ${capacity}/60</div>
+        <div class="case-detail-note">${carry ? 'CURRENTLY CARRIED. THIS IS YOUR DEPLOYMENT LOADOUT.' : 'IN STORAGE. EQUIP TO CARRY IT INTO THE NEXT SECTOR.'}</div>
+        ${
+          overflow.length
+            ? `<div class="case-overflow"><div class="kicker">// OVERFLOW ${overflow.length}</div>${overflow
+                .map(
+                  (item) =>
+                    `<button data-act="case-overflow" data-id="${item.id}">${WEAPONS[item.weapon].name} · AUTO-ARRANGE</button>`,
+                )
+                .join('')}</div>`
+            : ''
+        }`;
     }
+    this.root.querySelectorAll<HTMLElement>('[data-act="case-filter"]').forEach((button) => {
+      button.classList.toggle('selected', button.dataset.filter === this.filter);
+    });
     this.equipEl.disabled = !selected || selected.id === equippedId;
     this.rotateEl.disabled = !selected;
     this.msgEl.textContent = this.message;
@@ -147,6 +171,24 @@ export class CaseView {
         this.error = false;
         this.render();
         return;
+      case 'case-filter': {
+        this.hooks.onClick();
+        const filter = target.dataset.filter;
+        if (filter === 'all' || filter === 'guns' || filter === 'melee') {
+          this.filter = filter;
+        }
+        this.render();
+        return;
+      }
+      case 'case-overflow': {
+        const id = target.dataset.id;
+        if (!id) return;
+        this.selectedId = id;
+        this.message = 'OVERFLOW — AUTO-ARRANGE TO PLACE';
+        this.error = false;
+        this.render();
+        return;
+      }
       case 'case-rotate':
         this.hooks.onClick();
         this.rotate();
@@ -170,6 +212,7 @@ export class CaseView {
     this.selectedId = id;
     this.message = '';
     this.render();
+    if (item.cellX < 0 || item.cellY < 0) return;
     const rect = this.grid.getBoundingClientRect();
     this.drag = {
       id,

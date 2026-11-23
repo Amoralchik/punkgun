@@ -32,6 +32,10 @@
             <div class="hud-heat-bar"><span id="hud-heat-fill"></span></div>
           </div>
           <div id="hud-abilities" class="hud-abilities off"></div>
+          <div id="hud-combo" class="hud-combo off">
+            <b id="hud-combo-x">x2</b>
+            <div class="hud-combo-bar"><span id="hud-combo-fill"></span></div>
+          </div>
         </div>
         <div class="hud-corner hud-tr">
           <span id="hud-weapon" class="hud-weapon">FISTS</span>
@@ -67,7 +71,7 @@
         <div id="hud-prompt" class="hud-prompt"></div>
         <div id="hud-subtitle" class="hud-subtitle"></div>
         <div id="hud-log" class="hud-log off"></div>
-        <div class="hud-keys">WASD MOVE &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; SHIFT SANDEVISTAN &middot; C CAMO &middot; E USE &middot; M MUTE</div>
+        <div class="hud-keys">WASD MOVE &middot; SPACE DASH &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE/EXECUTE &middot; Z QUICKHACK &middot; M MUTE</div>
       </div>
 
       <div id="hub" class="hub hidden">
@@ -136,7 +140,7 @@
             </section>
           </div>
 
-          <div class="sh-controls">WASD MOVE &middot; MOUSE AIM &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE</div>
+          <div class="sh-controls">WASD MOVE &middot; MOUSE AIM &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE/EXECUTE &middot; SPACE DASH &middot; Z QUICKHACK</div>
           <footer class="sh-footer">
             <div id="sh-msg" class="sh-msg"></div>
             <div id="sh-summary" class="sh-summary"></div>
@@ -144,6 +148,7 @@
               <button id="sh-case" class="sh-augments" type="button" data-act="open-case">CASE</button>
               <button id="sh-workbench" class="sh-augments" type="button" data-act="open-workbench">WORKBENCH</button>
               <button id="sh-ventures" class="sh-augments" type="button" data-act="open-ventures">VENTURES</button>
+              <button id="sh-sanctuary" class="sh-augments" type="button" data-act="open-sanctuary">SANCTUARY</button>
               <button id="sh-augments" class="sh-augments" type="button" data-act="open-augments">AUGMENTS</button>
               <button id="sh-manual" class="sh-augments" type="button" data-act="manual">MANUAL</button>
               <button id="sh-new-game" class="sh-new-game" type="button" data-act="new-game">NEW GAME</button>
@@ -151,6 +156,16 @@
               <button id="sh-deploy" class="sh-deploy" type="button" data-act="open-deploy">DEPLOY TO SECTOR 07</button>
             </div>
           </footer>
+        </div>
+        <div id="overlay-lifepath" class="overlay lifepath hidden">
+          <div class="lifepath-panel">
+            <div class="kicker">// NEW OPERATOR</div>
+            <h2>CHOOSE A LIFEPATH</h2>
+            <p class="sh-note">Your origin changes your starting credits, standing and first weapon. It cannot be changed later.</p>
+            <div id="lifepath-grid" class="lifepath-grid"></div>
+            <label class="lifepath-plus"><input id="lifepath-plus" type="checkbox" /> NEW GAME PLUS — keep your build, gear and standing; raise the threat</label>
+            <button class="sh-augments" type="button" data-act="lifepath-cancel">CANCEL</button>
+          </div>
         </div>
       </div>
 
@@ -197,6 +212,9 @@
               <div id="case-detail" class="case-detail"></div>
               <div class="case-actions">
                 <button id="case-auto" type="button" data-act="case-auto">AUTO-ARRANGE</button>
+                <button data-act="case-filter" data-filter="all">ALL</button>
+                <button data-act="case-filter" data-filter="guns">GUNS</button>
+                <button data-act="case-filter" data-filter="melee">MELEE</button>
                 <button id="case-rotate" type="button" data-act="case-rotate">ROTATE [R]</button>
                 <button id="case-equip" type="button" data-act="case-equip">EQUIP</button>
               </div>
@@ -363,17 +381,18 @@
           <div class="manual-grid">
             <section>
               <h3>MOVEMENT &amp; COMBAT</h3>
-              <p><b>WASD</b> move · <b>MOUSE</b> aim · <b>LMB</b> strike/shoot · <b>R</b> reload · <b>RMB</b> throw weapon</p>
-              <p>Everyone dies in one hit. Armor plates from cyberware absorb one hit each and give a short grace window.</p>
+              <p><b>WASD</b> move · <b>MOUSE</b> aim · <b>LMB</b> strike/shoot · <b>R</b> reload · <b>RMB</b> throw weapon · <b>SPACE</b> dash · <b>E</b> execute stunned enemies</p>
+              <p>Everyone dies in one hit. Armor plates from cyberware absorb one hit each and give a short grace window. Dash through a room, chain kills inside the combo window, and finish stunned targets with <b>E</b>. A <b>Z</b> quickhack needs an Intrusion Deck and a visible target.</p>
               <p><b>SHIELD</b> units block the front — flank, backstab, or throw. <b>SNIPERS</b> paint a red laser before firing. <b>RUSHERS</b> close fast with melee. <b>GRENADIERS</b> lob red fused grenades and keep their distance. <b>BLADES</b> are unarmed cyberpsychos that close faster than anything else. <b>NETRUNNERS</b> channel a visible hack that scrambles the HUD and locks active cyberware; break sight or kill them first. <b>OPERATORS</b> deploy turrets and carry a sidearm.</p>
               <p><b>EXPLOSIVE BARRELS</b> chain-react. Shoot one beside a group, or throw a weapon into it. <b>SECURITY CAMERAS</b> sweep corridors and alert the sector; shoot them out. <b>TURRETS</b> paint a red line before firing — break line of sight or destroy them. <b>LASER GRIDS</b> pulse across corridors; cross on the dark phase or shoot the emitter.</p>
+              <p><b>GLASS</b> blocks movement but not sight. Shoot a pane to open a route. <b>STEAM VENTS</b> pulse sight-blocking clouds; use them or wait out the cycle. <b>HOUNDS</b> leap; <b>MEDICS</b> restore ally plates; kill the medic first.</p>
             </section>
             <section>
               <h3>CONTRACTS</h3>
               <p><b>PURGE</b> kill every hostile · <b>HIT</b> kill the marked target · <b>RECOVER</b> extract caches · <b>SABOTAGE</b> plant taps on marked terminals · <b>EXTRACTION</b> secure the case and survive the converge · <b>HUNT</b> chase a fleeing mark · <b>DEFENSE</b> hold the zone for 45 seconds. Exit opens when the objective is done.</p>
-              <p><b>CHAPTERS</b> street, Sublevel, and Spire each gate on three clears and a boss. Four bosses: the augmented psycho, GRIN, DEADWEIGHT, and the Board. The finale ends in one of three choices.</p>
+              <p><b>CHAPTERS</b> street, Sublevel, and Spire each gate on three clears and a boss. Four bosses: the augmented psycho, GRIN, DEADWEIGHT, and the Board. The finale usually ends in one of three choices; the Sublevel REMEMBER choice opens a fourth.</p>
               <p><b>BOSSES</b> break armor plates; every shattered plate summons adds and releases a radial shockwave. From phase 2 they telegraph a charge — break line of sight or sidestep. After a charge or plate break the magenta core is exposed; a hit in that window removes two plates.</p>
-              <p><b>SAFEHOUSE</b> stations are focused consoles: CONTRACTS, MARKET, SUPPLIES, WORKBENCH, CLINIC, ARCHIVE, FABRICATOR, and DEPLOY. <b>TAB</b> opens the terminal overview and the attaché case. The deploy pad always asks which contract to run before launch.</p>
+              <p><b>SAFEHOUSE</b> stations: CONTRACTS, MARKET, SUPPLIES, WORKBENCH, CLINIC, ARCHIVE, FABRICATOR, OPERATOR, SANCTUARY, and DEPLOY. <b>TAB</b> opens the terminal overview and the attaché case. SANCTUARY upgrades change the room and your run; the MARKET sells insurance and opens the EXCHANGE. The deploy pad always asks which contract to run before launch.</p>
             </section>
             <section>
               <h3>LOOT &amp; MONEY</h3>
@@ -398,9 +417,24 @@
             </section>
           </div>
           <div class="manual-foot">
-            PUNKGUN 0.1.0 · THREE.JS · PROCEDURAL ART + AUDIO · <b>NO EXTERNAL ASSETS</b><br />
+            PUNKGUN 0.2.0 · THREE.JS · PROCEDURAL ART + AUDIO · <b>NO EXTERNAL ASSETS</b><br />
             FIRST DEPLOYMENT BRIEFING — CLOSE TO CONTINUE.
           </div>
+        </div>
+      </div>
+
+      <div id="overlay-tour" class="overlay tour hidden">
+        <div class="tour-panel">
+          <div class="kicker">// SAFEHOUSE TOUR</div>
+          <h2 class="manual-title">ONE MINUTE IN THE ROOM</h2>
+          <div class="tour-grid">
+            <div><b>01 · CONTRACTS</b><span>Read the board, then pick a contract and insertion.</span></div>
+            <div><b>02 · MARKET</b><span>Buy gear, ammunition, insurance or faction hardware. Open the exchange for dividends.</span></div>
+            <div><b>03 · SANCTUARY</b><span>Invest in the room. Upgrades change the diorama and the next run.</span></div>
+            <div><b>04 · DEPLOY</b><span>Choose an approach and a challenge. Fists, Glass and Rush change the rules.</span></div>
+            <div><b>05 · THE SECTOR</b><span>Dash, flank, execute stunned targets, break glass and extract. The city is one hit deep.</span></div>
+          </div>
+          <button class="sh-deploy" type="button" data-act="tour-close">START WORKING</button>
         </div>
       </div>
 
@@ -413,6 +447,15 @@
             will remember.
           </p>
           <div id="ending-options" class="ending-options"></div>
+        </div>
+      </div>
+
+      <div id="overlay-epilogue" class="overlay epilogue hidden">
+        <div class="epilogue-panel">
+          <div id="epilogue-kicker" class="kicker">// AFTERMATH</div>
+          <h1 id="epilogue-title" class="end-title">THE CITY REMEMBERS</h1>
+          <div id="epilogue-body" class="epilogue-body"></div>
+          <button class="sh-deploy" type="button" data-act="epilogue-next">CONTINUE</button>
         </div>
       </div>
 

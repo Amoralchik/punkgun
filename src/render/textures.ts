@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Level, TILE, isWall } from '../game/map';
+import { districtFor } from '../game/districts';
 import { GUN_IDS, WeaponId } from '../game/weapons';
 import { LootKind } from '../game/economy';
 import { mulberry32 } from '../core/math';
@@ -599,6 +600,9 @@ export class TextureBank {
   readonly shield: THREE.Texture;
   readonly smoke: THREE.Texture;
   readonly barrel: THREE.Texture;
+  readonly glass: THREE.Texture;
+  readonly steam: THREE.Texture;
+  readonly grate: THREE.Texture;
   readonly holo: THREE.Texture[];
   private readonly mapCache = new Map<string, THREE.Texture>();
 
@@ -636,6 +640,9 @@ export class TextureBank {
     this.shield = texture(this.buildShield());
     this.smoke = texture(this.buildSmoke());
     this.barrel = texture(this.buildBarrel());
+    this.glass = texture(this.buildGlass());
+    this.steam = texture(this.buildSteam());
+    this.grate = texture(this.buildGrate());
     this.holo = [
       this.buildHolo('HELIX', CYAN),
       this.buildHolo('NIGHT MARKET', '#7dffcf'),
@@ -696,6 +703,81 @@ export class TextureBank {
         variant,
         frame,
       );
+    }
+    return c;
+  }
+
+  private buildGlass(): HTMLCanvasElement {
+    const c = canvas(64, 64);
+    const ctx = c.getContext('2d')!;
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.fillStyle = 'rgba(94, 241, 255, 0.08)';
+    ctx.fillRect(2, 2, 60, 60);
+    ctx.strokeStyle = 'rgba(94, 241, 255, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(3, 3, 58, 58);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    for (let i = 8; i < 64; i += 12) {
+      ctx.beginPath();
+      ctx.moveTo(i, 4);
+      ctx.lineTo(i - 18, 60);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255, 47, 142, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(6, 48);
+    ctx.lineTo(28, 18);
+    ctx.lineTo(38, 34);
+    ctx.lineTo(58, 8);
+    ctx.stroke();
+    return c;
+  }
+
+  private buildSteam(): HTMLCanvasElement {
+    const c = canvas(128, 128);
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+    g.addColorStop(0, 'rgba(190, 245, 255, 0.55)');
+    g.addColorStop(0.45, 'rgba(120, 210, 230, 0.22)');
+    g.addColorStop(1, 'rgba(80, 160, 190, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(64, 64, 62, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.2;
+    for (let i = 0; i < 7; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#bff8ff' : '#6fd7e8';
+      ctx.beginPath();
+      ctx.arc(35 + i * 9, 42 + (i % 3) * 14, 10 + i, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return c;
+  }
+
+  private buildGrate(): HTMLCanvasElement {
+    const c = canvas(64, 64);
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#0a1118';
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.strokeStyle = '#385061';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(4, 4, 56, 56);
+    ctx.strokeStyle = '#1b2a36';
+    ctx.lineWidth = 4;
+    for (let i = 12; i < 60; i += 9) {
+      ctx.beginPath();
+      ctx.moveTo(i, 6);
+      ctx.lineTo(i, 58);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(94, 241, 255, 0.25)';
+    ctx.lineWidth = 1;
+    for (let i = 12; i < 60; i += 9) {
+      ctx.beginPath();
+      ctx.moveTo(i - 1, 6);
+      ctx.lineTo(i - 1, 58);
+      ctx.stroke();
     }
     return c;
   }
@@ -1166,27 +1248,14 @@ export class TextureBank {
     const ctx = c.getContext('2d')!;
     const rnd = mulberry32(424242);
     const isHub = level.id === 'safehouse';
+    const district = districtFor(level.id);
     const flip = (worldY: number): number => h * TILE - worldY;
 
     ctx.fillStyle = '#06080d';
     ctx.fillRect(0, 0, c.width, c.height);
 
-    const floorColors = isHub
-      ? ['#17131e', '#1a1622', '#14111b', '#1c1825']
-      : level.id === 'docks'
-        ? ['#1b2a2d', '#22353a', '#162225', '#283d40']
-        : level.id === 'spire'
-          ? ['#241f33', '#2a243b', '#1d1929', '#312a45']
-          : level.id === 'nightmarket'
-            ? ['#202b3c', '#253247', '#1b2432', '#2b394f']
-            : ['#232f40', '#273446', '#1f2a39', '#2b384a'];
-    const gridColor = isHub
-      ? 'rgba(130, 95, 150, 0.12)'
-      : level.id === 'docks'
-        ? 'rgba(120, 200, 180, 0.14)'
-        : level.id === 'spire'
-          ? 'rgba(170, 130, 230, 0.14)'
-          : 'rgba(84, 110, 150, 0.18)';
+    const floorColors = district.floor;
+    const gridColor = district.grid;
 
     // floors
     for (let cy = 0; cy < h; cy++) {
@@ -1204,14 +1273,7 @@ export class TextureBank {
 
         // occasional tech panel
         if (rnd() < (isHub ? 0.05 : 0.14)) {
-          const colors = isHub
-            ? [CYAN, MAGENTA, VIOLET, AMBER]
-            : level.id === 'docks'
-              ? [CYAN, '#7dffcf', AMBER, '#ff8a4c']
-              : level.id === 'spire'
-                ? [VIOLET, MAGENTA, CYAN, '#ffd08a']
-                : [CYAN, MAGENTA, VIOLET, AMBER];
-          const col = colors[Math.floor(rnd() * colors.length)];
+          const col = district.neon[Math.floor(rnd() * district.neon.length)];
           ctx.globalAlpha = 0.16;
           ctx.fillStyle = col;
           ctx.fillRect(x + 9, y + 9, TILE - 18, TILE - 18);
@@ -1236,12 +1298,83 @@ export class TextureBank {
       }
     }
 
-    const palette =
-      level.id === 'docks'
-        ? [CYAN, '#7dffcf', AMBER, '#ff8a4c']
-        : level.id === 'spire'
-          ? [VIOLET, MAGENTA, CYAN, '#ffd08a']
-          : [CYAN, MAGENTA, VIOLET, AMBER];
+    const palette = district.neon;
+
+    if (district.decals === 'puddles') {
+      for (let i = 0; i < 18; i++) {
+        const px = 40 + rnd() * (w * TILE - 80);
+        const py = 40 + rnd() * (h * TILE - 80);
+        const rx = 18 + rnd() * 56;
+        ctx.fillStyle = 'rgba(10, 22, 34, 0.24)';
+        ctx.beginPath();
+        ctx.ellipse(px, py, rx, rx * 0.4, rnd(), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `${district.neon[i % district.neon.length]}55`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    } else if (district.decals === 'cables') {
+      for (let i = 0; i < 8; i++) {
+        const px = 20 + rnd() * (w * TILE - 40);
+        const py = 20 + rnd() * (h * TILE - 40);
+        ctx.strokeStyle = 'rgba(20, 28, 38, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.bezierCurveTo(px + 40, py + 22, px + 90, py - 14, px + 150, py + 8);
+        ctx.stroke();
+      }
+    } else if (district.decals === 'hazards') {
+      for (let i = 0; i < 16; i++) {
+        const px = 20 + rnd() * (w * TILE - 40);
+        const py = 20 + rnd() * (h * TILE - 40);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(-0.65);
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = AMBER;
+        ctx.fillRect(0, 0, 28, 5);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    } else if (district.decals === 'circuits') {
+      ctx.strokeStyle = `${district.neon[0]}22`;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 14; i++) {
+        const px = 20 + rnd() * (w * TILE - 40);
+        const py = 20 + rnd() * (h * TILE - 40);
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + 24 + rnd() * 60, py);
+        ctx.lineTo(px + 24 + rnd() * 60, py + 18 + rnd() * 40);
+        ctx.stroke();
+        ctx.fillStyle = `${district.neon[i % district.neon.length]}66`;
+        ctx.fillRect(px - 2, py - 2, 4, 4);
+      }
+    } else if (district.decals === 'stage') {
+      for (let i = 0; i < 5; i++) {
+        ctx.strokeStyle = `${district.neon[i % district.neon.length]}33`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(c.width / 2, c.height / 2, 60 + i * 34, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    for (const steam of level.steam) {
+      const x = Math.floor(steam.x / TILE) * TILE;
+      const y = flip(steam.y) - TILE;
+      ctx.fillStyle = '#0a1118';
+      ctx.fillRect(x + 6, y + 6, TILE - 12, TILE - 12);
+      ctx.strokeStyle = 'rgba(94, 241, 255, 0.25)';
+      ctx.lineWidth = 1;
+      for (let i = 12; i < TILE - 8; i += 8) {
+        ctx.beginPath();
+        ctx.moveTo(x + i, y + 8);
+        ctx.lineTo(x + i, y + TILE - 8);
+        ctx.stroke();
+      }
+    }
 
     if (isHub) {
       ctx.save();
@@ -1308,11 +1441,12 @@ export class TextureBank {
     for (let cy = 0; cy < h; cy++) {
       for (let cx = 0; cx < w; cx++) {
         if (!isWall(level, cx, cy)) continue;
+        if (level.glass[cy * w + cx] === 1) continue;
         const x = cx * TILE;
         const y = cy * TILE;
         const wg = ctx.createLinearGradient(x, y, x + TILE, y + TILE);
         wg.addColorStop(0, '#0c1119');
-        wg.addColorStop(0.55, '#080d15');
+        wg.addColorStop(0.55, district.wall);
         wg.addColorStop(1, '#04070c');
         ctx.fillStyle = wg;
         ctx.fillRect(x, y, TILE, TILE);
@@ -1334,6 +1468,7 @@ export class TextureBank {
     for (let cy = 0; cy < h; cy++) {
       for (let cx = 0; cx < w; cx++) {
         if (!isWall(level, cx, cy)) continue;
+        if (level.glass[cy * w + cx] === 1) continue;
         const x = cx * TILE;
         const y = cy * TILE;
         const neighbors: { side: string; nx: number; ny: number }[] = [

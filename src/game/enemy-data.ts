@@ -24,6 +24,8 @@ export const ENEMY_TRAITS: Record<EnemyKind, EnemyTraits> = {
   stalker: { speedMult: 1.42, visionMult: 0.75, radius: 14, armor: 0 },
   breacher: { speedMult: 1.02, visionMult: 1, radius: 17, armor: 1 },
   drone: { speedMult: 0.74, visionMult: 1.35, radius: 12, armor: 0 },
+  hound: { speedMult: 1.6, visionMult: 0.8, radius: 12, armor: 0 },
+  medic: { speedMult: 0.92, visionMult: 1.15, radius: 15, armor: 0 },
   boss: { speedMult: 0.95, visionMult: 1.25, radius: 24, armor: 3 },
 };
 
@@ -42,6 +44,8 @@ export const ENEMY_KIND_ROLLS: ReadonlyArray<{ kind: EnemyKind; below: number }>
   { kind: 'stalker', below: 0.7 },
   { kind: 'breacher', below: 0.74 },
   { kind: 'drone', below: 0.77 },
+  { kind: 'hound', below: 0.8 },
+  { kind: 'medic', below: 0.83 },
 ];
 
 export function pickEnemyKind(roll: number): EnemyKind {
@@ -68,6 +72,8 @@ export function rollEnemyLoadout(kind: EnemyKind, rng: () => number): EnemyLoado
   if (kind === 'stalker') return { weapon: 'fists', ammo: 0 };
   if (kind === 'breacher') return { weapon: 'shotgun', ammo: 6 };
   if (kind === 'drone') return { weapon: 'needler', ammo: 12 };
+  if (kind === 'hound') return { weapon: 'fists', ammo: 0 };
+  if (kind === 'medic') return { weapon: 'pistol', ammo: 4 };
   if (kind === 'grenadier' || kind === 'blade' || kind === 'netrunner') {
     return { weapon: 'fists', ammo: 0 };
   }

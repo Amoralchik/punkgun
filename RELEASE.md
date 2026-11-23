@@ -1,8 +1,8 @@
 # PUNKGUN Release Notes
 
-Packaging decision: **static web / installable PWA**. No Electron or Tauri wrapper in 0.1.0.
-The build targets evergreen Chromium and Firefox with WebGL; Safari support is a QA target,
-not a claim.
+Packaging decision: **static web / installable PWA**. No Electron or Tauri wrapper in 0.2.0.
+The build targets evergreen Chromium, Firefox and WebKit-engine browsers with WebGL; native
+Safari remains a QA target, not a certification claim.
 
 ## Build
 
@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~284 kB | 300 kB |
+| App JS | ~332 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~825 kB | 860 kB |
-| CSS | ~50 kB | 60 kB |
-| Initial gzip (JS + CSS + HTML) | ~233 kB | 250 kB |
-| Largest single chunk | ~344 kB | 360 kB |
+| Total JS | ~873 kB | 1120 kB |
+| CSS | ~58 kB | 90 kB |
+| Initial gzip (JS + CSS + HTML) | ~248 kB | 340 kB |
+| Largest single chunk | ~344 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -64,12 +64,12 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 88 unit tests + build + budget)
+- `npm run verify` (typecheck + 123 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
-  (harnesses ready; binaries not installed in the current QA environment)
-- `npm run test:gym` (14 archetypes vs a committed target)
+  (both engines smoke-tested in this environment)
+- `npm run test:gym` (16 archetypes vs a committed target)
 - `npm run test:balance` (three-build clear-rate matrix)
 - `npm run package`
 - Full matrix and manual checklist: [QA.md](./QA.md)

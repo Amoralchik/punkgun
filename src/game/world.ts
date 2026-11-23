@@ -4,6 +4,15 @@ import { Level, TILE, isWall, tileCenter, worldToTile } from './map';
 import { Pathfinder } from './path';
 import { updateDoorAngles } from './world-doors';
 import { segmentHitsCircle } from './world-geometry';
+import {
+  assignSquads,
+  findCoverPoint,
+  flankPoint,
+  grenadeThreat,
+  isFlanker,
+  meleeKind,
+  squadLeader,
+} from './world-ai';
 import { baseMods, RunMods } from './progression';
 import { CONSUMABLE_MAP, ConsumableId } from './consumables';
 import { ATTACHMENT_MAP, AttachmentId } from './attachments';
@@ -41,6 +50,7 @@ import type {
   Pickup,
   Player,
   SmokeCloud,
+  Steam,
   WorldEvent,
   WorldState,
 } from './world-types';
@@ -60,6 +70,8 @@ export class World {
   readonly cameras: Camera[] = [];
   readonly turrets: Turret[] = [];
   readonly lasers: Laser[] = [];
+  readonly steams: Steam[] = [];
+  readonly glassBroken = new Set<number>();
   readonly doors: Door[] = [];
   readonly decals: Decal[] = [];
   readonly particles: Particle[] = [];
@@ -76,6 +88,12 @@ export class World {
   targetId: number | null = null;
   heat = 0;
   peakHeat = 0;
+  combo = 0;
+  comboT = 0;
+  bestCombo = 0;
+  quickhackFxT = 0;
+  quickhackX = 0;
+  quickhackY = 0;
   shotsFired = 0;
   shotsHit = 0;
   stealthKills = 0;
@@ -93,6 +111,7 @@ export class World {
   readonly boons: RunBoon[];
   private readonly mods: RunMods;
   private approachVision = 1;
+  private heatShift = 0;
   hitstop = 0;
   shake = 0;
 
@@ -168,11 +187,23 @@ export class World {
       laserPhase += 0.85;
     }
 
+    level.steam.forEach((steam, index) => {
+      this.steams.push({
+        id: this.nextId++,
+        x: steam.x,
+        y: steam.y,
+        r: 86,
+        phase: index * 0.9,
+        active: false,
+      });
+    });
+
     for (const d of level.doors) {
       const center = tileCenter(d.cx, d.cy, level.h);
       const door: Door = {
         ...d,
         open: false,
+        locked: false,
         angle: 0,
         target: 0,
         speed: 3.4,
@@ -235,6 +266,11 @@ export class World {
       revived: false,
       regenT: 0,
       hackedT: 0,
+      dashT: 0,
+      dashCd: 0,
+      dashDirX: 0,
+      dashDirY: 0,
+      quickhackCd: 0,
     };
 
     level.enemies.forEach((spawn, i) =>
@@ -253,6 +289,7 @@ export class World {
     }
 
     // Give the player the briefing window before any enemy can act.
+    assignSquads(this.enemies);
     for (const enemy of this.enemies) enemy.stunT = 1.2;
     this.applyApproach(mission.approach ?? 'standard');
 
@@ -359,7 +396,10 @@ export class World {
   private applyModifiers(ids: ModifierId[]): void {
     if (ids.length === 0) return;
     if (ids.includes('fog')) this.modifierVision *= 0.7;
-    if (ids.includes('sirens')) this.modifierHeat *= 1.5;
+    if (ids.includes('sirens')) {
+      this.modifierHeat *= 1.5;
+      this.heatShift = 15;
+    }
     if (ids.includes('overclocked')) this.modifierFire *= 0.8;
     if (ids.includes('blackIce')) this.hackMultiplier = 2;
     if (ids.includes('noArmor')) {
@@ -447,6 +487,10 @@ export class World {
     return { sandevistan: this.mods.sandevistan, camo: this.mods.camo };
   }
 
+  get comboMax(): number {
+    return 3 + this.mods.comboWindow;
+  }
+
   /** HUD-ready active cyberware state, filtered to installed abilities. */
   abilitySlots(): Array<{
     key: string;
@@ -464,6 +508,22 @@ export class World {
       cooldown: number;
       maxCooldown: number;
     }> = [];
+    slots.push({
+      key: 'SPACE',
+      label: 'DASH',
+      activeT: p.dashT,
+      cooldown: p.dashCd,
+      maxCooldown: 1.1 * m.dashCd,
+    });
+    if (m.deck > 0) {
+      slots.push({
+        key: 'Z',
+        label: 'QUICKHACK',
+        activeT: 0,
+        cooldown: p.quickhackCd,
+        maxCooldown: (10 - (m.deck - 1) * 2) * m.abilityCd,
+      });
+    }
     if (m.sandevistan > 0) {
       slots.push({
         key: 'SHIFT',
@@ -635,6 +695,7 @@ export class World {
     this.updatePickups(dt);
     this.updateGrenades(dt);
     this.updateSmokes(dt);
+    this.updateSteams(dt);
     this.updateParticles(dt);
     this.updateDoors(dt);
     this.updateObjectives(dt);
@@ -650,6 +711,11 @@ export class World {
 
     this.shake = Math.max(0, this.shake - dt * 2.4);
     this.heat = Math.max(0, this.heat - dt * 1.4);
+    this.quickhackFxT = Math.max(0, this.quickhackFxT - dt);
+    if (this.comboT > 0) {
+      this.comboT = Math.max(0, this.comboT - dt);
+      if (this.comboT === 0) this.combo = 0;
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -657,7 +723,19 @@ export class World {
   /* ------------------------------------------------------------------ */
 
   isSolidTile(cx: number, cy: number): boolean {
-    if (isWall(this.level, cx, cy)) return true;
+    if (isWall(this.level, cx, cy)) {
+      const index = cy * this.level.w + cx;
+      if (this.level.glass[index] === 1) return !this.glassBroken.has(index);
+      return true;
+    }
+    const door = this.doorMap.get(cy * this.level.w + cx);
+    return !!door && !door.open;
+  }
+
+  private blocksSight(cx: number, cy: number): boolean {
+    if (isWall(this.level, cx, cy)) {
+      return this.level.glass[cy * this.level.w + cx] !== 1;
+    }
     const door = this.doorMap.get(cy * this.level.w + cx);
     return !!door && !door.open;
   }
@@ -672,8 +750,21 @@ export class World {
     const steps = Math.ceil(d / 14);
     for (let i = 1; i < steps; i++) {
       const t = i / steps;
-      if (this.solidAt(ax + (bx - ax) * t, ay + (by - ay) * t)) return false;
+      const { cx, cy } = worldToTile(ax + (bx - ax) * t, ay + (by - ay) * t, this.level.h);
+      if (this.blocksSight(cx, cy)) return false;
     }
+    return true;
+  }
+
+  private breakGlassAt(x: number, y: number): boolean {
+    const { cx, cy } = worldToTile(x, y, this.level.h);
+    const index = cy * this.level.w + cx;
+    if (this.level.glass[index] !== 1 || this.glassBroken.has(index)) return false;
+    this.glassBroken.add(index);
+    const center = tileCenter(cx, cy, this.level.h);
+    this.addSparks(center.x, center.y, Math.atan2(-1, 0));
+    this.emit({ type: 'glassBreak', x: center.x, y: center.y, angle: 0 });
+    this.alertAt(center.x, center.y, 240);
     return true;
   }
 
@@ -741,6 +832,18 @@ export class World {
       bossChargeT: 0,
       bossChargeCd: kind === 'boss' ? 3 : 0,
       bossWeakT: 0,
+      squad: -1,
+      suppressT: 0,
+      coverT: 0,
+      coverX: 0,
+      coverY: 0,
+      flankT: 0,
+      flankX: 0,
+      flankY: 0,
+      leapT: 0,
+      leapCd: 0,
+      healCd: 0,
+      medicCharges: kind === 'medic' ? 2 : 0,
     };
     if (state === 'chase') {
       enemy.lastSeenX = this.player.x;
@@ -785,6 +888,7 @@ export class World {
     for (const point of points) {
       this.addEnemy(point.x, point.y, 1, 'chase', forcedKind ?? point.kind);
     }
+    assignSquads(this.enemies);
     this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
   }
 
@@ -792,14 +896,31 @@ export class World {
     this.heat = Math.min(100, this.heat + amount * this.mods.heatMult * this.modifierHeat);
     this.peakHeat = Math.max(this.peakHeat, this.heat);
     if (this.exitOpen) return;
-    if (this.heat >= 55 && this.reinforcementWave < 1) {
+    const firstWave = Math.max(25, 55 - this.heatShift);
+    const secondWave = Math.max(55, 90 - this.heatShift);
+    if (this.heat >= firstWave && this.reinforcementWave < 1) {
       this.reinforcementWave = 1;
       this.spawnReinforcements(2);
     }
-    if (this.heat >= 90 && this.reinforcementWave < 2) {
+    if (this.heat >= secondWave && this.reinforcementWave < 2) {
       this.reinforcementWave = 2;
       this.spawnReinforcements(2);
     }
+  }
+
+  private nearestExecution(): Enemy | null {
+    const p = this.player;
+    let best: Enemy | null = null;
+    let bestD = 70 * this.mods.takedownReach;
+    for (const e of this.enemies) {
+      if (!e.alive || e.kind === 'boss' || e.stunT <= 0) continue;
+      const d = dist(p.x, p.y, e.x, e.y);
+      if (d >= bestD) continue;
+      if (!this.lineClear(p.x, p.y, e.x, e.y)) continue;
+      best = e;
+      bestD = d;
+    }
+    return best;
   }
 
   private nearestBackstab(): Enemy | null {
@@ -863,6 +984,7 @@ export class World {
 
   promptText(): string | null {
     if (!this.player.alive || this.state !== 'playing') return null;
+    if (this.nearestExecution()) return 'E — EXECUTE';
     if (this.nearestBackstab()) return 'E — SILENT TAKEDOWN';
     const objective = nearestObjectiveNode(this.objectives, this.player);
     if (objective) {
@@ -912,6 +1034,9 @@ export class World {
     p.kerenCd = Math.max(0, p.kerenCd - dt);
     p.killSpeedT = Math.max(0, p.killSpeedT - dt);
     p.hackedT = Math.max(0, p.hackedT - dt);
+    p.dashT = Math.max(0, p.dashT - dt);
+    p.dashCd = Math.max(0, p.dashCd - dt);
+    p.quickhackCd = Math.max(0, p.quickhackCd - dt);
     p.regenT += dt;
     if (
       this.mods.biomonitor > 0 &&
@@ -930,6 +1055,31 @@ export class World {
       if (this.input.rightPressed) this.playerThrow();
       if (this.input.wasPressed('KeyE') || this.input.wasPressed('KeyF')) this.playerInteract();
       if (this.input.wasPressed('KeyQ')) this.useSupply();
+      if (p.dashT <= 0 && p.dashCd <= 0 && this.input.wasPressed('Space')) {
+        let dashX = 0;
+        let dashY = 0;
+        if (this.input.held('KeyA') || this.input.held('ArrowLeft')) dashX -= 1;
+        if (this.input.held('KeyD') || this.input.held('ArrowRight')) dashX += 1;
+        if (this.input.held('KeyS') || this.input.held('ArrowDown')) dashY -= 1;
+        if (this.input.held('KeyW') || this.input.held('ArrowUp')) dashY += 1;
+        const dashLen = Math.hypot(dashX, dashY);
+        if (dashLen > 0) {
+          dashX /= dashLen;
+          dashY /= dashLen;
+        } else {
+          dashX = Math.cos(p.angle);
+          dashY = Math.sin(p.angle);
+        }
+        p.dashT = 0.16;
+        p.dashCd = 1.1 * this.mods.dashCd;
+        p.dashDirX = dashX;
+        p.dashDirY = dashY;
+        p.invulnT = Math.max(p.invulnT, 0.06 + this.mods.dashInvuln);
+        this.emit({ type: 'dash', x: p.x, y: p.y, angle: p.angle });
+      }
+      if (p.hackedT <= 0 && this.mods.deck > 0 && p.quickhackCd <= 0 && this.input.wasPressed('KeyZ')) {
+        this.triggerQuickhack();
+      }
       if (
         p.hackedT <= 0 &&
         (this.input.wasPressed('ShiftLeft') || this.input.wasPressed('ShiftRight')) &&
@@ -998,9 +1148,14 @@ export class World {
       (p.berserkT > 0 ? 1.3 : 1) *
       (1 + (p.killSpeedT > 0 ? this.mods.killSpeed : 0)) *
       (p.armor <= 0 ? 1 + this.mods.lowArmorSpeed : 1);
-    const k = 1 - Math.exp(-24 * dt);
-    p.vx += (ix * speed - p.vx) * k;
-    p.vy += (iy * speed - p.vy) * k;
+    if (p.dashT > 0) {
+      p.vx = p.dashDirX * 880;
+      p.vy = p.dashDirY * 880;
+    } else {
+      const k = 1 - Math.exp(-24 * dt);
+      p.vx += (ix * speed - p.vx) * k;
+      p.vy += (iy * speed - p.vy) * k;
+    }
 
     p.x += p.vx * dt;
     this.resolveCircle(p);
@@ -1076,6 +1231,39 @@ export class World {
       if (l.alive && dist(p.x, p.y, l.x, l.y) <= radius) l.disabledT = 8 + rank;
     }
     this.emit({ type: 'deck', x: p.x, y: p.y, angle: p.angle });
+  }
+
+  private triggerQuickhack(): void {
+    const p = this.player;
+    if (this.mods.deck <= 0) return;
+    let target: Enemy | null = null;
+    let best = 70;
+    for (const e of this.enemies) {
+      if (!e.alive || e.kind === 'boss') continue;
+      if (dist(p.x, p.y, e.x, e.y) > 520) continue;
+      const aimD = dist(e.x, e.y, p.aimX, p.aimY);
+      if (aimD >= best) continue;
+      if (!this.lineClear(p.x, p.y, e.x, e.y)) continue;
+      if (this.smokeBlocks(p.x, p.y, e.x, e.y)) continue;
+      target = e;
+      best = aimD;
+    }
+    if (!target) {
+      this.emit({ type: 'quickhackFail', x: p.x, y: p.y, angle: p.angle });
+      return;
+    }
+    p.quickhackCd = (10 - (this.mods.deck - 1) * 2) * this.mods.abilityCd;
+    this.quickhackFxT = 0.3;
+    this.quickhackX = target.x;
+    this.quickhackY = target.y;
+    target.stunT = Math.max(target.stunT, 1.2 + this.mods.deck * 0.7);
+    target.aiming = false;
+    target.flashT = 0.25;
+    target.hackT = 0;
+    if (target.kind === 'netrunner') target.hackCd = 8;
+    if (target.kind === 'operator') target.deployCd = 8;
+    this.addHeat(3);
+    this.emit({ type: 'quickhack', x: target.x, y: target.y, angle: target.angle });
   }
 
   private playerAttack(): void {
@@ -1198,7 +1386,7 @@ export class World {
         hitAny = true;
         continue;
       }
-      if (e.kind === 'shield' && this.mods.gorilla === 0) {
+      if (e.kind === 'shield' && this.mods.gorilla === 0 && e.shieldT <= 0) {
         const toPlayer = Math.atan2(p.y - e.y, p.x - e.x);
         if (Math.abs(angleDelta(e.angle, toPlayer)) < 1.3) {
           this.addSparks(
@@ -1206,10 +1394,8 @@ export class World {
             e.y + Math.sin(toPlayer) * 20,
             toPlayer,
           );
-          if (e.shieldT <= 0) {
-            e.shieldT = 0.14;
-            this.emit({ type: 'shieldHit', x: e.x, y: e.y, angle: toPlayer });
-          }
+          e.shieldT = 0.42;
+          this.emit({ type: 'shieldHit', x: e.x, y: e.y, angle: toPlayer });
           hitAny = true;
           continue;
         }
@@ -1310,12 +1496,24 @@ export class World {
     p.supplyCharges--;
   }
 
-  private smokeBlocks(ax: number, ay: number, bx: number, by: number): boolean {
+  smokeBlocks(ax: number, ay: number, bx: number, by: number): boolean {
     for (const smoke of this.smokes) {
       if (smoke.life <= 0) continue;
       if (segmentHitsCircle(ax, ay, bx, by, smoke.x, smoke.y, smoke.r)) return true;
     }
+    for (const steam of this.steams) {
+      if (steam.active && segmentHitsCircle(ax, ay, bx, by, steam.x, steam.y, steam.r)) {
+        return true;
+      }
+    }
     return false;
+  }
+
+  private updateSteams(dt: number): void {
+    for (const steam of this.steams) {
+      steam.phase = (steam.phase + dt) % 4;
+      steam.active = steam.phase < 2;
+    }
   }
 
   private updateSmokes(dt: number): void {
@@ -1417,6 +1615,14 @@ export class World {
 
   private playerInteract(): void {
     const p = this.player;
+    const execution = this.nearestExecution();
+    if (execution) {
+      this.emit({ type: 'execution', x: execution.x, y: execution.y, angle: p.angle });
+      this.killEnemy(execution, 'player', true);
+      p.dashCd = 0;
+      p.attackCd = 0;
+      return;
+    }
     const backstab = this.nearestBackstab();
     if (backstab) {
       this.killEnemy(backstab, 'player', true);
@@ -1622,6 +1828,12 @@ export class World {
       e.deployCd = Math.max(0, e.deployCd - dt);
       e.bossChargeCd = Math.max(0, e.bossChargeCd - dt);
       e.bossWeakT = Math.max(0, e.bossWeakT - dt);
+      e.suppressT = Math.max(0, e.suppressT - dt);
+      e.coverT = Math.max(0, e.coverT - dt);
+      e.flankT = Math.max(0, e.flankT - dt);
+      e.leapT = Math.max(0, e.leapT - dt);
+      e.leapCd = Math.max(0, e.leapCd - dt);
+      e.healCd = Math.max(0, e.healCd - dt);
       e.aiming = false;
       if (e.stunT > 0) {
         e.stunT = Math.max(0, e.stunT - dt);
@@ -1697,6 +1909,54 @@ export class World {
         e.angle = turnToward(e.angle, aim, dt * (e.kind === 'shield' ? 3.2 : 11));
       }
 
+      if (e.kind !== 'boss') {
+        const threat = grenadeThreat(e, this.grenades);
+        if (threat) {
+          this.steer(e, threat.x, threat.y, ENEMY_SPEED * 1.15 * e.speedMult, dt);
+          continue;
+        }
+        if (e.suppressT > 0 && e.coverT <= 0 && !meleeKind(e.kind)) {
+          const cover = findCoverPoint(
+            this.level,
+            e,
+            this.player,
+            (x, y) => !this.solidAt(x, y),
+            (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+          );
+          if (cover) {
+            e.coverX = cover.x;
+            e.coverY = cover.y;
+            e.coverT = 1.4;
+            e.path = [];
+          }
+        }
+        if (e.coverT > 0) {
+          this.steer(e, e.coverX, e.coverY, ENEMY_SPEED * 1.1 * e.speedMult, dt);
+          continue;
+        }
+        const leader = squadLeader(this.enemies, e);
+        if (leader && isFlanker(this.enemies, e)) {
+          if (e.flankT <= 0) {
+            let point = flankPoint(leader, this.player, e.id % 2 === 0 ? 1 : -1);
+            point.x = clamp(point.x, TILE, (this.level.w - 1) * TILE);
+            point.y = clamp(point.y, TILE, (this.level.h - 1) * TILE);
+            if (this.solidAt(point.x, point.y)) {
+              point = flankPoint(leader, this.player, e.id % 2 === 0 ? -1 : 1);
+              point.x = clamp(point.x, TILE, (this.level.w - 1) * TILE);
+              point.y = clamp(point.y, TILE, (this.level.h - 1) * TILE);
+            }
+            e.flankX = point.x;
+            e.flankY = point.y;
+            e.flankT = 1.6;
+          }
+          if (e.flankT > 0) {
+            this.steer(e, e.flankX, e.flankY, ENEMY_SPEED * 1.05 * e.speedMult, dt);
+            if (dist(e.x, e.y, e.flankX, e.flankY) < 70) e.flankT = 0;
+            continue;
+          }
+        }
+      }
+
       if (e.kind === 'boss') {
         const phase = Math.max(1, e.maxArmor - e.armor + 1);
         if (e.bossChargeT > 0) {
@@ -1743,6 +2003,71 @@ export class World {
           dt * 6,
         );
         if (isGun(e.weapon) && e.ammo > 0) {
+          e.aiming = true;
+          e.fireCd -= dt;
+          if (e.fireCd <= 0) this.enemyShoot(e);
+        }
+        continue;
+      }
+
+      if (e.kind === 'hound' && sees) {
+        if (e.leapT > 0) {
+          const a = Math.atan2(this.player.y - e.y, this.player.x - e.x);
+          e.angle = a;
+          this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * 3, dt);
+          if (dToPlayer < 55 && e.meleeCd <= 0) this.enemyPunch(e);
+          continue;
+        }
+        if (e.leapCd <= 0 && dToPlayer < 220 && this.lineClear(e.x, e.y, this.player.x, this.player.y)) {
+          e.leapT = 0.35;
+          e.leapCd = 2.2;
+          this.emit({ type: 'houndLeap', x: e.x, y: e.y, angle: e.angle });
+        }
+        if (dToPlayer < 55 && e.meleeCd <= 0) this.enemyPunch(e);
+        if (this.lineClear(e.x, e.y, this.player.x, this.player.y)) {
+          this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * 1.6, dt);
+        } else {
+          if (e.pathT <= 0 || e.path.length === 0) {
+            const from = worldToTile(e.x, e.y, this.level.h);
+            const to = worldToTile(this.player.x, this.player.y, this.level.h);
+            e.path = this.pathfinder.find(this.level, from.cx, from.cy, to.cx, to.cy) ?? [];
+            e.pathT = 0.35;
+          }
+          this.followPath(e, dt);
+        }
+        continue;
+      }
+
+      if (e.kind === 'medic' && sees) {
+        let patient: Enemy | null = null;
+        let lowest = Infinity;
+        for (const other of this.enemies) {
+          if (!other.alive || other === e || other.kind === 'boss') continue;
+          if (dist(e.x, e.y, other.x, other.y) > 280) continue;
+          if (other.armor >= Math.max(1, other.maxArmor)) continue;
+          if (other.armor < lowest) {
+            lowest = other.armor;
+            patient = other;
+          }
+        }
+        if (patient && e.medicCharges > 0 && e.healCd <= 0) {
+          patient.armor = Math.min(1 + patient.maxArmor, patient.armor + 1);
+          patient.maxArmor = Math.max(1, patient.maxArmor);
+          e.medicCharges--;
+          e.healCd = 7;
+          this.emit({ type: 'medicHeal', x: patient.x, y: patient.y, angle: e.angle });
+        }
+        const away = dToPlayer < 280;
+        const toward = dToPlayer > 460;
+        const side = e.angle + (Math.PI / 2) * e.strafeSign;
+        const tx = toward
+          ? this.player.x
+          : e.x + Math.cos(away ? e.angle + Math.PI : side) * 160;
+        const ty = toward
+          ? this.player.y
+          : e.y + Math.sin(away ? e.angle + Math.PI : side) * 160;
+        this.steer(e, tx, ty, ENEMY_SPEED * e.speedMult * (away ? 0.95 : 0.55), dt);
+        if (isGun(e.weapon) && e.ammo > 0 && dToPlayer < 420) {
           e.aiming = true;
           e.fireCd -= dt;
           if (e.fireCd <= 0) this.enemyShoot(e);
@@ -1987,7 +2312,7 @@ export class World {
     }
   }
 
-  private canSee(e: Enemy): boolean {
+  canSee(e: Enemy): boolean {
     const p = this.player;
     if (p.camoT > 0) return false;
     const d = dist(e.x, e.y, p.x, p.y);
@@ -2220,6 +2545,8 @@ export class World {
     if (p.invulnT > 0) return;
     if (p.armor > 0) {
       p.armor--;
+      this.combo = 0;
+      this.comboT = 0;
       p.invulnT = 0.9;
       p.regenT = 0;
       if (this.mods.kerenzikov > 0 && p.kerenCd <= 0) {
@@ -2246,6 +2573,8 @@ export class World {
       return;
     }
     p.alive = false;
+    this.combo = 0;
+    this.comboT = 0;
     p.corpseAngle = angle + Math.PI + (this.rand() - 0.5) * 1.4;
     this.state = 'dead';
     this.hitstop = Math.max(this.hitstop, 0.07);
@@ -2274,7 +2603,9 @@ export class World {
       }
 
       if (this.solidAt(b.x, b.y)) {
-        this.addSparks(b.x, b.y, Math.atan2(-b.vy, -b.vx));
+        if (!this.breakGlassAt(b.x, b.y)) {
+          this.addSparks(b.x, b.y, Math.atan2(-b.vy, -b.vx));
+        }
         this.bullets.splice(i, 1);
         continue;
       }
@@ -2336,6 +2667,9 @@ export class World {
       if (!hit && b.ownerKind === 'player') {
         for (const e of this.enemies) {
           if (!e.alive || e.id === b.ownerId) continue;
+          if (segmentHitsCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r + 44)) {
+            e.suppressT = Math.max(e.suppressT, 1.2);
+          }
           if (segmentHitsCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r)) {
             const from = Math.atan2(-b.vy, -b.vx);
             if (e.kind === 'boss') {
@@ -2344,12 +2678,14 @@ export class World {
               hit = true;
               break;
             }
-            if (e.kind === 'shield' && Math.abs(angleDelta(e.angle, from)) < 1.25) {
+            if (
+              e.kind === 'shield' &&
+              e.shieldT <= 0 &&
+              Math.abs(angleDelta(e.angle, from)) < 1.25
+            ) {
               this.addSparks(b.x, b.y, from + Math.PI);
-              if (e.shieldT <= 0) {
-                e.shieldT = 0.14;
-                this.emit({ type: 'shieldHit', x: e.x, y: e.y, angle: from });
-              }
+              e.shieldT = 0.42;
+              this.emit({ type: 'shieldHit', x: e.x, y: e.y, angle: from });
               hit = true;
               break;
             }
@@ -2443,10 +2779,29 @@ export class World {
   /* ------------------------------------------------------------------ */
 
   private updateDoors(dt: number): void {
+    if (this.mission.modifiers?.includes('lockdown')) {
+      const p = this.player;
+      for (const d of this.doors) {
+        if (!d.open || d.locked) continue;
+        const dx = d.x - p.x;
+        const dy = d.y - p.y;
+        if (Math.hypot(dx, dy) > 80 && dx * p.vx + dy * p.vy < 0) {
+          d.locked = true;
+          d.open = false;
+          d.target = 0;
+          d.speed = 8;
+        }
+      }
+    }
     updateDoorAngles(this.doors, dt);
   }
 
   openDoor(d: Door, kicked: boolean): void {
+    if (d.locked) {
+      if (!kicked) return;
+      this.emit({ type: 'doorLocked', x: d.x, y: d.y, angle: d.angle });
+      d.locked = false;
+    }
     if (d.open) return;
     d.open = true;
     d.target = d.axis === 'h' ? 1.45 : -1.45;
@@ -2476,6 +2831,11 @@ export class World {
     e.flashT = 0;
     e.markT = 0;
     this.kills++;
+    if (by === 'player') {
+      this.combo++;
+      this.comboT = 3 + this.mods.comboWindow;
+      this.bestCombo = Math.max(this.bestCombo, this.combo);
+    }
     if (by === 'player' && this.mods.killSpeed > 0) {
       this.player.killSpeedT = 4;
     }

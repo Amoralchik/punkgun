@@ -17,12 +17,15 @@ import {
   normalizeReputation,
   repDiscount,
   repRank,
+  repSellBonus,
   Reputation,
   RepRank,
 } from './reputation';
+import { FACTION_OFFER_MAP } from './faction-stock';
 import type { FactionId } from './lore';
 import { BOSS_ORDER, type BossId } from './bosses';
 import { ENDINGS, type EndingId } from './endings';
+import { LIFEPATH_MAP, type LifepathId } from './lifepath';
 import {
   applyRoleMods,
   roleClinicDiscount,
@@ -46,6 +49,25 @@ import {
   ConsumableId,
   SUPPLY_MAX,
 } from './consumables';
+import { applyRoomMods, EMPTY_ROOM, ROOM_MAP, ROOM_UPGRADES, roomCost, type RoomId, type RoomRanks } from './rooms';
+import {
+  EMPTY_EXCHANGE,
+  TICKERS,
+  TICKER_MAP,
+  exchangeDividend,
+  priceHistory,
+  tickerPrice,
+  type ExchangeState,
+  type TickerId,
+} from './exchange';
+import { createDailyContract, dailySeed, localDateKey, type DailyState } from './daily';
+import { CHALLENGE_MAP, type ChallengeId } from './challenges';
+import {
+  VENTURE_EVENT_MAP,
+  rollVentureEvent,
+  type VentureEffect,
+  type VentureEventDef,
+} from './venture-events';
 import {
   computeMods,
   CYBERWARE_DEFS,
@@ -218,6 +240,14 @@ export interface StashItem extends CasePlacement {
   variant: NamedWeaponId | null;
 }
 
+export interface InsurancePolicy {
+  itemId: string;
+  weapon: WeaponId;
+  variant: NamedWeaponId | null;
+  attachment: AttachmentId | null;
+  premium: number;
+}
+
 export interface MarketState {
   seed: number;
   refreshedRun: number;
@@ -270,6 +300,20 @@ export function priceDrift(seed: number, key: string): number {
   return (rng() * 0.24 - 0.12);
 }
 
+export interface RunRecord {
+  id: string;
+  title: string;
+  layoutName: string;
+  time: number;
+  kills: number;
+  payout: number;
+  rank: string;
+  success: boolean;
+  daily: boolean;
+  challenge: ChallengeId;
+  at: number;
+}
+
 export interface ProfileData {
   money: number;
   stash: StashItem[];
@@ -302,10 +346,30 @@ export interface ProfileData {
   ending: EndingId | null;
   /** Operator role identity. */
   role: RoleId | null;
+  /** Chosen origin. */
+  lifepath: LifepathId | null;
+  /** New Game Plus cycle count. */
+  ngPlus: number;
+  /** Endings observed across campaigns. */
+  endingsSeen: EndingId[];
   /** Seeded rotating market stock and price drift. */
   market: MarketState;
   /** Owned businesses/fronts. */
   ventures: VentureRanks;
+  /** Safehouse room upgrades. */
+  room: RoomRanks;
+  /** Seeded exchange prices and player holdings. */
+  exchange: ExchangeState;
+  /** Pending venture event id, null when the ledger is quiet. */
+  pendingVentureEvent: string | null;
+  /** Active insurance policy on the equipped weapon, if any. */
+  insurance: InsurancePolicy | null;
+  /** Seeded daily contract state. */
+  daily: DailyState;
+  /** Last selected challenge mode. */
+  challenge: ChallengeId;
+  /** Local run history / leaderboard, newest first. */
+  runHistory: RunRecord[];
   /** Three quick-loadout recipes pointing at stash fits. */
   presets: Array<LoadoutPreset | null>;
 }
@@ -333,6 +397,7 @@ export interface RunLoadout {
   variant: NamedWeaponId | null;
   supplyType: ConsumableId | null;
   supplyCharges: number;
+  insured: boolean;
 }
 
 export interface LoadoutPreset {
@@ -384,9 +449,19 @@ function defaultData(): ProfileData {
     completedContracts: [],
     story: {},
     ending: null,
+    endingsSeen: [],
     role: null,
+    lifepath: null,
+    ngPlus: 0,
     market: { seed: 0, refreshedRun: 0, stock: {} },
     ventures: { ...EMPTY_VENTURES },
+    room: { ...EMPTY_ROOM },
+    exchange: { ...EMPTY_EXCHANGE, holdings: { ...EMPTY_EXCHANGE.holdings } },
+    pendingVentureEvent: null,
+    insurance: null,
+    daily: { date: '', seed: 0, cleared: false, bestRank: null },
+    challenge: 'standard',
+    runHistory: [],
     presets: [null, null, null],
   };
 }
@@ -426,6 +501,7 @@ export class Profile {
     this.storage = storage;
     this.data = this.load();
     this.ensureMarket();
+    this.ensureExchange();
     this.layoutCase();
     this.save();
   }
@@ -613,6 +689,26 @@ export class Profile {
         typeof parsed.role === 'string' && parsed.role in ROLE_MAP
           ? (parsed.role as RoleId)
           : null;
+      const lifepath =
+        typeof parsed.lifepath === 'string' && parsed.lifepath in LIFEPATH_MAP
+          ? (parsed.lifepath as LifepathId)
+          : null;
+      const ngPlus =
+        typeof parsed.ngPlus === 'number' && Number.isFinite(parsed.ngPlus)
+          ? Math.max(0, Math.min(99, Math.floor(parsed.ngPlus)))
+          : 0;
+      const endingsSeen: EndingId[] = [];
+      if (Array.isArray(parsed.endingsSeen)) {
+        for (const id of parsed.endingsSeen) {
+          if (
+            typeof id === 'string' &&
+            id in ENDINGS &&
+            !endingsSeen.includes(id as EndingId)
+          ) {
+            endingsSeen.push(id as EndingId);
+          }
+        }
+      }
       const rawMarket = parsed.market as Partial<MarketState> | undefined;
       const market: MarketState = {
         seed:
@@ -649,6 +745,120 @@ export class Profile {
           typeof value === 'number' && Number.isFinite(value)
             ? Math.max(0, Math.min(max, Math.floor(value)))
             : 0;
+      }
+      const room: RoomRanks = { ...EMPTY_ROOM };
+      const rawRoom = parsed.room as Partial<RoomRanks> | undefined;
+      for (const def of ROOM_UPGRADES) {
+        const value = rawRoom?.[def.id];
+        room[def.id] =
+          typeof value === 'number' && Number.isFinite(value)
+            ? Math.max(0, Math.min(def.maxRank, Math.floor(value)))
+            : 0;
+      }
+      const rawExchange = parsed.exchange as Partial<ExchangeState> | undefined;
+      const exchange: ExchangeState = {
+        seed:
+          typeof rawExchange?.seed === 'number' && Number.isFinite(rawExchange.seed)
+            ? rawExchange.seed >>> 0
+            : 0,
+        day:
+          typeof rawExchange?.day === 'number' && Number.isFinite(rawExchange.day)
+            ? Math.max(0, Math.min(3650, Math.floor(rawExchange.day)))
+            : 0,
+        holdings: { ...EMPTY_EXCHANGE.holdings },
+      };
+      for (const ticker of TICKERS) {
+        const value = rawExchange?.holdings?.[ticker.id];
+        exchange.holdings[ticker.id] =
+          typeof value === 'number' && Number.isFinite(value)
+            ? Math.max(0, Math.min(9999, Math.floor(value)))
+            : 0;
+      }
+      const pendingVentureEvent =
+        typeof parsed.pendingVentureEvent === 'string' &&
+        VENTURE_EVENT_MAP[parsed.pendingVentureEvent]
+          ? parsed.pendingVentureEvent
+          : null;
+      const rawInsurance = parsed.insurance as Partial<InsurancePolicy> | null | undefined;
+      const insurance: InsurancePolicy | null =
+        rawInsurance &&
+        typeof rawInsurance.itemId === 'string' &&
+        typeof rawInsurance.weapon === 'string' &&
+        VALID_WEAPONS[rawInsurance.weapon as WeaponId] === true &&
+        rawInsurance.weapon !== 'fists' &&
+        typeof rawInsurance.premium === 'number' &&
+        Number.isFinite(rawInsurance.premium)
+          ? {
+              itemId: rawInsurance.itemId,
+              weapon: rawInsurance.weapon as WeaponId,
+              variant:
+                typeof rawInsurance.variant === 'string' &&
+                NAMED_MAP[rawInsurance.variant as NamedWeaponId]
+                  ? (rawInsurance.variant as NamedWeaponId)
+                  : null,
+              attachment:
+                typeof rawInsurance.attachment === 'string' &&
+                ATTACHMENT_MAP[rawInsurance.attachment as AttachmentId]
+                  ? (rawInsurance.attachment as AttachmentId)
+                  : null,
+              premium: Math.max(0, Math.floor(rawInsurance.premium)),
+            }
+          : null;
+      const rawDaily = parsed.daily as Partial<DailyState> | undefined;
+      const daily: DailyState = {
+        date: typeof rawDaily?.date === 'string' ? rawDaily.date.slice(0, 10) : '',
+        seed:
+          typeof rawDaily?.seed === 'number' && Number.isFinite(rawDaily.seed)
+            ? rawDaily.seed >>> 0
+            : 0,
+        cleared: rawDaily?.cleared === true,
+        bestRank:
+          typeof rawDaily?.bestRank === 'string' ? rawDaily.bestRank.slice(0, 2) : null,
+      };
+      const challenge: ChallengeId =
+        typeof parsed.challenge === 'string' && parsed.challenge in CHALLENGE_MAP
+          ? (parsed.challenge as ChallengeId)
+          : 'standard';
+      const runHistory: RunRecord[] = [];
+      if (Array.isArray(parsed.runHistory)) {
+        for (const raw of parsed.runHistory.slice(0, 12)) {
+          if (!raw || typeof raw !== 'object') continue;
+          const entry = raw as Partial<RunRecord>;
+          if (
+            typeof entry.id !== 'string' ||
+            typeof entry.title !== 'string' ||
+            typeof entry.rank !== 'string' ||
+            typeof entry.time !== 'number' ||
+            !Number.isFinite(entry.time)
+          ) {
+            continue;
+          }
+          runHistory.push({
+            id: entry.id,
+            title: entry.title.slice(0, 60),
+            layoutName: typeof entry.layoutName === 'string' ? entry.layoutName.slice(0, 40) : '',
+            time: Math.max(0, entry.time),
+            kills:
+              typeof entry.kills === 'number' && Number.isFinite(entry.kills)
+                ? Math.max(0, Math.floor(entry.kills))
+                : 0,
+            payout:
+              typeof entry.payout === 'number' && Number.isFinite(entry.payout)
+                ? Math.max(0, Math.floor(entry.payout))
+                : 0,
+            rank: entry.rank.slice(0, 2),
+            success: entry.success === true,
+            daily: entry.daily === true,
+            challenge:
+              typeof entry.challenge === 'string' && entry.challenge in CHALLENGE_MAP
+                ? (entry.challenge as ChallengeId)
+                : 'standard',
+            at:
+              typeof entry.at === 'number' && Number.isFinite(entry.at)
+                ? Math.max(0, entry.at)
+                : 0,
+          });
+        }
       }
       const presets: Array<LoadoutPreset | null> = [null, null, null];
       const rawPresets = parsed.presets;
@@ -691,8 +901,14 @@ export class Profile {
           typeof parsed.bestTime === 'number' && Number.isFinite(parsed.bestTime) && parsed.bestTime > 0
             ? parsed.bestTime
             : null,
-        runs: typeof parsed.runs === 'number' ? Math.max(0, Math.floor(parsed.runs)) : 0,
-        clears: typeof parsed.clears === 'number' ? Math.max(0, Math.floor(parsed.clears)) : 0,
+        runs:
+          typeof parsed.runs === 'number' && Number.isFinite(parsed.runs)
+            ? Math.max(0, Math.floor(parsed.runs))
+            : 0,
+        clears:
+          typeof parsed.clears === 'number' && Number.isFinite(parsed.clears)
+            ? Math.max(0, Math.floor(parsed.clears))
+            : 0,
         bossCleared: parsed.bossCleared === true,
         finalCleared: parsed.finalCleared === true,
         contraband,
@@ -716,9 +932,24 @@ export class Profile {
         completedContracts,
         story,
         ending,
+        endingsSeen:
+          parsed.ending &&
+          ENDINGS[parsed.ending as EndingId] &&
+          !endingsSeen.includes(parsed.ending as EndingId)
+            ? [...endingsSeen, parsed.ending as EndingId]
+            : endingsSeen,
         role,
+        lifepath,
+        ngPlus,
         market,
         ventures,
+        room,
+        exchange,
+        pendingVentureEvent,
+        insurance,
+        daily,
+        challenge,
+        runHistory,
         presets,
         supplyType:
           parsed.supplyType && CONSUMABLE_MAP[parsed.supplyType] ? parsed.supplyType : null,
@@ -798,10 +1029,158 @@ export class Profile {
     return Math.max(1, Math.round(base * (1 + this.priceDrift(key))));
   }
 
-  refreshMarket(cost = 50): string | null {
+  marketRefreshCost(): number {
+    return Math.max(10, 50 - this.data.room.server * 10);
+  }
+
+  boardRefreshCost(): number {
+    return Math.max(25, 75 - this.data.room.server * 15);
+  }
+
+  maxSupply(): number {
+    return SUPPLY_MAX + (this.data.room.medbay >= 3 ? 1 : 0);
+  }
+
+  refreshMarket(cost = this.marketRefreshCost()): string | null {
     if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
     this.data.money -= cost;
     this.ensureMarket(true);
+    this.save();
+    return null;
+  }
+
+  ensureDaily(): boolean {
+    const key = localDateKey();
+    if (this.data.daily.date === key && this.data.daily.seed !== 0) return false;
+    this.data.daily = {
+      date: key,
+      seed: dailySeed(key),
+      cleared: false,
+      bestRank: null,
+    };
+    this.save();
+    return true;
+  }
+
+  dailyContract() {
+    this.ensureDaily();
+    return createDailyContract(this.data.daily.seed, this.data.daily.cleared);
+  }
+
+  markDailyCleared(rank: string): boolean {
+    this.ensureDaily();
+    if (this.data.daily.cleared) return false;
+    this.data.daily.cleared = true;
+    this.data.daily.bestRank = rank;
+    this.save();
+    return true;
+  }
+
+  ensureExchange(): boolean {
+    this.ensureDaily();
+    if (this.data.exchange.seed !== 0) return false;
+    this.data.exchange.seed = this.data.market.seed || randomSeed();
+    this.save();
+    return true;
+  }
+
+  exchangePrice(id: TickerId): number {
+    const def = TICKER_MAP[id];
+    if (!def) return 0;
+    return tickerPrice(def, this.data.exchange);
+  }
+
+  exchangeHistory(id: TickerId, days = 8): number[] {
+    const def = TICKER_MAP[id];
+    if (!def) return [];
+    return priceHistory(def, this.data.exchange, days);
+  }
+
+  exchangeHoldings(id: TickerId): number {
+    return this.data.exchange.holdings[id] ?? 0;
+  }
+
+  buyShares(id: TickerId, qty: number): string | null {
+    const def = TICKER_MAP[id];
+    if (!def) return 'UNKNOWN TICKER';
+    const count = Math.floor(qty);
+    if (!Number.isFinite(count) || count < 1 || count > 100) return 'INVALID ORDER';
+    const price = tickerPrice(def, this.data.exchange) * count;
+    if (this.data.money < price) return 'NOT ENOUGH CREDITS';
+    this.data.money -= price;
+    this.data.exchange.holdings[id] = (this.data.exchange.holdings[id] ?? 0) + count;
+    this.save();
+    return null;
+  }
+
+  sellShares(id: TickerId, qty: number): string | null {
+    const def = TICKER_MAP[id];
+    if (!def) return 'UNKNOWN TICKER';
+    const count = Math.floor(qty);
+    const held = this.data.exchange.holdings[id] ?? 0;
+    if (!Number.isFinite(count) || count < 1 || count > held) return 'INVALID ORDER';
+    const price = tickerPrice(def, this.data.exchange) * count;
+    this.data.money += price;
+    this.data.exchange.holdings[id] = held - count;
+    this.save();
+    return null;
+  }
+
+  advanceExchange(): void {
+    this.data.exchange.day = Math.min(3650, this.data.exchange.day + 1);
+    this.save();
+  }
+
+  exchangeDividend(): number {
+    return exchangeDividend(this.data.exchange);
+  }
+
+  pendingVentureEvent(): VentureEventDef | null {
+    return this.data.pendingVentureEvent
+      ? VENTURE_EVENT_MAP[this.data.pendingVentureEvent] ?? null
+      : null;
+  }
+
+  maybeQueueVentureEvent(): boolean {
+    if (this.data.pendingVentureEvent) return false;
+    const event = rollVentureEvent(
+      this.data.runs,
+      this.data.market.seed,
+      this.data.ventures,
+    );
+    if (!event) return false;
+    this.data.pendingVentureEvent = event.id;
+    this.save();
+    return true;
+  }
+
+  resolveVentureEvent(choiceId: string): string | null {
+    const event = this.pendingVentureEvent();
+    if (!event) return 'NO ACTIVE EVENT';
+    const choice = event.choices.find((entry) => entry.id === choiceId);
+    if (!choice) return 'UNKNOWN CHOICE';
+    const cost = choice.cost ?? 0;
+    if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
+    this.data.money -= cost;
+    for (const effect of choice.effects as VentureEffect[]) {
+      if (effect.kind === 'money') {
+        this.data.money = Math.max(0, this.data.money + effect.amount);
+      } else if (effect.kind === 'rank') {
+        const max = VENTURE_MAP[event.venture]?.maxLevel ?? 3;
+        this.data.ventures[event.venture] = Math.max(
+          0,
+          Math.min(max, (this.data.ventures[event.venture] ?? 0) + effect.delta),
+        );
+      } else if (effect.kind === 'rep') {
+        this.data.reputation[effect.faction] = Math.max(
+          0,
+          (this.data.reputation[effect.faction] ?? 0) + effect.amount,
+        );
+      } else if (effect.kind === 'components') {
+        this.addComponent(effect.count);
+      }
+    }
+    this.data.pendingVentureEvent = null;
     this.save();
     return null;
   }
@@ -814,6 +1193,7 @@ export class Profile {
     const data = this.decode(raw);
     if (!data) return 'INVALID SAVE';
     this.data = data;
+    this.ensureExchange();
     this.layoutCase();
     this.save();
     return null;
@@ -839,6 +1219,7 @@ export class Profile {
     this.slot = normalizeSaveSlot(slot);
     this.data = this.load();
     this.ensureMarket();
+    this.ensureExchange();
     this.layoutCase();
     this.save();
   }
@@ -1057,6 +1438,36 @@ export class Profile {
     return null;
   }
 
+  buyFactionOffer(offerId: string): string | null {
+    const offer = FACTION_OFFER_MAP[offerId];
+    if (!offer) return 'UNKNOWN OFFER';
+    if (this.rep(offer.faction) < offer.requiredRep) {
+      return `REQUIRES ${offer.requiredRep} ${offer.faction.toUpperCase()} REP`;
+    }
+    const def = NAMED_MAP[offer.named];
+    const price = Math.max(
+      1,
+      Math.round(this.namedPrice(offer.named) * (1 - offer.discount)),
+    );
+    if (this.data.money < price) return 'NOT ENOUGH CREDITS';
+    const itemId = freshId();
+    const free = findFree(this.data.stash, itemId, def.base);
+    if (!free) return 'CASE FULL';
+    this.data.money -= price;
+    const item: StashItem = {
+      id: itemId,
+      weapon: def.base,
+      ammo: def.ammo,
+      attachment: null,
+      variant: offer.named,
+      ...free,
+    };
+    this.data.stash.push(item);
+    if (!this.data.equippedId) this.data.equippedId = item.id;
+    this.save();
+    return null;
+  }
+
   installAttachment(itemId: string, attachmentId: AttachmentId): string | null {
     const item = this.data.stash.find((s) => s.id === itemId);
     if (!item) return 'WEAPON NOT FOUND';
@@ -1083,8 +1494,11 @@ export class Profile {
   }
 
   sellValue(item: StashItem): number {
-    if (item.variant) return Math.floor(NAMED_MAP[item.variant].price * 0.55);
-    return WEAPON_ECONOMY[item.weapon as Exclude<WeaponId, 'fists'>].sell;
+    const base = item.variant
+      ? NAMED_MAP[item.variant].price * 0.55
+      : WEAPON_ECONOMY[item.weapon as Exclude<WeaponId, 'fists'>].sell;
+    const mult = 1 + repSellBonus(this.rep('teeth')) + this.data.room.vault * 0.05;
+    return Math.floor(base * mult);
   }
 
   buyAmmo(id: string): string | null {
@@ -1108,6 +1522,7 @@ export class Profile {
     this.data.money += this.sellValue(item);
     this.data.stash = this.data.stash.filter((s) => s.id !== id);
     if (this.data.equippedId === id) this.data.equippedId = null;
+    if (this.data.insurance?.itemId === id) this.data.insurance = null;
     this.save();
     return null;
   }
@@ -1165,15 +1580,16 @@ export class Profile {
   }
 
   /** Consumes the equipped weapon for the run and counts the attempt. */
-  beginRun(): RunLoadout {
+  beginRun(fistsOnly = false): RunLoadout {
     this.data.runs++;
     this.ensureMarket();
-    const item = this.equipped;
+    this.ensureExchange();
     const supplyType = this.data.supplyType;
     const supplyCharges = this.data.supplyCharges;
     this.data.supplyType = null;
     this.data.supplyCharges = 0;
-    if (!item) {
+    if (fistsOnly) {
+      this.data.insurance = null;
       this.save();
       return {
         weapon: 'fists',
@@ -1182,6 +1598,24 @@ export class Profile {
         variant: null,
         supplyType,
         supplyCharges,
+        insured: false,
+      };
+    }
+    const item = this.equipped;
+    const policy = this.data.insurance;
+    const insured = !!policy && policy.itemId === item?.id;
+    if (policy && !insured) this.data.insurance = null;
+    if (!item) {
+      this.data.insurance = null;
+      this.save();
+      return {
+        weapon: 'fists',
+        ammo: 0,
+        attachment: null,
+        variant: null,
+        supplyType,
+        supplyCharges,
+        insured: false,
       };
     }
     this.data.stash = this.data.stash.filter((s) => s.id !== item.id);
@@ -1194,6 +1628,7 @@ export class Profile {
       variant: item.variant,
       supplyType,
       supplyCharges,
+      insured,
     };
   }
 
@@ -1201,6 +1636,8 @@ export class Profile {
   recordAttempt(): RunLoadout {
     this.data.runs++;
     this.ensureMarket();
+    this.ensureExchange();
+    this.data.insurance = null;
     this.save();
     return {
       weapon: 'fists',
@@ -1209,6 +1646,7 @@ export class Profile {
       variant: null,
       supplyType: null,
       supplyCharges: 0,
+      insured: false,
     };
   }
 
@@ -1229,19 +1667,22 @@ export class Profile {
     let returned: StashItem | null = null;
     if (extraction.weapon !== 'fists') {
       const id = freshId();
-      const free = findFree(this.data.stash, id, extraction.weapon);
-      if (free) {
-        returned = {
-          id,
-          weapon: extraction.weapon,
-          ammo: Math.max(0, Math.floor(extraction.ammo)),
-          attachment: isGun(extraction.weapon) ? extraction.attachment : null,
-          variant: extraction.variant,
-          ...free,
-        };
-        this.data.stash.push(returned);
-        if (!this.data.equippedId) this.data.equippedId = returned.id;
-      }
+      const free = findFree(this.data.stash, id, extraction.weapon) ?? {
+        cellX: -1,
+        cellY: -1,
+        turned: false,
+      };
+      returned = {
+        id,
+        weapon: extraction.weapon,
+        ammo: Math.max(0, Math.floor(extraction.ammo)),
+        attachment: isGun(extraction.weapon) ? extraction.attachment : null,
+        variant: extraction.variant,
+        ...free,
+      };
+      this.data.stash.push(returned);
+      if (!this.data.equippedId) this.data.equippedId = returned.id;
+      this.layoutCase();
     }
     this.save();
     return returned;
@@ -1253,7 +1694,7 @@ export class Profile {
     if (this.data.supplyType && this.data.supplyType !== id) {
       return 'CLEAR THE CURRENT KIT FIRST';
     }
-    if (this.data.supplyCharges >= SUPPLY_MAX) return 'KIT FULL';
+    if (this.data.supplyCharges >= this.maxSupply()) return 'KIT FULL';
     const price = this.supplyPrice(id);
     if (this.data.money < price) return 'NOT ENOUGH CREDITS';
     if (!this.takeStock(stockKey('supply', id))) return 'OUT OF STOCK';
@@ -1270,10 +1711,71 @@ export class Profile {
     this.save();
   }
 
+  insurancePremium(): number {
+    const item = this.equipped;
+    if (!item || item.weapon === 'fists') return 0;
+    return Math.max(
+      25,
+      Math.round(this.sellValue(item) * 0.3 * (1 - this.data.room.vault * 0.2)),
+    );
+  }
+
+  buyInsurance(): string | null {
+    const item = this.equipped;
+    if (!item || item.weapon === 'fists') return 'EQUIP A WEAPON FIRST';
+    if (this.data.insurance) return 'CANCEL THE CURRENT POLICY FIRST';
+    const premium = this.insurancePremium();
+    if (this.data.money < premium) return 'NOT ENOUGH CREDITS';
+    this.data.money -= premium;
+    this.data.insurance = {
+      itemId: item.id,
+      weapon: item.weapon,
+      variant: item.variant,
+      attachment: item.attachment,
+      premium,
+    };
+    this.save();
+    return null;
+  }
+
+  cancelInsurance(): void {
+    this.data.insurance = null;
+    this.save();
+  }
+
+  claimInsurance(): StashItem | null {
+    const policy = this.data.insurance;
+    if (!policy) return null;
+    const item: StashItem = {
+      id: freshId(),
+      weapon: policy.weapon,
+      ammo: 0,
+      attachment: policy.attachment,
+      variant: policy.variant,
+      cellX: -1,
+      cellY: -1,
+      turned: false,
+    };
+    this.data.stash.push(item);
+    this.data.insurance = null;
+    this.layoutCase();
+    this.save();
+    return item;
+  }
+
+  clearInsurance(): void {
+    if (!this.data.insurance) return;
+    this.data.insurance = null;
+    this.save();
+  }
+
   runMods(): RunMods {
     const strain = humanityStage(this.humanityUsed, this.humanityMax);
     return applyRoleMods(
-      computeMods(this.data.cyberware, this.data.perks, this.data.attributes, strain),
+      applyRoomMods(
+        computeMods(this.data.cyberware, this.data.perks, this.data.attributes, strain),
+        this.data.room,
+      ),
       this.data.role,
     );
   }
@@ -1395,7 +1897,7 @@ export class Profile {
       1,
       Math.round(
         base *
-          (1 - this.discountFor('helix')) *
+          (1 - Math.min(0.3, this.discountFor('helix') + this.discountFor('sublevel'))) *
           (1 - this.data.perks.technophile * 0.08) *
           (1 - roleClinicDiscount(this.data.role)) *
           (1 - ventureClinicDiscount(this.data.ventures)),
@@ -1446,6 +1948,19 @@ export class Profile {
     if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
     this.data.money -= cost;
     this.data.ventures[id] = rank + 1;
+    this.save();
+    return null;
+  }
+
+  buyRoomUpgrade(id: RoomId): string | null {
+    const def = ROOM_MAP[id];
+    if (!def) return 'UNKNOWN UPGRADE';
+    const rank = this.data.room[id] ?? 0;
+    if (rank >= def.maxRank) return 'MAX LEVEL';
+    const cost = roomCost(def, rank);
+    if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
+    this.data.money -= cost;
+    this.data.room[id] = rank + 1;
     this.save();
     return null;
   }
@@ -1528,9 +2043,97 @@ export class Profile {
     return null;
   }
 
+  startNewGame(lifepath: LifepathId, plus = false): void {
+    const previous = this.data;
+    const canPlus = plus && previous.finalCleared;
+    const endingsSeen = [...previous.endingsSeen];
+    this.data = defaultData();
+    this.data.endingsSeen = endingsSeen;
+    this.data.ngPlus = canPlus ? Math.min(99, previous.ngPlus + 1) : 0;
+    if (canPlus) {
+      this.data.money = previous.money;
+      this.data.stash = previous.stash.map((item) => ({ ...item }));
+      this.data.equippedId = previous.equippedId;
+      this.data.level = previous.level;
+      this.data.xp = previous.xp;
+      this.data.perkPoints = previous.perkPoints;
+      this.data.cyberware = { ...previous.cyberware };
+      this.data.perks = { ...previous.perks };
+      this.data.attributes = { ...previous.attributes };
+      this.data.attributePoints = previous.attributePoints;
+      this.data.components = { ...previous.components };
+      this.data.reputation = { ...previous.reputation };
+      this.data.role = previous.role;
+      this.data.room = { ...previous.room };
+      this.data.ventures = { ...previous.ventures };
+      this.data.exchange = {
+        ...previous.exchange,
+        holdings: { ...previous.exchange.holdings },
+      };
+      this.data.presets = previous.presets.map((preset) => (preset ? { ...preset } : null));
+      this.data.runs = previous.runs;
+      this.data.clears = previous.clears;
+    }
+    const def = LIFEPATH_MAP[lifepath];
+    if (def) {
+      this.data.lifepath = def.id;
+      if (!canPlus) this.data.money = def.money;
+      for (const [key, delta] of Object.entries(def.reputation)) {
+        const faction = key as FactionId;
+        this.data.reputation[faction] = Math.max(
+          0,
+          (this.data.reputation[faction] ?? 0) + (delta ?? 0),
+        );
+      }
+      if (!canPlus && def.startWeapon) {
+        const weapon = def.startWeapon;
+        const econ = WEAPON_ECONOMY[weapon];
+        const free = findFree(this.data.stash, freshId(), weapon) ?? {
+          cellX: -1,
+          cellY: -1,
+          turned: false,
+        };
+        const item: StashItem = {
+          id: freshId(),
+          weapon,
+          ammo: econ.ammo,
+          attachment: null,
+          variant: null,
+          ...free,
+        };
+        this.data.stash.push(item);
+        this.data.equippedId = item.id;
+      }
+    }
+    this.ensureMarket();
+    this.ensureExchange();
+    this.layoutCase();
+    this.save();
+  }
+
+  recordEnding(id: EndingId): void {
+    if (!this.data.endingsSeen.includes(id)) {
+      this.data.endingsSeen.push(id);
+      this.save();
+    }
+  }
+
+  recordRun(entry: Omit<RunRecord, 'id' | 'at'> & { at?: number }): RunRecord {
+    const record: RunRecord = {
+      ...entry,
+      id: freshId(),
+      at: entry.at ?? Date.now(),
+    };
+    this.data.runHistory.unshift(record);
+    this.data.runHistory = this.data.runHistory.slice(0, 12);
+    this.save();
+    return record;
+  }
+
   reset(): void {
     this.data = defaultData();
     this.ensureMarket();
+    this.ensureExchange();
     this.save();
   }
 }

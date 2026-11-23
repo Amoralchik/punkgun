@@ -12,6 +12,9 @@ export type MessageKey =
   | 'event.objectiveComplete'
   | 'event.sabotage'
   | 'event.secondHeart'
+  | 'event.quickhack'
+  | 'event.quickhackFail'
+  | 'event.execution'
   | 'objective.purge'
   | 'objective.target'
   | 'objective.recover'
@@ -36,6 +39,7 @@ export type MessageKey =
   | 'station.archive'
   | 'station.fabricator'
   | 'station.operator'
+  | 'station.sanctuary'
   | 'station.deploy'
   | 'station.title.contracts'
   | 'station.title.deploy'
@@ -67,6 +71,9 @@ const EN: Record<MessageKey, string> = {
   'event.objectiveComplete': 'OBJECTIVE COMPLETE — EXIT OPEN',
   'event.sabotage': 'TAP PLANTED — GRID COMPROMISED',
   'event.secondHeart': 'SECOND HEART — FLATLINE AVERTED',
+  'event.quickhack': 'QUICKHACK — TARGET REBOOTED',
+  'event.quickhackFail': 'NO VALID QUICKHACK TARGET',
+  'event.execution': 'EXECUTION',
   'objective.purge': 'PURGE ALL HOSTILES',
   'objective.target': 'KILL THE MARKED TARGET',
   'objective.recover': 'RECOVER {count} CACHE{plural}',
@@ -91,6 +98,7 @@ const EN: Record<MessageKey, string> = {
   'station.archive': 'ARCHIVE',
   'station.fabricator': 'FABRICATOR',
   'station.operator': 'OPERATOR',
+  'station.sanctuary': 'SANCTUARY',
   'station.deploy': 'DEPLOY',
   'station.title.contracts': 'BOUNTY BOARD',
   'station.title.deploy': 'MISSION SELECT',

@@ -63,8 +63,8 @@ function exercise(kind: EnemyKind) {
 }
 
 describe('combat gym', () => {
-  it('has fourteen combat archetypes plus the boss', () => {
-    expect(GYM_KINDS).toHaveLength(14);
+  it('has sixteen combat archetypes plus the boss', () => {
+    expect(GYM_KINDS).toHaveLength(16);
   });
 
   it('makes every archetype engage a close, committed target', () => {

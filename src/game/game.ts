@@ -1,4 +1,7 @@
-import { AudioEngine, ambienceForLevel } from '../core/audio';
+import { AudioEngine } from '../core/audio';
+import { districtFor } from './districts';
+import type { LifepathId } from './lifepath';
+import { CHALLENGE_MAP, type ChallengeId } from './challenges';
 import { Input } from '../core/input';
 import { Settings, controlKeymap, type ControlPreset, type Palette } from '../core/settings';
 import { randomSeed, seedLabel } from '../core/math';
@@ -13,7 +16,7 @@ import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
 import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine, type DialogueLine } from './lore';
 import { DialogueSession } from './dialogue-session';
-import { ENDING_ORDER, ENDINGS, type EndingId } from './endings';
+import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
@@ -41,6 +44,7 @@ export class Game {
   private readonly pauseRoot = document.getElementById('overlay-pause')!;
   private readonly pauseSettingsEl = document.getElementById('pause-settings')!;
   private readonly manualRoot = document.getElementById('overlay-manual')!;
+  private readonly tourRoot = document.getElementById('overlay-tour')!;
   private readonly briefRoot = document.getElementById('overlay-brief')!;
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
@@ -58,6 +62,10 @@ export class Game {
   private readonly dialogueChoicesEl = document.getElementById('dialogue-choices')!;
   private readonly endingRoot = document.getElementById('overlay-ending')!;
   private readonly endingOptions = document.getElementById('ending-options')!;
+  private readonly epilogueRoot = document.getElementById('overlay-epilogue')!;
+  private readonly epilogueKicker = document.getElementById('epilogue-kicker')!;
+  private readonly epilogueTitle = document.getElementById('epilogue-title')!;
+  private readonly epilogueBody = document.getElementById('epilogue-body')!;
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
@@ -93,7 +101,12 @@ export class Game {
   private overlayShown = false;
   private briefT = 0;
   private currentApproach: ApproachId = 'standard';
-  private pendingRun: { contract: Contract; approachId: ApproachId } | null = null;
+  private currentChallenge: ChallengeId = 'standard';
+  private pendingRun: {
+    contract: Contract;
+    approachId: ApproachId;
+    challenge: ChallengeId;
+  } | null = null;
   private currentBoons: RunBoon[] = [];
   private dialogueOpen = false;
   private dialogueSession: DialogueSession | null = null;
@@ -101,8 +114,13 @@ export class Game {
   private lastKills = 0;
   private startedWithWeapon = false;
   private lastReward: RewardSummary | null = null;
+  private lastDeathInsured = false;
+  private lastDeathInsuredWeapon: string | null = null;
+  private deathRecorded = false;
   private manualOpen = false;
+  private tourOpen = false;
   private endingOpen = false;
+  private epilogueOpen = false;
   private panelOpen = false;
   private recoveryNote: string | null = null;
   private abandonArmed = false;
@@ -113,7 +131,8 @@ export class Game {
     this.profile = new Profile();
     this.recoveryNote = this.profile.recoveryNote();
     this.safehouse = new Safehouse(this.profile, {
-      onDeploy: (contractId, approachId) => this.startRun(contractId, approachId),
+      onDeploy: (contractId, approachId, challenge) =>
+        this.startRun(contractId, approachId, challenge),
       onClick: () => {
         this.audio.unlock();
         this.audio.uiClick();
@@ -123,7 +142,7 @@ export class Game {
         this.audio.uiError();
       },
       onReroll: () => this.rerollBoard(),
-      onNewGame: () => this.startNewGame(),
+      onNewGame: (lifepath, plus) => this.startNewGame(lifepath, plus),
       onManual: () => this.showManual(),
       onClose: () => this.closePanel(),
     });
@@ -138,21 +157,31 @@ export class Game {
     this.applySettings();
     this.syncSettingsUI();
     if (!this.settings.data.tutorialSeen) this.showManual();
+    else if (!this.settings.data.tourSeen) this.showTour();
   }
 
   private rollBoard(): Contract[] {
-    return buildBoard(this.profile, randomSeed());
+    this.profile.ensureDaily();
+    const board = [this.profile.dailyContract(), ...buildBoard(this.profile, randomSeed())];
+    if (this.profile.data.ngPlus <= 0) return board;
+    return board.map((contract) => ({
+      ...contract,
+      modifiers: Array.from(
+        new Set([...contract.modifiers, 'elite' as const, 'overclocked' as const]),
+      ),
+    }));
   }
 
-  private startNewGame(): void {
-    this.profile.reset();
+  private startNewGame(lifepath: LifepathId, plus = false): void {
+    this.profile.startNewGame(lifepath, plus);
     this.returnToSafehouse();
     if (!this.settings.data.tutorialSeen) this.showManual();
   }
 
   private rerollBoard(): Contract[] | null {
-    if (this.profile.data.money < 75) return null;
-    this.profile.data.money -= 75;
+    const cost = this.profile.boardRefreshCost();
+    if (this.profile.data.money < cost) return null;
+    this.profile.data.money -= cost;
     this.profile.save();
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
@@ -220,6 +249,7 @@ export class Game {
       archive: t('station.archive'),
       fabricator: t('station.fabricator'),
       operator: t('station.operator'),
+      sanctuary: t('station.sanctuary'),
       deploy: t('station.deploy'),
     };
     this.hubPrompt.textContent = station
@@ -300,6 +330,16 @@ export class Game {
         .ending;
       if (id) this.chooseEnding(id as EndingId);
     });
+    this.epilogueRoot.addEventListener('click', (ev) => {
+      if ((ev.target as HTMLElement).closest('[data-act="epilogue-next"]')) {
+        this.finishEpilogue();
+      }
+    });
+    this.tourRoot.addEventListener('click', (ev) => {
+      if ((ev.target as HTMLElement).closest('[data-act="tour-close"]')) {
+        this.closeTour();
+      }
+    });
     this.pauseRoot.addEventListener('click', (ev) => this.handlePauseClick(ev));
     this.manualRoot.addEventListener('click', (ev) => {
       if ((ev.target as HTMLElement).closest('[data-act="close-manual"]')) this.closeManual();
@@ -328,8 +368,24 @@ export class Game {
         this.audio.toggleMute();
         return;
       }
+      if (this.tourOpen) {
+        if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          this.closeTour();
+        }
+        return;
+      }
       if (this.dialogueOpen) {
-        const choiceIndex = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+        const choiceIndex = [
+          'Digit1',
+          'Digit2',
+          'Digit3',
+          'Digit4',
+          'Digit5',
+          'Digit6',
+          'Digit7',
+          'Digit8',
+        ].indexOf(e.code);
         if (e.code === 'Escape') {
           e.preventDefault();
           this.cancelDialogue();
@@ -345,11 +401,20 @@ export class Game {
         }
         return;
       }
+      if (this.epilogueOpen) {
+        if (e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          this.finishEpilogue();
+        }
+        return;
+      }
       if (this.endingOpen) {
-        const index = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
+        const endings = availableEndings(this.profile.data);
+        const index = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
         if (index >= 0) {
           e.preventDefault();
-          this.chooseEnding(ENDING_ORDER[index]);
+          const id = endings[index];
+          if (id) this.chooseEnding(id);
         }
         return;
       }
@@ -526,14 +591,30 @@ export class Game {
     this.manualOpen = false;
     this.manualRoot.classList.add('hidden');
     if (!this.settings.data.tutorialSeen) this.settings.set('tutorialSeen', true);
+    if (!this.settings.data.tourSeen && this.state === 'safehouse') this.showTour();
   }
 
-  private startRun(contractId: string, approachId: ApproachId = 'standard'): void {
+  private showTour(): void {
+    this.tourOpen = true;
+    this.tourRoot.classList.remove('hidden');
+  }
+
+  private closeTour(): void {
+    this.tourOpen = false;
+    this.tourRoot.classList.add('hidden');
+    this.settings.set('tourSeen', true);
+  }
+
+  private startRun(
+    contractId: string,
+    approachId: ApproachId = 'standard',
+    challenge: ChallengeId = 'standard',
+  ): void {
     const contract = this.contracts.find((c) => c.id === contractId) ?? this.currentContract;
     if (!contract || contract.locked) return;
     this.audio.unlock();
     if (contract.objective === 'boss') {
-      this.pendingRun = { contract, approachId };
+      this.pendingRun = { contract, approachId, challenge };
       const boss = contract.bossId ? BOSSES[contract.bossId] : null;
       const dialogueLines: DialogueLine[] =
         contract.bossId === 'psycho' || !boss
@@ -564,9 +645,14 @@ export class Game {
       return;
     }
     if (contract.authored) {
-      this.pendingRun = { contract, approachId };
+      this.pendingRun = { contract, approachId, challenge };
       this.dialogueSession = new DialogueSession(
-        authoredDialogue(contract, this.profile.data.story),
+        authoredDialogue(
+          contract,
+          this.profile.data.story,
+          this.profile.data.role,
+          this.profile.data.lifepath,
+        ),
       );
       this.dialogueKickerEl.textContent = `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`;
       this.dialogueOpen = true;
@@ -575,21 +661,39 @@ export class Game {
       this.input.endFrame();
       return;
     }
-    this.commitRun(contract, approachId);
+    this.commitRun(contract, approachId, [], challenge);
   }
 
   private commitRun(
     contract: Contract,
     approachId: ApproachId,
     boons: RunBoon[] = [],
+    challenge: ChallengeId = 'standard',
   ): void {
-    this.currentContract = contract;
+    const effective: Contract = {
+      ...contract,
+      challenge,
+      modifiers:
+        challenge === 'rush' && !contract.modifiers.includes('rush')
+          ? [...contract.modifiers, 'rush']
+          : contract.modifiers,
+    };
+    this.currentContract = effective;
     this.currentApproach = approachId;
+    this.currentChallenge = challenge;
     this.currentBoons = boons;
+    this.profile.data.challenge = challenge;
+    this.profile.save();
     this.audio.unlock();
-    const loadout = this.profile.beginRun();
+    const loadout = this.profile.beginRun(challenge === 'fists');
     this.startedWithWeapon = loadout.weapon !== 'fists';
-    this.beginMission({ contract, approach: approachId, seed: contract.seed, loadout, boons });
+    this.beginMission({
+      contract: effective,
+      approach: approachId,
+      seed: effective.seed,
+      loadout,
+      boons,
+    });
   }
 
   private renderDialogue(): void {
@@ -611,6 +715,8 @@ export class Game {
               choice.check,
               this.profile.data.attributes,
               this.profile.data.reputation,
+              this.profile.data.role,
+              this.profile.data.lifepath,
             );
             const checkLabel = choice.check
               ? `<small>${dialogueCheckLabel(choice.check)}${met ? ' · READY' : ' · LOCKED'}</small>`
@@ -647,7 +753,9 @@ export class Game {
     const pending = this.pendingRun;
     const boons = [...session.boons];
     this.closeDialogue();
-    if (pending) this.commitRun(pending.contract, pending.approachId, boons);
+    if (pending) {
+      this.commitRun(pending.contract, pending.approachId, boons, pending.challenge);
+    }
   }
 
   private chooseDialogue(choiceId: string): void {
@@ -706,19 +814,31 @@ export class Game {
     const { contract, approach } = config;
     this.currentContract = contract;
     this.currentApproach = approach;
+    this.currentChallenge = contract.challenge ?? 'standard';
     this.manualOpen = false;
     this.manualRoot.classList.add('hidden');
+    this.tourOpen = false;
+    this.tourRoot.classList.add('hidden');
     this.endingOpen = false;
+    this.epilogueOpen = false;
     this.endingRoot.classList.add('hidden');
+    this.epilogueRoot.classList.add('hidden');
     this.world = this.createWorld(config);
     this.renderer.bind(this.world);
     this.acc = 0;
     this.overlayT = 0;
     this.overlayShown = false;
     this.lastReward = null;
+    this.lastDeathInsured = false;
+    this.deathRecorded = false;
     this.state = 'playing';
     this.world.player.invulnT = 1.2;
-    this.audio.setAmbience(ambienceForLevel(contract.layoutId));
+    if (contract.challenge === 'glass') {
+      this.world.player.armor = 0;
+      this.world.player.maxArmor = 0;
+      this.world.player.revived = true;
+    }
+    this.audio.setAmbience(districtFor(contract.layoutId).ambience);
     this.audio.setFaction(contract.faction);
     this.audio.setBossMode(contract.objective === 'boss' || contract.chapter === 'final');
     this.panelOpen = false;
@@ -748,9 +868,12 @@ export class Game {
     const mods = contract.modifiers.map((id) => MODIFIER_MAP[id].name).join(' · ');
     const boons = this.currentBoons.map((id) => BOONS[id].label).join(' · ');
     const seed = seedLabel(contract.seed);
+    const challenge = contract.challenge && contract.challenge !== 'standard'
+      ? CHALLENGE_MAP[contract.challenge].name
+      : '';
     this.briefKicker.textContent = `// ${contract.risk} RISK · ${contract.layoutName} · ${approach.name}${
-      mods ? ` · ${mods}` : ''
-    }${boons ? ` · ${boons}` : ''} · SEED ${seed}`;
+      challenge ? ` · ${challenge}` : ''
+    }${mods ? ` · ${mods}` : ''}${boons ? ` · ${boons}` : ''} · SEED ${seed}`;
     this.briefRoot.dataset.seed = seed;
     this.briefTitle.textContent = contract.title;
     this.briefFaction.textContent = faction.name;
@@ -775,6 +898,8 @@ export class Game {
     this.manualOpen = false;
     this.endingRoot.classList.add('hidden');
     this.endingOpen = false;
+    this.epilogueRoot.classList.add('hidden');
+    this.epilogueOpen = false;
     this.hud.hideResults();
     this.hud.setVisible(false);
     this.hud.exitPointer(0, 0, false);
@@ -785,6 +910,7 @@ export class Game {
     this.dialogueRoot.classList.add('hidden');
     this.dialogueOpen = false;
     this.pendingRun = null;
+    this.profile.clearInsurance();
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
     this.safehouse.setContracts(this.contracts);
@@ -867,15 +993,44 @@ export class Game {
         break;
       case 'kill':
         this.audio.kill();
+        this.audio.combo(this.world.combo);
         this.profile.addComponent(
           Math.random() < this.profile.data.perks.scavenger * 0.25 ? 2 : 1,
         );
         break;
       case 'stealthKill':
         this.audio.stealthKill();
+        this.audio.combo(this.world.combo);
         this.profile.addComponent(
           Math.random() < this.profile.data.perks.scavenger * 0.25 ? 2 : 1,
         );
+        break;
+      case 'execution':
+        this.audio.execution();
+        this.hud.subtitle(t('event.execution'));
+        this.hud.logLine('EXECUTION: stunned hostile finished');
+        break;
+      case 'dash':
+        this.audio.dash();
+        break;
+      case 'quickhack':
+        this.audio.quickhack();
+        this.hud.subtitle(t('event.quickhack'));
+        this.hud.logLine('QUICKHACK: target rebooted');
+        break;
+      case 'quickhackFail':
+        this.audio.quickhackFail();
+        this.hud.subtitle(t('event.quickhackFail'), 1600);
+        break;
+      case 'glassBreak':
+        this.audio.glassBreak();
+        break;
+      case 'medicHeal':
+        this.audio.medicHeal();
+        this.hud.logLine('MEDIC: ally plate restored');
+        break;
+      case 'houndLeap':
+        this.audio.houndLeap();
         break;
       case 'siren':
         this.audio.siren();
@@ -970,6 +1125,23 @@ export class Game {
         this.audio.death();
         this.hud.flashDamage('death');
         this.hud.damageDirection(e.angle + Math.PI);
+        const policy = this.profile.data.insurance;
+        this.lastDeathInsuredWeapon = policy ? WEAPONS[policy.weapon].name : null;
+        this.lastDeathInsured = !!this.profile.claimInsurance();
+        if (!this.deathRecorded) {
+          this.deathRecorded = true;
+          this.profile.recordRun({
+            title: this.currentContract?.title ?? 'UNKNOWN CONTRACT',
+            layoutName: this.currentContract?.layoutName ?? '',
+            time: this.world.time,
+            kills: this.world.kills,
+            payout: 0,
+            rank: '—',
+            success: false,
+            daily: this.currentContract?.daily === true,
+            challenge: this.currentContract?.challenge ?? this.currentChallenge,
+          });
+        }
         this.state = 'dead';
         this.overlayT = 0;
         this.overlayShown = false;
@@ -982,6 +1154,10 @@ export class Game {
         break;
       case 'doorOpen':
         this.audio.doorOpen();
+        break;
+      case 'doorLocked':
+        this.audio.uiError();
+        this.hud.logLine('DOOR SEALED — KICK TO BREACH');
         break;
       case 'pickup':
         this.audio.pickup();
@@ -1075,6 +1251,8 @@ export class Game {
         lootValue: this.world.lootValue,
         deathCause: this.world.deathCause,
         carriedWeapon: this.startedWithWeapon || this.world.player.weapon !== 'fists',
+        insured: this.lastDeathInsured,
+        insuredWeapon: this.lastDeathInsuredWeapon,
       });
       this.hud.showResult('death', stats, note);
       return;
@@ -1100,8 +1278,9 @@ export class Game {
 
   private showEndingChoice(): void {
     this.endingOpen = true;
+    this.epilogueOpen = false;
     this.hud.hideResults();
-    this.endingOptions.innerHTML = ENDING_ORDER.map((id, index) => {
+    this.endingOptions.innerHTML = availableEndings(this.profile.data).map((id, index) => {
       const def = ENDINGS[id];
       return `<button class="ending-option" style="--ending:${def.color}" data-ending="${id}">
         <span class="ending-key">${String(index + 1).padStart(2, '0')} · ${def.kicker.replace('// ', '')}</span>
@@ -1116,12 +1295,25 @@ export class Game {
   }
 
   private chooseEnding(id: EndingId): void {
-    if (!this.endingOpen || !ENDINGS[id]) return;
+    if (!this.endingOpen || !ENDINGS[id] || !endingUnlocked(id, this.profile.data)) return;
     this.endingOpen = false;
+    this.epilogueOpen = true;
+    this.profile.recordEnding(id);
     this.profile.data.ending = id;
     this.profile.save();
     this.endingRoot.classList.add('hidden');
+    this.epilogueKicker.textContent = ENDINGS[id].kicker;
+    this.epilogueTitle.textContent = ENDINGS[id].title;
+    this.epilogueBody.innerHTML = ENDINGS[id].body.map((p) => `<p>${p}</p>`).join('');
+    this.epilogueRoot.classList.remove('hidden');
     this.audio.win();
+    this.input.endFrame();
+  }
+
+  private finishEpilogue(): void {
+    if (!this.epilogueOpen) return;
+    this.epilogueOpen = false;
+    this.epilogueRoot.classList.add('hidden');
     this.showResultOverlay();
     this.input.endFrame();
   }
@@ -1246,6 +1438,7 @@ export class Game {
       this.hud.setHeat(this.world.heat);
       this.audio.setIntensity(this.world.heat / 100);
       this.hud.setAbilities(this.world.abilitySlots());
+      this.hud.setCombo(this.world.combo, this.world.comboT, this.world.comboMax);
       this.hud.setPsychosis(
         this.profile.humanityStage,
         this.profile.humanityInfo().label,

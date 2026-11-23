@@ -65,3 +65,8 @@ export function normalizeReputation(
   }
   return out;
 }
+
+/** 2% better sale value per rank, capped at 10%. */
+export function repSellBonus(value: number): number {
+  return Math.min(0.1, repRankIndex(value) * 0.02);
+}

@@ -1,4 +1,4 @@
-export type EndingId = 'burn' | 'broadcast' | 'vanish';
+export type EndingId = 'burn' | 'broadcast' | 'vanish' | 'remember';
 
 export interface EndingDef {
   id: EndingId;
@@ -47,9 +47,34 @@ export const ENDINGS: Record<EndingId, EndingDef> = {
       'The rain keeps falling. Somewhere the market opens for the night. You have a gun. That is usually enough.',
     ],
   },
+  remember: {
+    id: 'remember',
+    title: 'SAME GHOST',
+    kicker: '// ENDING 04 — COPY',
+    summary: 'Accept the copy and let the original stay dead.',
+    color: '#b38cff',
+    body: [
+      'You walk out of the Spire wearing the same face the file says was terminated six years ago.',
+      'The Sublevel records a second set of vitals under your name. They are steady. They are not yours.',
+      'The city cannot tell the difference. Neither, by morning, can you.',
+    ],
+  },
 };
 
-export const ENDING_ORDER: EndingId[] = ['burn', 'broadcast', 'vanish'];
+export const ENDING_ORDER: EndingId[] = ['burn', 'broadcast', 'vanish', 'remember'];
+
+export interface EndingUnlockState {
+  story: Record<string, string>;
+}
+
+export function endingUnlocked(id: EndingId, state: EndingUnlockState): boolean {
+  if (id !== 'remember') return true;
+  return state.story['faction:sublevel'] === 'sublevel-remember';
+}
+
+export function availableEndings(state: EndingUnlockState): EndingId[] {
+  return ENDING_ORDER.filter((id) => endingUnlocked(id, state));
+}
 
 export function endingFor(id: string | null | undefined): EndingDef | null {
   if (!id) return null;

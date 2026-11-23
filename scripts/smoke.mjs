@@ -208,7 +208,18 @@ async function main() {
     if (!boot.hub) throw new Error('Hub hidden on boot.');
     if (!boot.canvas) throw new Error('Canvas missing.');
     if (boot.contracts.length < 3) throw new Error('Board has fewer than 3 contracts.');
+    if (!boot.contracts[0].title.startsWith('DAILY //')) {
+      throw new Error(`Daily contract missing from board: ${boot.contracts[0].title}`);
+    }
     if (boot.saveVersion !== 2) throw new Error('Save export is not v2.');
+
+    const tour = await cdp.evaluate(`(() => {
+      document.querySelector('[data-act="close-manual"]')?.click();
+      const visible = !document.getElementById('overlay-tour').classList.contains('hidden');
+      document.querySelector('[data-act="tour-close"]')?.click();
+      return visible;
+    })()`);
+    if (!tour) throw new Error('First-minute safehouse tour failed to open.');
 
     const started = await cdp.evaluate(`(() => {
       const g = window.__game;
@@ -299,6 +310,41 @@ async function main() {
     })()`);
     if (role !== 'solo') throw new Error(`Role selection failed: ${role}`);
 
+    const exchange = await cdp.evaluate(`(() => {
+      window.__game.safehouse.openStation('ventures');
+      document.querySelector('[data-act="open-exchange"]')?.click();
+      const open = !document.getElementById('overlay-station').classList.contains('hidden')
+        && document.getElementById('station-body').textContent.includes('THE EXCHANGE')
+        && !!document.querySelector('[data-act="stock-buy"]');
+      document.querySelector('[data-act="close-station"]')?.click();
+      return open;
+    })()`);
+    if (!exchange) throw new Error('Exchange station failed to render.');
+
+    const sanctuary = await cdp.evaluate(`(() => {
+      window.__game.openPanel();
+      document.getElementById('sh-sanctuary').click();
+      const open = !document.getElementById('overlay-station').classList.contains('hidden')
+        && document.getElementById('station-title').textContent.includes('SANCTUARY')
+        && !!document.querySelector('.room-diorama');
+      document.querySelector('[data-act="close-station"]')?.click();
+      return open;
+    })()`);
+    if (!sanctuary) throw new Error('Sanctuary diorama failed to render.');
+
+    const challenge = await cdp.evaluate(`(() => {
+      window.__game.openPanel();
+      document.getElementById('sh-deploy').click();
+      const options = document.querySelectorAll('[data-act="select-challenge"]');
+      document.querySelector('[data-act="select-challenge"][data-id="glass"]')?.click();
+      const selected = window.__game.profile.data.challenge;
+      document.querySelector('[data-act="close-station"]')?.click();
+      return { options: options.length, selected };
+    })()`);
+    if (challenge.options !== 4 || challenge.selected !== 'glass') {
+      throw new Error(`Challenge selector failed: ${JSON.stringify(challenge)}`);
+    }
+
     const armed = await cdp.evaluate(`(() => {
       const g = window.__game;
       g.profile.data.money = 999;
@@ -310,16 +356,37 @@ async function main() {
     if (!armed.includes('CONFIRM')) throw new Error(`New game did not arm: ${armed}`);
     await cdp.evaluate(`document.getElementById('sh-new-game-head').click()`);
     await sleep(250);
+    const lifepath = await cdp.evaluate(`(() => ({
+      visible: !document.getElementById('overlay-lifepath').classList.contains('hidden'),
+      choices: document.querySelectorAll('[data-act="lifepath"]').length,
+    }))()`);
+    if (!lifepath.visible || lifepath.choices !== 3) {
+      throw new Error(`Lifepath chooser failed: ${JSON.stringify(lifepath)}`);
+    }
+    await cdp.evaluate(
+      `document.querySelector('[data-act="lifepath"][data-id="street"]').click()`,
+    );
+    await sleep(250);
     const fresh = await cdp.evaluate(`(() => {
       document.querySelector('[data-act="close-manual"]')?.click();
+      document.querySelector('[data-act="tour-close"]')?.click();
       return {
         money: window.__game.profile.data.money,
         level: window.__game.profile.data.level,
+        lifepath: window.__game.profile.data.lifepath,
         contracts: window.__game.contracts.length,
         hub: !document.getElementById('hub').classList.contains('hidden'),
+        lifepathHidden: document.getElementById('overlay-lifepath').classList.contains('hidden'),
       };
     })()`);
-    if (fresh.money !== 120 || fresh.level !== 1 || fresh.contracts < 3 || !fresh.hub) {
+    if (
+      fresh.money !== 60 ||
+      fresh.level !== 1 ||
+      fresh.lifepath !== 'street' ||
+      fresh.contracts < 3 ||
+      !fresh.hub ||
+      !fresh.lifepathHidden
+    ) {
       throw new Error(`New game reset failed: ${JSON.stringify(fresh)}`);
     }
 

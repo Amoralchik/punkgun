@@ -3,7 +3,7 @@ import { AMMO_PACKS, LOOT_DEFS, LootKind, WEAPON_ECONOMY } from '../game/economy
 import { StationKind } from '../game/map';
 import { Contract, objectiveDetail, objectiveText } from '../game/missions';
 import { DOSSIERS, dossierUnlocked, FACTIONS, handlerLine, unlockText } from '../game/lore';
-import { nextRepRank, repDiscount, repPayBonus } from '../game/reputation';
+import { nextRepRank, repDiscount, repPayBonus, repSellBonus } from '../game/reputation';
 import { MODIFIER_MAP } from '../game/modifiers';
 import { BOSSES } from '../game/bosses';
 import { chapterProgress } from '../game/campaign';
@@ -25,7 +25,14 @@ import {
   xpForNext,
 } from '../game/progression';
 import { Profile, stockKey } from '../game/profile';
+import { LIFEPATHS, type LifepathId } from '../game/lifepath';
+import { CHALLENGES, CHALLENGE_MAP, type ChallengeId } from '../game/challenges';
+import { FACTION_OFFERS } from '../game/faction-stock';
+import type { RoomId } from '../game/rooms';
+import type { TickerId } from '../game/exchange';
 import { ATTACHMENT_MAP } from '../game/attachments';
+import { renderSanctuary } from './station-sanctuary';
+import { renderExchange } from './station-exchange';
 
 import { COMPONENTS, COMPONENT_IDS, RECIPES, costText } from '../game/crafting';
 import {
@@ -41,7 +48,6 @@ import {
   CONSUMABLES,
   CONSUMABLE_MAP,
   ConsumableId,
-  SUPPLY_MAX,
 } from '../game/consumables';
 import { GunId, NAMED_MAP, NAMED_WEAPONS, NamedWeaponId, WEAPONS, WeaponId, isGun } from '../game/weapons';
 import { CaseView } from './case-view';
@@ -49,9 +55,9 @@ import { Workbench } from './workbench';
 import { t } from '../core/i18n';
 
 export interface SafehouseHooks {
-  onDeploy: (contractId: string, approachId: ApproachId) => void;
+  onDeploy: (contractId: string, approachId: ApproachId, challenge: ChallengeId) => void;
   onReroll: () => Contract[] | null;
-  onNewGame: () => void;
+  onNewGame: (lifepath: LifepathId, plus: boolean) => void;
   onClick: () => void;
   onError: () => void;
   onManual: () => void;
@@ -118,12 +124,16 @@ export class Safehouse {
   private readonly stationLevelEl = document.getElementById('station-level')!;
   private readonly stationBodyEl = document.getElementById('station-body')!;
   private readonly stationMsgEl = document.getElementById('station-msg')!;
+  private readonly lifepathRoot = document.getElementById('overlay-lifepath')!;
+  private readonly lifepathGrid = document.getElementById('lifepath-grid')!;
+  private readonly lifepathPlus = document.getElementById('lifepath-plus') as HTMLInputElement;
   private readonly caseView: CaseView;
   private readonly workbench: Workbench;
 
   private contracts: Contract[] = [];
   private selectedId: string | null = null;
   private approachId: ApproachId = 'standard';
+  private challengeId: ChallengeId = 'standard';
   private message = '';
   private messageError = false;
   private augMessage = '';
@@ -141,7 +151,9 @@ export class Safehouse {
     | 'archive'
     | 'fabricator'
     | 'operator'
-    | 'ventures' = 'contracts';
+    | 'ventures'
+    | 'sanctuary'
+    | 'exchange' = 'contracts';
   private stationOnly = false;
   private archiveId: string | null = null;
 
@@ -149,6 +161,7 @@ export class Safehouse {
     private readonly profile: Profile,
     private readonly hooks: SafehouseHooks,
   ) {
+    this.challengeId = this.profile.data.challenge;
     this.caseView = new CaseView(this.profile, {
       onClick: () => this.hooks.onClick(),
       onClose: () => this.render(),
@@ -244,6 +257,40 @@ export class Safehouse {
     this.stationPanel.scrollTop = 0;
   }
 
+  openExchange(): void {
+    this.message = '';
+    this.messageError = false;
+    this.augRoot.classList.add('hidden');
+    this.workbench.hide();
+    this.root.classList.add('hidden');
+    this.stationOnly = false;
+    this.stationView = 'exchange';
+    this.stationMode = true;
+    this.stationRoot.classList.remove('hidden');
+    this.render();
+    this.stationPanel.scrollTop = 0;
+  }
+
+  private showLifepath(): void {
+    this.lifepathGrid.innerHTML = LIFEPATHS.map(
+      (path) => `<button class="lifepath-card" style="--path:${path.color}" data-act="lifepath" data-id="${path.id}">
+        <span>${path.kicker}</span>
+        <b>${path.name}</b>
+        <p>${path.desc}</p>
+        <small>$${path.money} · ${path.startWeapon ? `START WITH ${path.startWeapon.toUpperCase()}` : 'START WITH PISTOL'}</small>
+      </button>`,
+    ).join('');
+    this.lifepathPlus.disabled = !this.profile.data.finalCleared;
+    this.lifepathPlus.checked = false;
+    this.lifepathPlus.parentElement?.classList.toggle('locked', !this.profile.data.finalCleared);
+    this.lifepathRoot.classList.remove('hidden');
+    (this.lifepathGrid.querySelector('button') as HTMLButtonElement | null)?.focus();
+  }
+
+  private hideLifepath(): void {
+    this.lifepathRoot.classList.add('hidden');
+  }
+
   openCase(): void {
     this.augRoot.classList.add('hidden');
     this.workbench.hide();
@@ -306,12 +353,14 @@ export class Safehouse {
     this.caseView.close();
     this.stationMode = false;
     this.stationOnly = false;
+    this.lifepathRoot.classList.add('hidden');
     this.root.classList.remove('hidden');
     this.panelEl.scrollTop = 0;
     this.render();
   }
 
   hide(): void {
+    this.lifepathRoot.classList.add('hidden');
     this.root.classList.add('hidden');
     this.stationRoot.classList.add('hidden');
     this.caseView.close();
@@ -353,7 +402,9 @@ export class Safehouse {
           c.objective === 'boss' ? ' boss' : ''
         }${locked ? ' locked' : ''}" data-act="select-contract" data-id="${c.id}">
           <span class="cnum">0${i + 1} · <b class="risk-${c.risk.toLowerCase()}">${c.risk} RISK</b>${
-            c.authored ? ' · STORY' : ''
+            c.daily ? ' · DAILY' : ''
+          }${c.authored ? ' · STORY' : ''}${
+            c.challenge && c.challenge !== 'standard' ? ` · ${CHALLENGE_MAP[c.challenge].name}` : ''
           }</span>
           <span class="ctitle">${c.title}${locked ? ' · LOCKED' : ''}</span>
           <span class="cmeta"><b style="color:${FACTIONS[c.faction].color}">${FACTIONS[c.faction].name}</b><br>${
@@ -379,8 +430,12 @@ export class Safehouse {
       : '';
     this.contractDetailEl.innerHTML = selected
       ? `${objectiveDetail(selected)}<br><span class="cflavor">${selected.tagline}</span>${
-          selectedMods ? `<span class="cmods detail-mods">${selectedMods}</span>` : ''
+          selected.daily ? '<br><span class="daily-badge">DAILY CONTRACT · ONE SEEDED DROP</span>' : ''
         }${
+          selected.challenge && selected.challenge !== 'standard'
+            ? `<br><span class="daily-badge">${CHALLENGE_MAP[selected.challenge].name}</span>`
+            : ''
+        }${selectedMods ? `<span class="cmods detail-mods">${selectedMods}</span>` : ''}${
           selectedLocked
             ? `<br><span class="clock">BOSS ACCESS LOCKED — ${this.profile.data.regularClears}/${selected.requiredClears ?? 3} REGULAR CLEARS</span>`
             : ''
@@ -507,7 +562,7 @@ export class Safehouse {
     const { supplyType, supplyCharges } = this.profile.data;
     this.suppliesEl.innerHTML = CONSUMABLES.map((def) => {
       const packed = supplyType === def.id;
-      const full = packed && supplyCharges >= SUPPLY_MAX;
+      const full = packed && supplyCharges >= this.profile.maxSupply();
       const stock = this.profile.stockFor(stockKey('supply', def.id));
       return `<div class="sh-item${packed ? ' armed' : ''}">
         <div class="info">
@@ -557,6 +612,8 @@ export class Safehouse {
       fabricator: { kicker: '// FABRICATOR', title: t('station.title.fabricator') },
       operator: { kicker: '// OPERATOR', title: t('station.title.operator') },
       ventures: { kicker: '// STREET BUSINESS', title: 'VENTURES' },
+      sanctuary: { kicker: '// SANCTUARY', title: 'SANCTUARY' },
+      exchange: { kicker: '// BLACK EXCHANGE', title: 'THE EXCHANGE' },
     } as const;
     const { kicker, title } = meta[this.stationView];
     this.stationKickerEl.textContent = kicker;
@@ -587,6 +644,15 @@ export class Safehouse {
         }</span>
       </button>`;
     }).join('');
+    const challenges = CHALLENGES.map((challenge) => {
+      const active = challenge.id === this.challengeId;
+      return `<button class="challenge${active ? ' selected' : ''}" style="--challenge:${challenge.color}"
+        data-act="select-challenge" data-id="${challenge.id}">
+        <span>${challenge.name}</span>
+        <small>${challenge.desc}</small>
+        <b>${challenge.payBonus > 0 ? `+${Math.round(challenge.payBonus * 100)}% PAY` : 'NO BONUS'}</b>
+      </button>`;
+    }).join('');
 
     if (this.stationView === 'contracts') {
       this.stationBodyEl.innerHTML = `
@@ -595,7 +661,7 @@ export class Safehouse {
             <div class="kicker">// AVAILABLE CONTRACTS</div>
             <h2>CONTRACT NET</h2>
             ${contractBlock}
-            <button class="sh-augments station-reroll" data-act="reroll">REFRESH BOARD · $75</button>
+            <button class="sh-augments station-reroll" data-act="reroll">REFRESH BOARD · $${this.profile.boardRefreshCost()}</button>
           </section>
           <section class="station-col">
             <div class="kicker">// BRIEF</div>
@@ -625,6 +691,8 @@ export class Safehouse {
             </div>
             <h2>INSERTION</h2>
             <div class="approach-list">${approaches}</div>
+            <h2>CHALLENGE</h2>
+            <div class="challenge-list">${challenges}</div>
             <h2>LOADOUT</h2>
             <div class="sh-equipped station-loadout">${equipped}</div>
             <div class="station-summary">${summary}</div>
@@ -746,7 +814,15 @@ export class Safehouse {
           return `<div class="op-rep" style="--faction:${faction.color}">
             <div class="op-rep-name">${faction.name}<b>${rank.name}</b></div>
             <div class="op-rep-meta">${rep} REP · PAY +${pay}%${
-              id === 'market' ? ` · MARKET -${discount}%` : ''
+              id === 'market'
+                ? ` · MARKET -${discount}%`
+                : id === 'helix'
+                  ? ` · CYBER -${discount}%`
+                  : id === 'teeth'
+                    ? ` · SELL +${Math.round(repSellBonus(rep) * 100)}%`
+                    : id === 'sublevel'
+                      ? ` · CLINIC -${discount}%`
+                      : ''
             }</div>
             <div class="op-rep-bar"><i style="width:${next ? Math.min(100, (rep / next.rank.min) * 100) : 100}%"></i></div>
             <small>${next ? `${next.remaining} TO ${next.rank.name}` : 'MAX STANDING'}</small>
@@ -778,6 +854,22 @@ export class Safehouse {
           <span class="op-role-state">${active ? 'ACTIVE' : 'SELECT'}</span>
         </button>`;
       }).join('');
+      const rankValue: Record<string, number> = { S: 4, A: 3, B: 2, C: 1 };
+      const historyRows = [...data.runHistory]
+        .sort(
+          (a, b) =>
+            (rankValue[b.rank] ?? 0) - (rankValue[a.rank] ?? 0) || a.time - b.time,
+        )
+        .slice(0, 6)
+        .map(
+          (run, index) => `<div class="op-run">
+            <span><b>${String(index + 1).padStart(2, '0')}</b> ${run.title}</span>
+            <small>${run.success ? `${run.rank} · ${fmtTime(run.time)} · $${run.payout}` : `DEAD · ${fmtTime(run.time)}`}${
+              run.daily ? ' · DAILY' : ''
+            }${run.challenge !== 'standard' ? ` · ${CHALLENGE_MAP[run.challenge].name}` : ''}</small>
+          </div>`,
+        )
+        .join('');
       const presetRows = data.presets
         .map((preset, index) => {
           const label = preset
@@ -833,6 +925,10 @@ export class Safehouse {
               <span>CLEARS <b>${data.clears}</b></span>
               <span>BEST <b>${data.bestTime === null ? '—' : fmtTime(data.bestTime)}</b></span>
             </div>
+            <h2>RUN HISTORY</h2>
+            <div class="op-history">${
+              historyRows || '<span class="sh-note">NO RUNS RECORDED. DEPLOY AND COME BACK.</span>'
+            }</div>
             <h2>INSTALLED</h2>
             <div class="op-installed">${
               installed.length
@@ -854,6 +950,22 @@ export class Safehouse {
       const ranks = this.profile.data.ventures;
       const income = ventureIncome(ranks);
       const pay = Math.round((venturePayMult(ranks) - 1) * 100);
+      const pending = this.profile.pendingVentureEvent();
+      const eventCard = pending
+        ? `<div class="venture-event" style="--venture:${VENTURE_MAP[pending.venture].color}">
+            <div class="kicker">// STREET EVENT</div>
+            <h2>${pending.title}</h2>
+            <p>${pending.text}</p>
+            <div class="venture-event-actions">
+              ${pending.choices
+                .map(
+                  (choice) =>
+                    `<button data-act="venture-event" data-id="${choice.id}">${choice.label}</button>`,
+                )
+                .join('')}
+            </div>
+          </div>`
+        : '';
       const cards = VENTURES.map((venture) => {
         const rank = ranks[venture.id] ?? 0;
         const maxed = rank >= venture.maxLevel;
@@ -879,6 +991,7 @@ export class Safehouse {
             <div class="venture-grid">${cards}</div>
           </section>
           <section class="station-col">
+            ${eventCard}
             <div class="kicker">// LEDGER</div>
             <h2>MONTHLY TAKE</h2>
             <div class="op-progress">
@@ -887,9 +1000,43 @@ export class Safehouse {
             </div>
             <p class="sh-note">Businesses pay after every clean extraction. Upgrades compound through three ranks.</p>
             <p class="sh-note">Bars move faction standing. Clinics cut prices. Chop shops feed the fabricator.</p>
+            <button class="sh-augments" data-act="open-exchange">OPEN THE EXCHANGE</button>
           </section>
         </div>`;
     } else if (this.stationView === 'market') {
+      const policy = this.profile.data.insurance;
+      const premium = this.profile.insurancePremium();
+      const insurance = policy
+        ? `<div class="insurance-card active">
+            <span>POLICY ACTIVE</span>
+            <b>${WEAPONS[policy.weapon].name} · PREMIUM $${policy.premium}</b>
+            <button data-act="cancel-insurance">CANCEL POLICY</button>
+          </div>`
+        : `<div class="insurance-card">
+            <span>INSURE EQUIPPED WEAPON</span>
+            <b>${premium > 0 ? `PREMIUM $${premium}` : 'EQUIP A WEAPON FIRST'}</b>
+            <button data-act="buy-insurance" ${premium > 0 ? '' : 'disabled'}>BUY POLICY</button>
+          </div>`;
+      const factionStock = FACTION_OFFERS.map((offer) => {
+        const rep = this.profile.rep(offer.faction);
+        const unlocked = rep >= offer.requiredRep;
+        const price = Math.max(
+          1,
+          Math.round(this.profile.namedPrice(offer.named) * (1 - offer.discount)),
+        );
+        return `<div class="sh-item${unlocked ? '' : ' locked'}">
+          <div class="info">
+            <span class="wname" style="color:${FACTIONS[offer.faction].color}">${NAMED_MAP[offer.named].name}</span>
+            <span class="wmeta">${FACTIONS[offer.faction].name} · ${offer.requiredRep} REP · <b>$${price}</b></span>
+            <span class="wmeta">${offer.desc}</span>
+          </div>
+          <div class="sh-actions">
+            <button data-act="faction-offer" data-id="${offer.id}" ${unlocked ? '' : 'disabled'}>${
+              unlocked ? 'BUY' : 'LOCKED'
+            }</button>
+          </div>
+        </div>`;
+      }).join('');
       this.stationBodyEl.innerHTML = `
         <div class="station-grid">
           <section class="station-col">
@@ -902,11 +1049,20 @@ export class Safehouse {
           <section class="station-col">
             <h2>CONTRABAND</h2>
             <div class="sh-list">${contraband}</div>
-            <button class="sh-augments station-reroll" data-act="refresh-market">ROTATE STOCK · $50</button>
+            <button class="sh-augments station-reroll" data-act="refresh-market">ROTATE STOCK · $${this.profile.marketRefreshCost()}</button>
+            <h2>INSURANCE</h2>
+            ${insurance}
+            <h2>FACTION BROKER</h2>
+            <div class="sh-list">${factionStock}</div>
+            <button class="sh-augments" data-act="open-exchange">OPEN THE EXCHANGE</button>
             <p class="sh-note">${intel}</p>
             <p class="sh-note">Buy ammo from storage. Sell guns and contraband here; pack consumables at the supply depot.</p>
           </section>
         </div>`;
+    } else if (this.stationView === 'sanctuary') {
+      this.stationBodyEl.innerHTML = renderSanctuary(this.profile);
+    } else if (this.stationView === 'exchange') {
+      this.stationBodyEl.innerHTML = renderExchange(this.profile);
     } else {
       this.stationBodyEl.innerHTML = `
         <div class="station-grid">
@@ -994,10 +1150,20 @@ export class Safehouse {
         this.render();
         return;
       }
+      case 'select-challenge': {
+        const id = target.dataset.id as ChallengeId | undefined;
+        if (!id || !CHALLENGES.some((challenge) => challenge.id === id)) return;
+        this.challengeId = id;
+        this.profile.data.challenge = id;
+        this.profile.save();
+        this.hooks.onClick();
+        this.render();
+        return;
+      }
       case 'launch':
         this.hooks.onClick();
         if (this.selectedId && !this.selectedContract?.locked) {
-          this.hooks.onDeploy(this.selectedId, this.approachId);
+          this.hooks.onDeploy(this.selectedId, this.approachId, this.challengeId);
         }
         return;
       case 'close-station':
@@ -1030,7 +1196,7 @@ export class Safehouse {
         } else {
           this.contracts = next;
           this.selectedId = next[0]?.id ?? null;
-          this.message = 'BOARD REFRESHED · $75';
+          this.message = `BOARD REFRESHED · $${this.profile.boardRefreshCost()}`;
           this.messageError = false;
           this.hooks.onClick();
         }
@@ -1038,13 +1204,13 @@ export class Safehouse {
         return;
       }
       case 'refresh-market': {
-        const error = this.profile.refreshMarket(50);
+        const error = this.profile.refreshMarket();
         if (error) {
           this.message = error;
           this.messageError = true;
           this.hooks.onError();
         } else {
-          this.message = 'MARKET STOCK ROTATED · $50';
+          this.message = `MARKET STOCK ROTATED · $${this.profile.marketRefreshCost()}`;
           this.messageError = false;
           this.hooks.onClick();
         }
@@ -1079,6 +1245,122 @@ export class Safehouse {
       case 'open-ventures':
         this.hooks.onClick();
         this.openVentures();
+        return;
+      case 'lifepath': {
+        const id = target.dataset.id as LifepathId | undefined;
+        if (!id || !LIFEPATHS.some((path) => path.id === id)) return;
+        this.hideLifepath();
+        this.hooks.onClick();
+        this.hooks.onNewGame(id, this.lifepathPlus.checked && this.profile.data.finalCleared);
+        return;
+      }
+      case 'lifepath-cancel':
+        this.hideLifepath();
+        this.render();
+        return;
+      case 'open-sanctuary':
+        this.hooks.onClick();
+        this.openStation('sanctuary');
+        return;
+      case 'open-exchange':
+        this.hooks.onClick();
+        this.openExchange();
+        return;
+      case 'open-market':
+        this.hooks.onClick();
+        this.openStation('market');
+        return;
+      case 'room': {
+        const id = target.dataset.id as RoomId | undefined;
+        if (!id) return;
+        const error = this.profile.buyRoomUpgrade(id);
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = 'SAFEHOUSE UPGRADED';
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
+      case 'stock-buy':
+      case 'stock-sell': {
+        const id = target.dataset.id as TickerId | undefined;
+        if (!id) return;
+        const qty = target.dataset.qty === 'all'
+          ? this.profile.exchangeHoldings(id)
+          : Number(target.dataset.qty ?? 1);
+        const error =
+          act === 'stock-buy'
+            ? this.profile.buyShares(id, qty)
+            : this.profile.sellShares(id, qty);
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = `${act === 'stock-buy' ? 'BOUGHT' : 'SOLD'} ${qty} ${id.toUpperCase()} SHARE${qty === 1 ? '' : 'S'}`;
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
+      case 'venture-event': {
+        const id = target.dataset.id;
+        if (!id) return;
+        const error = this.profile.resolveVentureEvent(id);
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = 'STREET EVENT RESOLVED';
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
+      case 'faction-offer': {
+        const id = target.dataset.id;
+        if (!id) return;
+        const error = this.profile.buyFactionOffer(id);
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = 'FACTION HARDWARE ADDED TO STORAGE';
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
+      case 'buy-insurance': {
+        const error = this.profile.buyInsurance();
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = 'INSURANCE POLICY ACTIVE';
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
+      case 'cancel-insurance':
+        this.profile.cancelInsurance();
+        this.message = 'POLICY CANCELLED';
+        this.messageError = false;
+        this.hooks.onClick();
+        this.render();
         return;
       case 'venture': {
         const id = target.dataset.id as VentureId | undefined;
@@ -1412,7 +1694,7 @@ export class Safehouse {
     this.message = '';
     this.messageError = false;
     this.hooks.onClick();
-    this.hooks.onNewGame();
+    this.showLifepath();
   }
 
   private handleReset(): void {

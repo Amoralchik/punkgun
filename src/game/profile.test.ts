@@ -249,6 +249,40 @@ describe('v1 migration and v2 validation', () => {
     expect(profile.data.attributes.reflexes).toBe(3);
   });
 
+  it('sanitizes non-finite run counters and preserves overflow extraction', () => {
+    const storage = new MemoryStorage();
+    const base = fresh(storage).data;
+    const raw = clone(base) as unknown as Record<string, unknown>;
+    raw.runs = 'NaN';
+    raw.clears = null;
+    storage.clear();
+    storage.setItem(LEGACY_SAVE_KEY, JSON.stringify(raw));
+    const profile = fresh(storage);
+    expect(profile.data.runs).toBe(0);
+    expect(profile.data.clears).toBe(0);
+
+    profile.data.stash = Array.from({ length: 60 }, (_, index) => ({
+      id: `filled-${index}`,
+      weapon: 'bat' as const,
+      ammo: 0,
+      attachment: null,
+      variant: null,
+      cellX: index % 10,
+      cellY: Math.floor(index / 10),
+      turned: false,
+    }));
+    const returned = profile.bankClear(30, 10, {
+      weapon: 'pistol',
+      ammo: 0,
+      attachment: null,
+      variant: null,
+    });
+    expect(returned).not.toBeNull();
+    expect(returned?.cellX).toBe(-1);
+    expect(returned?.cellY).toBe(-1);
+    expect(profile.data.stash).toContainEqual(returned);
+  });
+
   it('rejects future save versions instead of loading them', () => {
     const storage = new MemoryStorage();
     const source = fresh(storage);

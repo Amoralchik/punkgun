@@ -21,10 +21,13 @@ describe('enemy archetype data', () => {
     expect(pickEnemyKind(0.65)).toBe('stalker');
     expect(pickEnemyKind(0.72)).toBe('breacher');
     expect(pickEnemyKind(0.75)).toBe('drone');
-    expect(pickEnemyKind(0.8)).toBe('grunt');
+    expect(pickEnemyKind(0.79)).toBe('hound');
+    expect(pickEnemyKind(0.8)).toBe('medic');
+    expect(pickEnemyKind(0.85)).toBe('grunt');
     expect(pickEnemyKind(0.99)).toBe('grunt');
     expect(ENEMY_KIND_ROLLS.map((entry) => entry.below)).toEqual([
       0.08, 0.15, 0.26, 0.34, 0.39, 0.44, 0.5, 0.56, 0.61, 0.65, 0.7, 0.74, 0.77,
+      0.8, 0.83,
     ]);
   });
 
@@ -48,6 +51,8 @@ describe('enemy archetype data', () => {
       ammo: 6,
     });
     expect(rollEnemyLoadout('drone', () => 0.99)).toEqual({ weapon: 'needler', ammo: 12 });
+    expect(rollEnemyLoadout('hound', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('medic', () => 0.99)).toEqual({ weapon: 'pistol', ammo: 4 });
     expect(rollEnemyLoadout('shield', seq([0.54]))).toEqual({ weapon: 'bat', ammo: 0 });
     expect(rollEnemyLoadout('shield', seq([0.56]))).toEqual({ weapon: 'pistol', ammo: 4 });
     expect(rollEnemyLoadout('grunt', seq([0.1, 0.99]))).toEqual({ weapon: 'fists', ammo: 0 });

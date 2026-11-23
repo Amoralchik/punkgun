@@ -39,10 +39,17 @@ describe('layout connectivity', () => {
     }
   });
 
-  it('ships the expanded ten-layout combat set', () => {
-    expect(combat).toHaveLength(10);
+  it('ships the expanded twelve-layout combat set', () => {
+    expect(combat).toHaveLength(12);
     expect(combat.map((layout) => layout.id)).toEqual(
-      expect.arrayContaining(['transit', 'arcology', 'freighter', 'nightclub']),
+      expect.arrayContaining([
+        'transit',
+        'arcology',
+        'freighter',
+        'nightclub',
+        'rooftops',
+        'neon_alley',
+      ]),
     );
   });
 });

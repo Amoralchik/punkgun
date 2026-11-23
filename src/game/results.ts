@@ -31,9 +31,13 @@ export interface RewardSummary {
   /** Business pay bonus and passive income folded into payout. */
   ventureBonus?: number;
   ventureIncome?: number;
+  exchangeDividend?: number;
+  dailyBonus?: number;
+  challengeBonus?: number;
   accuracy: number | null;
   stealthKills: number;
   peakHeat: number;
+  bestCombo?: number;
 }
 
 export interface DeathResultInput {
@@ -43,6 +47,8 @@ export interface DeathResultInput {
   lootValue: number;
   deathCause: string;
   carriedWeapon: boolean;
+  insured?: boolean;
+  insuredWeapon?: string | null;
 }
 
 export interface WinResultContext {
@@ -60,11 +66,22 @@ export interface ResultText {
 }
 
 export function deathResult(input: DeathResultInput): ResultText {
-  const { contractTitle, time, kills, lootValue, deathCause, carriedWeapon } = input;
+  const {
+    contractTitle,
+    time,
+    kills,
+    lootValue,
+    deathCause,
+    carriedWeapon,
+    insured,
+    insuredWeapon,
+  } = input;
   const stats = `${contractTitle ? `CONTRACT ${contractTitle}\n` : ''}TIME ${fmtTime(time)}   ·   KILLS ${kills}\nLOOT LOST $${lootValue}\nKILLED BY ${deathCause}`;
-  const note = carriedWeapon
-    ? 'CARRIED WEAPON LOST · NO EXTRACTION'
-    : 'NO PAYOUT · LOOT LOST';
+  const note = insured
+    ? `INSURANCE PAID · ${insuredWeapon ?? 'WEAPON'} RETURNED WITH 0 RDS · NO EXTRACTION`
+    : carriedWeapon
+      ? 'CARRIED WEAPON LOST · NO EXTRACTION'
+      : 'NO PAYOUT · LOOT LOST';
   return { stats, note };
 }
 
@@ -75,7 +92,16 @@ export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
     (r.ventureBonus ?? 0) + (r.ventureIncome ?? 0) > 0
       ? `\nBUSINESSES    +$${(r.ventureBonus ?? 0) + (r.ventureIncome ?? 0)}`
       : '';
-  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}${roleLine}${ventureLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
+  const dividendLine = (r.exchangeDividend ?? 0) > 0
+    ? `\nMARKET DIVIDEND $${r.exchangeDividend}`
+    : '';
+  const dailyLine = (r.dailyBonus ?? 0) > 0
+    ? `\nDAILY BONUS   $${r.dailyBonus}`
+    : '';
+  const challengeLine = (r.challengeBonus ?? 0) > 0
+    ? `\nCHALLENGE     $${r.challengeBonus}`
+    : '';
+  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}${roleLine}${ventureLine}${dividendLine}${dailyLine}${challengeLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
   const ex = r.extracted;
   const extracted = ex
     ? `${ex.variant ? NAMED_MAP[ex.variant].name : WEAPONS[ex.weapon].name} · ${
@@ -90,7 +116,8 @@ export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
       ? `LEVEL UP → ${r.level} · +${r.levelsGained} PERK POINT${r.levelsGained === 1 ? '' : 'S'} · ${r.xp}/${r.xpNext} XP`
       : `LEVEL ${r.level} · ${r.xp}/${r.xpNext} XP · ${r.perkPoints} PP`;
   const accuracyLine = r.accuracy === null ? 'ACC —' : `ACC ${Math.round(r.accuracy * 100)}%`;
-  const performance = `${accuracyLine} · STEALTH ${r.stealthKills} · PEAK HEAT ${Math.round(r.peakHeat)}`;
+  const comboLine = (r.bestCombo ?? 0) > 0 ? ` · COMBO x${r.bestCombo}` : '';
+  const performance = `${accuracyLine} · STEALTH ${r.stealthKills} · PEAK HEAT ${Math.round(r.peakHeat)}${comboLine}`;
   const finale = ctx.final
     ? ctx.ending
       ? `\nENDING: ${ENDINGS[ctx.ending].title}\n${ENDINGS[ctx.ending].summary}`

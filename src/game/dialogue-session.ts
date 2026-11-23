@@ -18,12 +18,11 @@ export interface DialogueResolution {
 /** Pure-ish dialogue state: lines, choices, boons and story consequences. */
 export class DialogueSession {
   index = 0;
+  readonly lines: DialogueLine[];
   readonly boons: RunBoon[];
 
-  constructor(
-    readonly lines: DialogueLine[],
-    initialBoons: RunBoon[] = [],
-  ) {
+  constructor(lines: DialogueLine[], initialBoons: RunBoon[] = []) {
+    this.lines = [...lines];
     this.boons = [...initialBoons];
   }
 
@@ -57,6 +56,8 @@ export class DialogueSession {
         choice.check,
         profile.data.attributes,
         profile.data.reputation,
+        profile.data.role,
+        profile.data.lifepath,
       )
     ) {
       return { ok: false, error: 'REQUIREMENT NOT MET', reputation: [] };

@@ -4,6 +4,8 @@ import type { AttributeId, Attributes } from './attributes';
 import type { RunBoon } from './boons';
 import type { Contract } from './missions';
 import type { Reputation } from './reputation';
+import { ROLE_MAP, type RoleId } from './roles';
+import { LIFEPATH_MAP, type LifepathId } from './lifepath';
 
 export type FactionId = 'helix' | 'teeth' | 'orbit' | 'sublevel' | 'market';
 
@@ -64,6 +66,8 @@ export const FACTION_BY_LAYOUT: Record<LayoutId, FactionId> = {
   arcology: 'helix',
   freighter: 'orbit',
   nightclub: 'market',
+  rooftops: 'helix',
+  neon_alley: 'market',
 };
 
 export function factionForLayout(id: LayoutId): FactionId {
@@ -297,6 +301,19 @@ export const DOSSIERS: Dossier[] = [
       'The Sublevel does not care which method you pick. It only cares that you keep coming back.',
     ],
   },
+  {
+    id: 'ending-remember',
+    order: 17,
+    title: 'THE SAME GHOST',
+    kicker: '// ENDING FILE — COPY',
+    faction: 'sublevel',
+    unlock: { ending: 'remember' },
+    body: [
+      'The Spire keeps its lights on. The Sublevel keeps its files. You keep the face.',
+      'Helix calls the copy a continuity error. The street calls it a ghost with a gun.',
+      'MOTH is quiet for a long time. Then it asks where you want to go.',
+    ],
+  },
 ];
 
 export interface StoryProgress {
@@ -305,6 +322,7 @@ export interface StoryProgress {
   bossCleared: boolean;
   finalCleared: boolean;
   ending?: EndingId | null;
+  endingsSeen?: EndingId[];
   story?: Record<string, string>;
 }
 
@@ -312,7 +330,9 @@ export function dossierUnlocked(dossier: Dossier, p: StoryProgress): boolean {
   const u = dossier.unlock;
   if (u.final && !p.finalCleared) return false;
   if (u.boss && !p.bossCleared) return false;
-  if (u.ending && p.ending !== u.ending) return false;
+  if (u.ending && !(p.ending === u.ending || p.endingsSeen?.includes(u.ending))) {
+    return false;
+  }
   if (u.story && !p.story?.[u.story]) return false;
   if (u.clears !== undefined && p.clears < u.clears) return false;
   if (u.level !== undefined && p.level < u.level) return false;
@@ -368,7 +388,9 @@ export type SpeakerId = 'MOTH' | 'KESTREL' | 'GRIN' | 'CUTTER' | 'VESPER';
 
 export type DialogueCheck =
   | { kind: 'attribute'; attribute: AttributeId; value: number }
-  | { kind: 'reputation'; faction: FactionId; value: number };
+  | { kind: 'reputation'; faction: FactionId; value: number }
+  | { kind: 'role'; role: RoleId }
+  | { kind: 'lifepath'; lifepath: LifepathId };
 
 export interface DialogueChoice {
   id: string;
@@ -390,6 +412,8 @@ export function dialogueCheckLabel(check: DialogueCheck): string {
   if (check.kind === 'attribute') {
     return `${check.attribute.toUpperCase()} ${check.value}`;
   }
+  if (check.kind === 'role') return ROLE_MAP[check.role].name;
+  if (check.kind === 'lifepath') return LIFEPATH_MAP[check.lifepath].name;
   return `${FACTIONS[check.faction].name} ${check.value} REP`;
 }
 
@@ -397,9 +421,13 @@ export function dialogueCheckMet(
   check: DialogueCheck | undefined,
   attributes: Attributes,
   reputation: Reputation,
+  role: RoleId | null = null,
+  lifepath: LifepathId | null = null,
 ): boolean {
   if (!check) return true;
   if (check.kind === 'attribute') return attributes[check.attribute] >= check.value;
+  if (check.kind === 'role') return check.role === role;
+  if (check.kind === 'lifepath') return check.lifepath === lifepath;
   return (reputation[check.faction] ?? 0) >= check.value;
 }
 
@@ -464,9 +492,37 @@ export const FACTION_STORYLINES: Record<FactionId, FactionStoryline> = {
   },
 };
 
+const ROLE_DIALOGUE: Record<RoleId, string> = {
+  solo: 'You take the hard line. The block respects a straight fight.',
+  netrunner: 'You ghost the local mesh. The cameras forget your face.',
+  techie: 'You strip the panel and make the building lie for you.',
+  fixer: 'You call the marker. Somebody else pays the interest.',
+  medtech: 'You read the vitals and keep the crew breathing.',
+};
+
+const LIFEPATH_REPLY: Record<LifepathId, string> = {
+  street: 'The block opens a door it does not open for outsiders.',
+  corp: 'Your old badge still clears one elevator.',
+  nomad: 'The convoy leaves a gap in the patrol schedule.',
+};
+
+const LIFEPATH_BOON: Record<LifepathId, RunBoon> = {
+  street: 'components',
+  corp: 'pay',
+  nomad: 'quiet',
+};
+
+const LIFEPATH_REP: Record<LifepathId, FactionId> = {
+  street: 'teeth',
+  corp: 'helix',
+  nomad: 'orbit',
+};
+
 export function authoredDialogue(
   contract: Contract,
   story: Record<string, string> = {},
+  role: RoleId | null = null,
+  lifepath: LifepathId | null = null,
 ): DialogueLine[] {
   const storyline = FACTION_STORYLINES[contract.faction] ?? FACTION_STORYLINES.market;
   const chapterIndex =
@@ -481,6 +537,33 @@ export function authoredDialogue(
         : contract.faction === 'market'
           ? 'tech'
           : 'tech';
+  const roleChoice: DialogueChoice | null = role
+    ? {
+        id: `role-${role}`,
+        label: `ROLE: ${ROLE_MAP[role].name} angle`,
+        check: { kind: 'role', role },
+        boon:
+          role === 'netrunner'
+            ? 'quiet'
+            : role === 'techie'
+              ? 'components'
+              : role === 'fixer'
+                ? 'pay'
+                : 'armor',
+        reputation: { [contract.faction]: 1 },
+        reply: ROLE_DIALOGUE[role],
+      }
+    : null;
+  const lifepathChoice: DialogueChoice | null = lifepath
+    ? {
+        id: `path-${lifepath}`,
+        label: `LIFEPATH: ${LIFEPATH_MAP[lifepath].name}`,
+        check: { kind: 'lifepath', lifepath },
+        boon: LIFEPATH_BOON[lifepath],
+        reputation: { [LIFEPATH_REP[lifepath]]: 1 },
+        reply: LIFEPATH_REPLY[lifepath],
+      }
+    : null;
   return [
     {
       speaker: storyline.contact,
@@ -523,6 +606,8 @@ export function authoredDialogue(
           reputation: { market: 1 },
           reply: 'Three components are already in the bag. Do not lose the bag.',
         },
+        ...(roleChoice ? [roleChoice] : []),
+        ...(lifepathChoice ? [lifepathChoice] : []),
         ...(priorChoice
           ? [
               {
@@ -568,5 +653,25 @@ export const BOSS_DIALOGUE: DialogueLine[] = [
   {
     speaker: 'MOTH',
     text: 'No leash. Bring the plates down and come back up. I will keep the lights on.',
+  },
+  {
+    speaker: 'MOTH',
+    text: 'Before the arena: what do I keep in the file?',
+    choices: [
+      {
+        id: 'sublevel-remember',
+        label: 'REMEMBER SUBJECT 06',
+        boon: 'quiet',
+        reputation: { sublevel: 1 },
+        reply: 'Log it as a person. The arena is still a grave.',
+      },
+      {
+        id: 'sublevel-erase',
+        label: 'ERASE THE FILE',
+        boon: 'armor',
+        reputation: { helix: 1 },
+        reply: 'Log it as a weapon. Helix prefers clean paperwork.',
+      },
+    ],
   },
 ];
