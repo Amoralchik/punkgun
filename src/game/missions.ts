@@ -1,4 +1,5 @@
 import { randomSeed, mulberry32 } from '../core/math';
+import { t } from '../core/i18n';
 import { BOSSES, BossId } from './bosses';
 import { factionForLayout, FactionId } from './lore';
 import { LAYOUTS, layoutCacheCount, LayoutId } from './map';
@@ -109,42 +110,54 @@ function shuffle<T>(items: T[], rng: () => number): T[] {
 export function objectiveText(contract: Contract): string {
   switch (contract.objective) {
     case 'purge':
-      return 'PURGE ALL HOSTILES';
+      return t('objective.purge');
     case 'target':
-      return 'KILL THE MARKED TARGET';
+      return t('objective.target');
     case 'recover':
-      return `RECOVER ${contract.requiredLoot} CACHE${contract.requiredLoot === 1 ? '' : 'S'}`;
+      return t('objective.recover', {
+        count: contract.requiredLoot,
+        plural: contract.requiredLoot === 1 ? '' : 'S',
+      });
     case 'boss':
-      return 'KILL THE BOSS';
+      return t('objective.boss');
     case 'sabotage':
-      return `SABOTAGE ${contract.requiredLoot} TERMINAL${contract.requiredLoot === 1 ? '' : 'S'}`;
+      return t('objective.sabotage', {
+        count: contract.requiredLoot,
+        plural: contract.requiredLoot === 1 ? '' : 'S',
+      });
     case 'extraction':
-      return 'SECURE THE CASE';
+      return t('objective.extraction');
     case 'hunt':
-      return 'HUNT THE MARKED TARGET';
+      return t('objective.hunt');
     case 'defense':
-      return 'HOLD THE ZONE';
+      return t('objective.defense');
   }
 }
 
 export function objectiveDetail(contract: Contract): string {
   switch (contract.objective) {
     case 'purge':
-      return 'Eliminate every hostile in the sector, then reach the exit.';
+      return t('objective.detail.purge');
     case 'target':
-      return 'Only the amber-marked target matters. Kill it, then reach the exit.';
+      return t('objective.detail.target');
     case 'recover':
-      return `Grab ${contract.requiredLoot} marked cache${contract.requiredLoot === 1 ? '' : 's'}, then reach the exit.`;
+      return t('objective.detail.recover', {
+        count: contract.requiredLoot,
+        plural: contract.requiredLoot === 1 ? '' : 's',
+      });
     case 'boss':
-      return 'Break the boss armor plates, survive the arena mechanics, then reach the exit.';
+      return t('objective.detail.boss');
     case 'sabotage':
-      return `Reach ${contract.requiredLoot} marked terminal${contract.requiredLoot === 1 ? '' : 's'} and plant the tap. Cameras and patrols make noise.`;
+      return t('objective.detail.sabotage', {
+        count: contract.requiredLoot,
+        plural: contract.requiredLoot === 1 ? '' : 's',
+      });
     case 'extraction':
-      return 'Secure the package. The sector will converge once you touch it. Reach the exit.';
+      return t('objective.detail.extraction');
     case 'hunt':
-      return 'The target flees and calls for help. Corner it, kill it, then reach the exit.';
+      return t('objective.detail.hunt');
     case 'defense':
-      return 'Hold the marked zone for 45 seconds. Reinforcements arrive in waves.';
+      return t('objective.detail.defense');
   }
 }
 

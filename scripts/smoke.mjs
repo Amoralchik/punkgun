@@ -272,6 +272,15 @@ async function main() {
     );
     if (hub.state !== 'safehouse' || !hub.hub) throw new Error('Return to safehouse failed.');
 
+    const workbench = await cdp.evaluate(`(() => {
+      window.__game.openPanel();
+      document.getElementById('sh-workbench').click();
+      const open = !document.getElementById('overlay-workbench').classList.contains('hidden');
+      document.querySelector('[data-act="close-workbench"]')?.click();
+      return open;
+    })()`);
+    if (!workbench) throw new Error('Workbench station failed to open.');
+
     const armed = await cdp.evaluate(`(() => {
       const g = window.__game;
       g.profile.data.money = 999;
@@ -309,6 +318,7 @@ async function main() {
           memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
           paused: true,
           returned: hub.state,
+          workbench: true,
           newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
         },

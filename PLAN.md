@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 81 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 82 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -31,15 +31,15 @@ working checklist.
 | Endings | 1 | **3** (burn, broadcast, vanish) | branch epilogue scenes |
 | New game flow | reset only | **confirmed new-game reset + campaign reroll** | ending-screen shortcut |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
-| Combat gym | none | **14-archetype deterministic gym test** | full clear-rate/3-build matrix |
+| Combat gym | none | **14-archetype gym + three-build clear-rate matrix** | deeper difficulty tuning |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |
-| Browser matrix / QA | manual | QA matrix + smoke | Firefox/Safari certification |
+| Browser matrix / QA | manual | **Chrome + Edge smoke; Firefox/WebKit Playwright harnesses** | Firefox/Safari certification runs |
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
 | Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
-| Localization readiness | none | typed catalog seam for event copy | extract remaining UI copy, add locale |
-| Deep module splits | not started | not started | World/Safehouse/Game splits |
+| Localization readiness | none | **typed catalog: objectives, stations, boons, HUD events** | extract station/manual/dialogue copy, add locale |
+| Deep module splits | not started | **world objectives + gym helper; Safehouse workbench; Game dialogue session** | player/AI/bullets/doors; station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
@@ -54,23 +54,21 @@ working checklist.
    stock rotation, price drift, faction discounts across stations.
 3. **Contract depth** — done: 8 objectives, 12 modifiers, 12 authored contracts,
    three chapter gates, four bosses, three endings, ending archive entries.
-4. **Presentation** — in progress: 4-frame walk, holo ads, contract palettes,
-   faction music layers, subtitles/log. Remaining: positional SFX, fog volumes,
-   bespoke boss choreography, localization extraction.
-5. **Scale** — open: 3–4 new layouts, 1–4 enemy archetypes, faction storylines,
-   NG+/dailies/challenge modes.
-6. **Architecture** — open: split `World`, `Safehouse`, `Game`; route strings
-   through a message catalog.
+4. **Presentation** — done for this tranche: 4-frame walk, holo ads, contract
+   palettes, fog/blackout, faction music layers, positional SFX, subtitles/log.
+   Remaining: bespoke boss choreography and full localization extraction.
+5. **Scale** — layouts and archetypes hit target; faction storylines and a
+   three-ending campaign are in. Remaining: NG+, dailies and challenge modes.
+6. **Architecture** — partial: World objectives/gym, Safehouse workbench and Game
+   dialogue are split out; continue with World player/AI/bullets/doors and station views.
 
 ## Next sequence
 
-1. Expand the 14-archetype gym into a three-build clear-rate matrix and tune tells.
-2. Add branching dialogue consequences, more checks, and archive entries per path.
-3. Split `World` into player/AI/bullets/doors/objectives modules behind the
-   existing `World` facade, then repeat for `Safehouse` and `Game`.
-4. Extract remaining user-visible strings to the typed catalog and add a second
-   locale fixture.
-5. Add Firefox/Safari smoke certification and long-session memory sampling.
+1. Tune the three-build clear-rate matrix: shield/flank behavior and encounter density.
+2. Continue the split: World player/AI/bullets/doors and Safehouse station views.
+3. Extract remaining station/manual/dialogue strings and add a second locale fixture.
+4. Install Firefox/WebKit binaries and run the Playwright certification harnesses.
+5. Add long-session memory sampling and more consequence payoffs.
 
 ## Non-goals (unchanged)
 

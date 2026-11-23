@@ -11,6 +11,7 @@ import { APPROACH_MAP, ApproachId } from './attributes';
 import { ModifierId } from './modifiers';
 import { ENEMY_TRAITS, pickEnemyKind, rollEnemyLoadout } from './enemy-data';
 import { BOSSES, BossId } from './bosses';
+import { createObjectiveNodes, nearestObjectiveNode, objectiveNodeText } from './world-objectives';
 import type { RunBoon } from './boons';
 import {
   addBlood as emitBlood,
@@ -367,75 +368,11 @@ export class World {
     return best;
   }
 
-  private objectivePositions(count: number): { x: number; y: number }[] {
-    const positions: { x: number; y: number }[] = [];
-    for (const loot of this.loot) {
-      if (positions.length >= count) break;
-      positions.push({ x: loot.x, y: loot.y });
-    }
-    for (const enemy of this.level.enemies) {
-      if (positions.length >= count) break;
-      if (positions.some((p) => dist(p.x, p.y, enemy.x, enemy.y) < 80)) continue;
-      positions.push({ x: enemy.x, y: enemy.y });
-    }
-    while (positions.length < count) {
-      const center = tileCenter(this.level.w >> 1, this.level.h >> 1, this.level.h);
-      positions.push({
-        x: center.x + (positions.length - 1) * 34,
-        y: center.y + (positions.length % 2 === 0 ? 34 : -34),
-      });
-    }
-    return positions;
-  }
-
   private setupObjectives(): void {
-    if (this.mission.objective === 'sabotage') {
-      const count = Math.max(1, this.mission.requiredLoot);
-      for (const pos of this.objectivePositions(count)) {
-        this.objectives.push({
-          id: this.nextId++,
-          x: pos.x,
-          y: pos.y,
-          kind: 'terminal',
-          progress: 0,
-          required: 1,
-          completed: false,
-          radius: 58,
-        });
-      }
-    } else if (this.mission.objective === 'extraction') {
-      let best = this.level.loot[0] ?? { x: this.level.exit.x, y: this.level.exit.y };
-      let bestD = -1;
-      for (const loot of this.level.loot) {
-        const d = dist(loot.x, loot.y, this.level.spawn.x, this.level.spawn.y);
-        if (d > bestD) {
-          bestD = d;
-          best = loot;
-        }
-      }
-      this.objectives.push({
-        id: this.nextId++,
-        x: best.x,
-        y: best.y,
-        kind: 'case',
-        progress: 0,
-        required: 1,
-        completed: false,
-        radius: 58,
-      });
-    } else if (this.mission.objective === 'defense') {
-      this.objectives.push({
-        id: this.nextId++,
-        x: this.level.exit.x,
-        y: this.level.exit.y,
-        kind: 'zone',
-        progress: 0,
-        required: 45,
-        completed: false,
-        radius: 170,
-      });
-      this.defenseWaveT = 12;
-    }
+    this.objectives.push(
+      ...createObjectiveNodes(this.mission, this.level, this.loot, () => this.nextId++),
+    );
+    if (this.mission.objective === 'defense') this.defenseWaveT = 12;
   }
 
   private applyModifiers(ids: ModifierId[]): void {
@@ -620,18 +557,8 @@ export class World {
       const boss = this.boss;
       return boss ? `${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
     }
-    if (this.mission.objective === 'sabotage') {
-      const done = this.objectives.filter((n) => n.completed).length;
-      return `SABOTAGE ${done}/${this.objectives.length}`;
-    }
-    if (this.mission.objective === 'extraction') {
-      return this.objectives[0]?.completed ? 'CASE SECURED — EXIT' : 'SECURE THE CASE';
-    }
-    if (this.mission.objective === 'defense') {
-      const zone = this.objectives[0];
-      const left = Math.max(0, Math.ceil((zone?.required ?? 45) - (zone?.progress ?? 0)));
-      return zone?.completed ? 'ZONE HELD — EXIT' : `HOLD THE ZONE ${left}S`;
-    }
+    const nodeText = objectiveNodeText(this.mission, this.objectives);
+    if (nodeText) return nodeText;
     return `CACHES ${this.collectedLoot}/${this.mission.requiredLoot}`;
   }
 
@@ -692,20 +619,6 @@ export class World {
         this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
       }
     }
-  }
-
-  private nearestObjective(): ObjectiveNode | null {
-    let best: ObjectiveNode | null = null;
-    let bestD = Infinity;
-    for (const node of this.objectives) {
-      if (node.completed || node.kind === 'zone') continue;
-      const d = dist(this.player.x, this.player.y, node.x, node.y);
-      if (d <= node.radius && d < bestD) {
-        bestD = d;
-        best = node;
-      }
-    }
-    return best;
   }
 
   private completeObjectiveNode(node: ObjectiveNode): void {
@@ -970,7 +883,7 @@ export class World {
   promptText(): string | null {
     if (!this.player.alive || this.state !== 'playing') return null;
     if (this.nearestBackstab()) return 'E — SILENT TAKEDOWN';
-    const objective = this.nearestObjective();
+    const objective = nearestObjectiveNode(this.objectives, this.player);
     if (objective) {
       return objective.kind === 'terminal' ? 'E — PLANT TAP' : 'E — SECURE CASE';
     }
@@ -1528,7 +1441,7 @@ export class World {
       this.killEnemy(backstab, 'player', true);
       return;
     }
-    const objective = this.nearestObjective();
+    const objective = nearestObjectiveNode(this.objectives, this.player);
     if (objective) {
       this.completeObjectiveNode(objective);
       return;

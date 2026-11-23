@@ -21,11 +21,11 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~274 kB | 300 kB |
+| App JS | ~277 kB | 300 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~815 kB | 860 kB |
+| Total JS | ~818 kB | 860 kB |
 | CSS | ~48 kB | 60 kB |
-| Initial gzip (JS + CSS + HTML) | ~229 kB | 250 kB |
+| Initial gzip (JS + CSS + HTML) | ~231 kB | 250 kB |
 | Largest single chunk | ~344 kB | 360 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
@@ -64,10 +64,13 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 81 unit tests + build + budget)
+- `npm run verify` (typecheck + 82 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/new game)
 - `npm run smoke:edge` (same flow in Edge)
+- `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
+  (harnesses ready; binaries not installed in the current QA environment)
 - `npm run test:gym` (14 archetypes vs a committed target)
+- `npm run test:balance` (three-build clear-rate matrix)
 - `npm run package`
 - Full matrix and manual checklist: [QA.md](./QA.md)
 - Production preview: boot, deploy, reload, pause, operator import/export, NEW GAME reset.
@@ -80,8 +83,9 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 ## Localization Readiness
 
 - Document language is `en`; manifest declares `en`.
-- HUD event copy routes through `src/core/i18n.ts` with a typed `MessageKey` catalog.
-- Most station/manual/dialogue copy is still inline. Route it through the same catalog before adding
+- Objectives, station labels/titles, boon copy and HUD events route through
+  `src/core/i18n.ts` with a typed `MessageKey` catalog.
+- Station/manual/dialogue copy is still inline. Route it through the same catalog before adding
   a second locale. Do not machine-translate the inline copy in place.
 
 ## Credits

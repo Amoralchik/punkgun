@@ -16,8 +16,9 @@ Smoke output is `tmp-smoke/smoke.png`; it is disposable and gitignored.
 |---|---|---|
 | Chrome (evergreen, Windows) | primary | Smoke-tested headless (Chrome 157) + manual |
 | Edge (evergreen, Windows) | primary Chromium | Smoke-tested headless (`npm run smoke:edge`) |
-| Firefox (evergreen) | supported | Not certified in this environment |
-| Safari (macOS/iOS) | QA target, not a claim | Not certified |
+| Firefox (evergreen) | supported | Playwright harness ready (`npm run smoke:firefox`); browser binary download did not complete here |
+| WebKit / Safari engine | QA target | Playwright harness ready (`npm run smoke:webkit`); binary not installed here; native Safari not certified |
+| Safari (macOS/iOS) | QA target, not a claim | WebKit engine proxy only; native Safari app not certified |
 | WebGL unavailable | fail closed | `SIGNAL LOST` boot screen |
 | WebGL context lost | recover | fatal boundary + reload CTA |
 
@@ -31,6 +32,7 @@ changes.
 
 - no fatal overlay, canvas present, hub visible;
 - browser selector: Chrome default, Edge with `--browser=edge`;
+- Playwright browsers require `npx playwright install firefox webkit`;
 - board has at least three contracts and save export is v2;
 - every combat layout has a reachable exit and every cache/weapon spawn is reachable (unit test);
 - deploy a non-boss contract, authored dialogue choice, simulation advance, HUD objective render;
@@ -68,6 +70,7 @@ types.
 - [ ] PAY, ARMOR, QUIET and COMPONENTS boons show in the brief and affect settlement/vision/plates.
 - [ ] Purge, target, recover, sabotage, extraction, hunt, defense all complete.
 - [ ] Every archetype attacks and closes correctly: `npm run test:gym`.
+- [ ] Three-build matrix prints and stays within its band: `npm run test:balance`.
 - [ ] A committed enemy reacquires a close player instead of going idle behind its cone.
 - [ ] Sabotage terminals and extraction case are visible and interactable.
 - [ ] Defense timer only advances inside the marked zone; waves spawn.
@@ -103,11 +106,13 @@ types.
 
 ## Known limitations
 
-- Firefox/Safari certification is not complete.
-- Localization extraction is partially started: HUD event copy routes through
-  `src/core/i18n.ts`; most UI copy remains inline. A full extraction pass is not done.
+- Firefox/Safari certification harness exists but the browser binaries were unavailable in this environment;
+  Edge is certified and Chrome is smoke-tested.
+- Localization extraction is underway: objectives, station labels/titles, boons and
+  HUD event copy route through `src/core/i18n.ts`; station/manual/dialogue copy remains inline.
 - Positional audio panning covers gameplay SFX through a stereo panner; music and ambience are centered beds.
-- Deep module splits remain future work; `world.ts`, `safehouse.ts`, and `game.ts`
-  are still large.
+- Deep module splits are partial: world objectives/gym helpers, the Safehouse
+  workbench and Game dialogue state are extracted; `world.ts`, `safehouse.ts`, and
+  `game.ts` still carry the combat loop, station views and flow.
 - Unknown/unsupported browsers fail to the fatal boundary rather than offering a
   reduced renderer.

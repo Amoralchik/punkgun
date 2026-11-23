@@ -1,3 +1,5 @@
+import { t } from '../core/i18n';
+
 export type RunBoon = 'armor' | 'pay' | 'quiet' | 'components';
 
 export interface BoonDef {
@@ -10,26 +12,26 @@ export interface BoonDef {
 export const BOONS: Record<RunBoon, BoonDef> = {
   armor: {
     id: 'armor',
-    label: 'EXTRA PLATE',
-    desc: 'Start the contract with one additional armor plate.',
+    label: t('boon.armor.label'),
+    desc: t('boon.armor.desc'),
     color: '#ff7a4c',
   },
   pay: {
     id: 'pay',
-    label: 'FIXER CUT',
-    desc: '+12% contract payout.',
+    label: t('boon.pay.label'),
+    desc: t('boon.pay.desc'),
     color: '#ffc46b',
   },
   quiet: {
     id: 'quiet',
-    label: 'ACCESS CODES',
-    desc: 'Enemy vision range -15% for the run.',
+    label: t('boon.quiet.label'),
+    desc: t('boon.quiet.desc'),
     color: '#5ef1ff',
   },
   components: {
     id: 'components',
-    label: 'SALVAGE CLAIM',
-    desc: 'Extract with 3 bonus fabrication components.',
+    label: t('boon.components.label'),
+    desc: t('boon.components.desc'),
     color: '#b38cff',
   },
 };

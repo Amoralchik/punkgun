@@ -18,7 +18,11 @@ Open the local URL printed by Vite. Default dev port is `5188`.
 ```bash
 npm run verify      # typecheck + unit tests + production build + budget
 npm run package     # build + budget + release/punkgun-<version>/ + .tar.gz
-npm run smoke       # headless production boot/deploy/pause smoke
+npm run smoke         # headless Chrome production boot/deploy/pause smoke
+npm run smoke:edge    # same smoke in Edge
+npm run smoke:firefox # same smoke in Firefox (Playwright)
+npm run smoke:webkit  # WebKit/Safari-engine smoke (Playwright)
+# Playwright browsers: npx playwright install firefox webkit
 ```
 
 The production build is an installable PWA with a service-worker app shell and offline fallback. Deployment instructions, budgets, and the QA matrix are in [RELEASE.md](./RELEASE.md) and [QA.md](./QA.md). Implementation status is tracked in [PLAN.md](./PLAN.md).
@@ -47,7 +51,7 @@ The production build is an installable PWA with a service-worker app shell and o
 
 ## Tests
 
-`npm test` runs the Vitest suite (81 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run test:gym` exercises all 14 archetypes against a committed target. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
+`npm test` runs the Vitest suite (82 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run test:gym` exercises all 14 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

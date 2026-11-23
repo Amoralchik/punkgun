@@ -16,7 +16,7 @@ import {
   xpForNext,
 } from '../game/progression';
 import { Profile, stockKey } from '../game/profile';
-import { ATTACHMENTS, ATTACHMENT_MAP, AttachmentId } from '../game/attachments';
+import { ATTACHMENT_MAP } from '../game/attachments';
 
 import { COMPONENTS, COMPONENT_IDS, RECIPES, costText } from '../game/crafting';
 import {
@@ -36,6 +36,8 @@ import {
 } from '../game/consumables';
 import { GunId, NAMED_MAP, NAMED_WEAPONS, NamedWeaponId, WEAPONS, WeaponId, isGun } from '../game/weapons';
 import { CaseView } from './case-view';
+import { Workbench } from './workbench';
+import { t } from '../core/i18n';
 
 export interface SafehouseHooks {
   onDeploy: (contractId: string, approachId: ApproachId) => void;
@@ -81,12 +83,6 @@ export class Safehouse {
   private readonly augMsgEl = document.getElementById('aug-msg')!;
   private readonly augCloseEl = document.getElementById('aug-close')!;
   private readonly workbenchBtn = document.getElementById('sh-workbench')!;
-  private readonly wbRoot = document.getElementById('overlay-workbench')!;
-  private readonly wbMoneyEl = document.getElementById('wb-money')!;
-  private readonly wbGunsEl = document.getElementById('wb-guns')!;
-  private readonly wbAttachmentsEl = document.getElementById('wb-attachments')!;
-  private readonly wbMsgEl = document.getElementById('wb-msg')!;
-  private readonly wbCloseEl = document.getElementById('wb-close')!;
   private readonly contractsEl = document.getElementById('sh-contracts')!;
   private readonly contractDetailEl = document.getElementById('sh-contract-detail')!;
   private readonly deployEl = document.getElementById('sh-deploy') as HTMLButtonElement;
@@ -113,6 +109,7 @@ export class Safehouse {
   private readonly stationBodyEl = document.getElementById('station-body')!;
   private readonly stationMsgEl = document.getElementById('station-msg')!;
   private readonly caseView: CaseView;
+  private readonly workbench: Workbench;
 
   private contracts: Contract[] = [];
   private selectedId: string | null = null;
@@ -121,9 +118,6 @@ export class Safehouse {
   private messageError = false;
   private augMessage = '';
   private augError = false;
-  private wbMessage = '';
-  private wbError = false;
-  private wbSelectedId: string | null = null;
   private resetArmed = false;
   private resetTimer: number | null = null;
   private newGameArmed = false;
@@ -148,10 +142,22 @@ export class Safehouse {
       onClick: () => this.hooks.onClick(),
       onClose: () => this.render(),
     });
+    this.workbench = new Workbench(this.profile, {
+      onClick: () => this.hooks.onClick(),
+      onError: () => this.hooks.onError(),
+      onClose: () => {
+        if (this.stationOnly) {
+          this.stationOnly = false;
+          this.hooks.onClose();
+          return;
+        }
+        this.workbenchBtn.focus();
+        this.render();
+      },
+    });
     this.root.addEventListener('click', (ev) => this.handleClick(ev));
     this.stationRoot.addEventListener('click', (ev) => this.handleClick(ev));
     this.augRoot.addEventListener('click', (ev) => this.handleAugClick(ev));
-    this.wbRoot.addEventListener('click', (ev) => this.handleWorkbenchClick(ev));
     this.saveImportEl.addEventListener('change', () => {
       void this.importSaveFile();
     });
@@ -166,14 +172,14 @@ export class Safehouse {
   }
 
   get workbenchOpen(): boolean {
-    return !this.wbRoot.classList.contains('hidden');
+    return this.workbench.isOpen;
   }
 
   openStation(kind: StationKind): void {
     this.message = '';
     this.messageError = false;
     this.augRoot.classList.add('hidden');
-    this.wbRoot.classList.add('hidden');
+    this.workbench.hide();
     this.root.classList.add('hidden');
     this.stationRoot.classList.add('hidden');
     this.caseView.close();
@@ -203,7 +209,7 @@ export class Safehouse {
     this.message = '';
     this.messageError = false;
     this.augRoot.classList.add('hidden');
-    this.wbRoot.classList.add('hidden');
+    this.workbench.hide();
     this.root.classList.add('hidden');
     this.stationOnly = false;
     this.stationView = 'deploy';
@@ -215,7 +221,7 @@ export class Safehouse {
 
   openCase(): void {
     this.augRoot.classList.add('hidden');
-    this.wbRoot.classList.add('hidden');
+    this.workbench.hide();
     this.stationRoot.classList.add('hidden');
     this.stationMode = false;
     this.stationOnly = false;
@@ -240,7 +246,7 @@ export class Safehouse {
       return true;
     }
     if (this.workbenchOpen) {
-      this.closeWorkbench();
+      this.workbench.close();
       return true;
     }
     if (this.caseOpen) {
@@ -270,7 +276,7 @@ export class Safehouse {
     this.message = '';
     this.messageError = false;
     this.augRoot.classList.add('hidden');
-    this.wbRoot.classList.add('hidden');
+    this.workbench.hide();
     this.stationRoot.classList.add('hidden');
     this.caseView.close();
     this.stationMode = false;
@@ -285,7 +291,7 @@ export class Safehouse {
     this.stationRoot.classList.add('hidden');
     this.caseView.close();
     this.augRoot.classList.add('hidden');
-    this.wbRoot.classList.add('hidden');
+    this.workbench.hide();
     this.stationMode = false;
     this.stationOnly = false;
     this.resetArmed = false;
@@ -518,13 +524,13 @@ export class Safehouse {
     this.stationMoneyEl.textContent = `$${money.toLocaleString('en-US')}`;
     this.stationLevelEl.textContent = `LVL ${level} · ${xp}/${xpForNext(level)} XP · ${perkPoints} PP`;
     const meta = {
-      contracts: { kicker: '// CONTRACT NET', title: 'BOUNTY BOARD' },
-      deploy: { kicker: '// DEPLOYMENT', title: 'MISSION SELECT' },
-      market: { kicker: '// BLACK MARKET', title: 'THE MARKET' },
-      supplies: { kicker: '// SUPPLY DEPOT', title: 'SUPPLIES' },
-      archive: { kicker: '// THE ARCHIVE', title: 'GHOSTS & GHOST STORIES' },
-      fabricator: { kicker: '// FABRICATOR', title: 'BUILD YOUR OWN' },
-      operator: { kicker: '// OPERATOR', title: 'CHARACTER SHEET' },
+      contracts: { kicker: '// CONTRACT NET', title: t('station.title.contracts') },
+      deploy: { kicker: '// DEPLOYMENT', title: t('station.title.deploy') },
+      market: { kicker: '// BLACK MARKET', title: t('station.title.market') },
+      supplies: { kicker: '// SUPPLY DEPOT', title: t('station.title.supplies') },
+      archive: { kicker: '// THE ARCHIVE', title: t('station.title.archive') },
+      fabricator: { kicker: '// FABRICATOR', title: t('station.title.fabricator') },
+      operator: { kicker: '// OPERATOR', title: t('station.title.operator') },
     } as const;
     const { kicker, title } = meta[this.stationView];
     this.stationKickerEl.textContent = kicker;
@@ -1219,123 +1225,8 @@ export class Safehouse {
   }
 
   private openWorkbench(): void {
-    const guns = this.profile.data.stash.filter((item) => isGun(item.weapon));
-    if (!guns.some((g) => g.id === this.wbSelectedId)) {
-      this.wbSelectedId = guns[0]?.id ?? null;
-    }
-    this.wbMessage = '';
-    this.wbError = false;
-    this.wbRoot.classList.remove('hidden');
-    this.renderWorkbench();
-    this.wbCloseEl.focus();
-  }
-
-  private closeWorkbench(): void {
-    this.wbRoot.classList.add('hidden');
-    if (this.stationOnly) {
-      this.stationOnly = false;
-      this.hooks.onClose();
-      return;
-    }
-    this.workbenchBtn.focus();
-    this.render();
-  }
-
-  private renderWorkbench(): void {
-    const guns = this.profile.data.stash.filter((item) => isGun(item.weapon));
-    if (!guns.some((g) => g.id === this.wbSelectedId)) {
-      this.wbSelectedId = guns[0]?.id ?? null;
-    }
-    const selected = guns.find((g) => g.id === this.wbSelectedId) ?? null;
-    const marketDiscount = Math.round(this.profile.discountFor('market') * 100);
-    this.wbMoneyEl.textContent = `$${this.profile.data.money.toLocaleString('en-US')}${
-      marketDiscount > 0 ? ` · MARKET -${marketDiscount}%` : ''
-    }`;
-
-    this.wbGunsEl.innerHTML =
-      guns.length === 0
-        ? `<div class="sh-note">NO FIREARMS IN STORAGE. BUY A PISTOL OR SHOTGUN FIRST.</div>`
-        : guns
-            .map((gun) => {
-              const name = gun.variant
-                ? NAMED_MAP[gun.variant].name
-                : WEAPONS[gun.weapon].name;
-              const mod = gun.attachment ? ATTACHMENT_MAP[gun.attachment].name : 'NO ATTACHMENT';
-              return `<button class="wb-gun${gun.id === this.wbSelectedId ? ' selected' : ''}"
-                data-act="select-gun" data-id="${gun.id}">
-                <span class="wname">${name}</span>
-                <span class="wmeta">${gun.ammo} RDS · ${mod}</span>
-              </button>`;
-            })
-            .join('');
-
-    this.wbAttachmentsEl.innerHTML =
-      ATTACHMENTS.map((def) => {
-        const installed = selected?.attachment === def.id;
-        const stock = this.profile.stockFor(stockKey('attachment', def.id));
-        const disabled = !selected || installed || stock <= 0;
-        return `<div class="aug-item">
-          <div class="aug-info">
-            <span class="aug-name">${def.name}</span>
-            <span class="aug-desc">${def.desc}</span>
-            <span class="aug-rank">STOCK ${stock}</span>
-          </div>
-          <div class="sh-actions aug-action">
-            <span class="aug-cost">$${this.profile.attachmentPrice(def.id)}</span>
-            <button data-act="install" data-id="${def.id}" ${disabled ? 'disabled' : ''}>${installed ? 'INSTALLED' : stock <= 0 ? 'OUT OF STOCK' : 'INSTALL'}</button>
-          </div>
-        </div>`;
-      }).join('') +
-      (selected?.attachment
-        ? `<div class="wb-strip"><button class="sh-reset" data-act="strip">STRIP ${ATTACHMENT_MAP[selected.attachment].name}</button></div>`
-        : '');
-
-    this.wbMsgEl.textContent = this.wbMessage;
-    this.wbMsgEl.classList.toggle('err', this.wbError);
-  }
-
-  private handleWorkbenchClick(ev: MouseEvent): void {
-    const target = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]');
-    if (!target) return;
-    const act = target.dataset.act;
-    if (act === 'close-workbench') {
-      this.hooks.onClick();
-      this.closeWorkbench();
-      return;
-    }
-    if (act === 'select-gun') {
-      const id = target.dataset.id;
-      if (!id) return;
-      this.wbSelectedId = id;
-      this.hooks.onClick();
-      this.renderWorkbench();
-      return;
-    }
-    if (!this.wbSelectedId) return;
-    let error: string | null = null;
-    let success = '';
-    if (act === 'install') {
-      const id = target.dataset.id as AttachmentId | undefined;
-      if (!id) return;
-      error = this.profile.installAttachment(this.wbSelectedId, id);
-      success = `${ATTACHMENT_MAP[id].name} INSTALLED`;
-    } else if (act === 'strip') {
-      error = this.profile.stripAttachment(this.wbSelectedId);
-      success = 'ATTACHMENT STRIPPED';
-    } else {
-      return;
-    }
-    if (error) {
-      this.wbMessage = error;
-      this.wbError = true;
-      this.hooks.onError();
-    } else {
-      this.wbMessage = success;
-      this.wbError = false;
-      this.hooks.onClick();
-    }
-    this.renderWorkbench();
-    this.render();
+    this.stationOnly = false;
+    this.workbench.open();
   }
 
   private handleAugClick(ev: MouseEvent): void {

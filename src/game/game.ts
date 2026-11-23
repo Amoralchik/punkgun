@@ -11,7 +11,8 @@ import { CONSUMABLE_MAP } from './consumables';
 import { Contract, objectiveText } from './missions';
 import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
-import { BOSS_DIALOGUE, DialogueLine, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine } from './lore';
+import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine, type DialogueLine } from './lore';
+import { DialogueSession } from './dialogue-session';
 import { ENDING_ORDER, ENDINGS, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
 import { APPROACH_MAP, ApproachId } from './attributes';
@@ -92,15 +93,10 @@ export class Game {
   private overlayShown = false;
   private briefT = 0;
   private currentApproach: ApproachId = 'standard';
-  private pendingRun: {
-    contract: Contract;
-    approachId: ApproachId;
-    boons: RunBoon[];
-  } | null = null;
+  private pendingRun: { contract: Contract; approachId: ApproachId } | null = null;
   private currentBoons: RunBoon[] = [];
   private dialogueOpen = false;
-  private dialogueLines: DialogueLine[] = [];
-  private dialogueIndex = 0;
+  private dialogueSession: DialogueSession | null = null;
   private lastShotsHit = 0;
   private lastKills = 0;
   private startedWithWeapon = false;
@@ -216,15 +212,15 @@ export class Game {
   private updateHubPrompt(): void {
     const station = this.nearestStation();
     const labels: Record<StationKind, string> = {
-      contracts: 'CONTRACTS',
-      workbench: 'WORKBENCH',
-      clinic: 'CLINIC',
-      market: 'MARKET',
-      supplies: 'SUPPLIES',
-      archive: 'ARCHIVE',
-      fabricator: 'FABRICATOR',
-      operator: 'OPERATOR',
-      deploy: 'DEPLOY',
+      contracts: t('station.contracts'),
+      workbench: t('station.workbench'),
+      clinic: t('station.clinic'),
+      market: t('station.market'),
+      supplies: t('station.supplies'),
+      archive: t('station.archive'),
+      fabricator: t('station.fabricator'),
+      operator: t('station.operator'),
+      deploy: t('station.deploy'),
     };
     this.hubPrompt.textContent = station
       ? `E — ${labels[station.kind]}`
@@ -338,7 +334,7 @@ export class Game {
           e.preventDefault();
           this.cancelDialogue();
         } else if (choiceIndex >= 0) {
-          const choice = this.dialogueLines[this.dialogueIndex]?.choices?.[choiceIndex];
+          const choice = this.dialogueSession?.current?.choices?.[choiceIndex];
           if (choice) {
             e.preventDefault();
             this.chooseDialogue(choice.id);
@@ -537,9 +533,9 @@ export class Game {
     if (!contract || contract.locked) return;
     this.audio.unlock();
     if (contract.objective === 'boss') {
-      this.pendingRun = { contract, approachId, boons: [] };
+      this.pendingRun = { contract, approachId };
       const boss = contract.bossId ? BOSSES[contract.bossId] : null;
-      this.dialogueLines =
+      const dialogueLines: DialogueLine[] =
         contract.bossId === 'psycho' || !boss
           ? BOSS_DIALOGUE
           : [
@@ -559,7 +555,7 @@ export class Game {
                     : 'There is an exit. Reach it. I will keep the lights on.',
               },
             ];
-      this.dialogueIndex = 0;
+      this.dialogueSession = new DialogueSession(dialogueLines);
       this.dialogueKickerEl.textContent = `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`;
       this.dialogueOpen = true;
       this.dialogueRoot.classList.remove('hidden');
@@ -568,9 +564,10 @@ export class Game {
       return;
     }
     if (contract.authored) {
-      this.pendingRun = { contract, approachId, boons: [] };
-      this.dialogueLines = authoredDialogue(contract, this.profile.data.story);
-      this.dialogueIndex = 0;
+      this.pendingRun = { contract, approachId };
+      this.dialogueSession = new DialogueSession(
+        authoredDialogue(contract, this.profile.data.story),
+      );
       this.dialogueKickerEl.textContent = `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`;
       this.dialogueOpen = true;
       this.dialogueRoot.classList.remove('hidden');
@@ -596,17 +593,17 @@ export class Game {
   }
 
   private renderDialogue(): void {
-    const line = this.dialogueLines[this.dialogueIndex];
-    if (!line) return;
+    const session = this.dialogueSession;
+    const line = session?.current;
+    if (!session || !line) return;
     this.dialogueSpeakerEl.textContent = line.speaker;
     this.dialogueSpeakerEl.style.color =
       line.speaker === 'MOTH' ? 'var(--cyan)' : 'var(--magenta)';
     this.dialogueTextEl.textContent = line.text;
-    this.dialogueProgressEl.textContent = `${this.dialogueIndex + 1} / ${this.dialogueLines.length}`;
-    const hasChoices = (line.choices?.length ?? 0) > 0;
+    this.dialogueProgressEl.textContent = `${session.index + 1} / ${session.lines.length}`;
+    const hasChoices = session.hasChoices;
     this.dialogueNextEl.style.display = hasChoices ? 'none' : '';
-    this.dialogueNextEl.textContent =
-      this.dialogueIndex === this.dialogueLines.length - 1 ? 'DEPLOY' : 'CONTINUE';
+    this.dialogueNextEl.textContent = session.atEnd ? 'DEPLOY' : 'CONTINUE';
     this.dialogueChoicesEl.innerHTML = hasChoices
       ? line.choices!
           .map((choice) => {
@@ -638,69 +635,47 @@ export class Game {
   }
 
   private advanceDialogue(): void {
-    if (!this.dialogueOpen) return;
-    const line = this.dialogueLines[this.dialogueIndex];
-    if (line?.choices?.length) return;
+    const session = this.dialogueSession;
+    if (!this.dialogueOpen || !session) return;
+    if (session.hasChoices) return;
     this.audio.uiClick();
-    if (this.dialogueIndex < this.dialogueLines.length - 1) {
-      this.dialogueIndex++;
+    if (!session.atEnd) {
+      session.advance();
       this.renderDialogue();
       return;
     }
     const pending = this.pendingRun;
+    const boons = [...session.boons];
     this.closeDialogue();
-    if (pending) this.commitRun(pending.contract, pending.approachId, pending.boons);
+    if (pending) this.commitRun(pending.contract, pending.approachId, boons);
   }
 
   private chooseDialogue(choiceId: string): void {
-    if (!this.dialogueOpen || !this.pendingRun) return;
-    const line = this.dialogueLines[this.dialogueIndex];
-    const choice = line?.choices?.find((entry) => entry.id === choiceId);
-    if (!choice) return;
-    if (
-      !dialogueCheckMet(
-        choice.check,
-        this.profile.data.attributes,
-        this.profile.data.reputation,
-      )
-    ) {
+    const session = this.dialogueSession;
+    const pending = this.pendingRun;
+    if (!this.dialogueOpen || !session || !pending) return;
+    const result = session.choose(choiceId, this.profile, pending.contract.faction);
+    if (!result.ok) {
       this.audio.uiError();
       return;
     }
     this.audio.uiClick();
-    if (choice.boon && !this.pendingRun.boons.includes(choice.boon)) {
-      this.pendingRun.boons.push(choice.boon);
-      this.hud.logLine(`BOON: ${BOONS[choice.boon].label} — ${BOONS[choice.boon].desc}`);
+    if (result.boon) {
+      this.hud.logLine(`BOON: ${BOONS[result.boon].label} — ${BOONS[result.boon].desc}`);
     }
-    const contract = this.pendingRun.contract;
-    this.profile.data.story[`faction:${contract.faction}`] = choice.id;
-    if (choice.reputation) {
-      for (const [faction, delta] of Object.entries(choice.reputation)) {
-        const id = faction as keyof typeof this.profile.data.reputation;
-        this.profile.data.reputation[id] = Math.max(
-          0,
-          this.profile.data.reputation[id] + delta,
-        );
-      }
+    if (result.reputation.length > 0) {
       this.hud.logLine(
-        `STANDING: ${Object.entries(choice.reputation)
-          .map(([faction, delta]) => `${FACTIONS[faction as keyof typeof FACTIONS].name.split(' ')[0]} ${delta > 0 ? '+' : ''}${delta}`)
+        `STANDING: ${result.reputation
+          .map(([faction, delta]) => `${FACTIONS[faction].name.split(' ')[0]} ${delta > 0 ? '+' : ''}${delta}`)
           .join(' · ')}`,
       );
     }
-    this.profile.save();
-    if (choice.reply) {
-      this.dialogueLines.splice(this.dialogueIndex + 1, 0, {
-        speaker: line!.speaker,
-        text: choice.reply,
-      });
-    }
-    this.dialogueIndex++;
     this.renderDialogue();
   }
 
   private closeDialogue(): void {
     this.dialogueOpen = false;
+    this.dialogueSession = null;
     this.dialogueRoot.classList.add('hidden');
     this.pendingRun = null;
     this.input.endFrame();
