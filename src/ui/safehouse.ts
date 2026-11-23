@@ -2,7 +2,7 @@ import { fmtTime } from '../core/math';
 import { AMMO_PACKS, LOOT_DEFS, LootKind, WEAPON_ECONOMY } from '../game/economy';
 import { StationKind } from '../game/map';
 import { Contract, objectiveDetail, objectiveText } from '../game/missions';
-import { DOSSIERS, dossierUnlocked, FACTIONS, handlerLine, unlockText } from '../game/lore';
+import { DOSSIERS, dossierUnlocked, FACTIONS, unlockText } from '../game/lore';
 import { MODIFIER_MAP } from '../game/modifiers';
 import { BOSSES } from '../game/bosses';
 import { ROLE_MAP, type RoleId } from '../game/roles';
@@ -17,7 +17,6 @@ import {
 import { Profile, stockKey } from '../game/profile';
 import { LIFEPATHS, type LifepathId } from '../game/lifepath';
 import { CHALLENGES, CHALLENGE_MAP, type ChallengeId } from '../game/challenges';
-import { FACTION_OFFERS } from '../game/faction-stock';
 import type { RoomId } from '../game/rooms';
 import type { TickerId } from '../game/exchange';
 import { ATTACHMENT_MAP } from '../game/attachments';
@@ -43,6 +42,8 @@ import { GunId, NAMED_MAP, NAMED_WEAPONS, NamedWeaponId, WEAPONS, WeaponId, isGu
 import { CaseView } from './case-view';
 import { Workbench } from './workbench';
 import { renderVentures } from './station-ventures';
+import { renderMarket } from './station-market';
+import { renderContracts, renderDeploy } from './station-contracts';
 import { renderOperator } from './station-operator';
 import { t } from '../core/i18n';
 
@@ -651,57 +652,24 @@ export class Safehouse {
     }).join('');
 
     if (this.stationView === 'contracts') {
-      this.stationBodyEl.innerHTML = `
-        <div class="station-grid">
-          <section class="station-col">
-            <div class="kicker">// AVAILABLE CONTRACTS</div>
-            <h2>CONTRACT NET</h2>
-            ${contractBlock}
-            <button class="sh-augments station-reroll" data-act="reroll">REFRESH BOARD · $${this.profile.boardRefreshCost()}</button>
-          </section>
-          <section class="station-col">
-            <div class="kicker">// BRIEF</div>
-            <div class="station-brief">${brief}</div>
-            <h2>LOADOUT</h2>
-            <div class="sh-equipped station-loadout">${equipped}</div>
-            <button class="sh-deploy station-launch" data-act="open-deploy" ${selected && !selected.locked ? '' : 'disabled'}>
-              ${selected ? (selected.locked ? `LOCKED · ${selected.title}` : `PROCEED TO DEPLOY · ${selected.title}`) : 'SELECT A CONTRACT'}
-            </button>
-          </section>
-        </div>`;
+      this.stationBodyEl.innerHTML = renderContracts({
+        contractBlock,
+        brief,
+        equipped,
+        selected,
+        rerollCost: this.profile.boardRefreshCost(),
+      });
     } else if (this.stationView === 'deploy') {
-      this.stationBodyEl.innerHTML = `
-        <div class="station-grid">
-          <section class="station-col">
-            <div class="kicker">// MISSION BOARD</div>
-            <h2>SELECT CONTRACT</h2>
-            ${contractBlock}
-          </section>
-          <section class="station-col">
-            <div class="deploy-hero">
-              <div class="kicker">// ACTIVE CONTRACT</div>
-              <div class="deploy-title">${selected ? selected.title : 'NO CONTRACT'}</div>
-              <div class="deploy-faction" style="${selected ? `color:${FACTIONS[selected.faction].color}` : ''}">${selected ? FACTIONS[selected.faction].name : ''}</div>
-              <div class="station-brief">${brief}</div>
-              <div class="handler-line">MOTH: ${selected ? handlerLine(selected.faction, selected.title.length) : '...'}</div>
-            </div>
-            <h2>INSERTION</h2>
-            <div class="approach-list">${approaches}</div>
-            <h2>CHALLENGE</h2>
-            <div class="challenge-list">${challenges}</div>
-            <h2>LOADOUT</h2>
-            <div class="sh-equipped station-loadout">${equipped}</div>
-            <div class="station-summary">${summary}</div>
-            <button class="sh-deploy station-launch" data-act="launch" ${selected && !selected.locked ? '' : 'disabled'}>
-              ${selected?.locked ? 'LOCKED — COMPLETE 3 REGULAR CONTRACTS' : 'LAUNCH CONTRACT'}
-            </button>
-            <p class="sh-note">${
-              selected?.locked
-                ? `BOSS ACCESS LOCKED — ${this.profile.data.regularClears}/${selected.requiredClears ?? 3} regular clears.`
-                : 'The packed kit is consumed on launch. Die in the sector and the carried weapon and loot are lost.'
-            }</p>
-          </section>
-        </div>`;
+      this.stationBodyEl.innerHTML = renderDeploy({
+        contractBlock,
+        selected,
+        regularClears: this.profile.data.regularClears,
+        brief,
+        approaches,
+        challenges,
+        equipped,
+        summary,
+      });
     } else if (this.stationView === 'archive') {
       const progress = this.profile.data;
       const unlocked = DOSSIERS.filter((d) => dossierUnlocked(d, progress));
@@ -789,61 +757,12 @@ export class Safehouse {
     } else if (this.stationView === 'ventures') {
       this.stationBodyEl.innerHTML = renderVentures(this.profile);
     } else if (this.stationView === 'market') {
-      const policy = this.profile.data.insurance;
-      const premium = this.profile.insurancePremium();
-      const insurance = policy
-        ? `<div class="insurance-card active">
-            <span>POLICY ACTIVE</span>
-            <b>${WEAPONS[policy.weapon].name} · PREMIUM $${policy.premium}</b>
-            <button data-act="cancel-insurance">CANCEL POLICY</button>
-          </div>`
-        : `<div class="insurance-card">
-            <span>INSURE EQUIPPED WEAPON</span>
-            <b>${premium > 0 ? `PREMIUM $${premium}` : 'EQUIP A WEAPON FIRST'}</b>
-            <button data-act="buy-insurance" ${premium > 0 ? '' : 'disabled'}>BUY POLICY</button>
-          </div>`;
-      const factionStock = FACTION_OFFERS.map((offer) => {
-        const rep = this.profile.rep(offer.faction);
-        const unlocked = rep >= offer.requiredRep;
-        const price = Math.max(
-          1,
-          Math.round(this.profile.namedPrice(offer.named) * (1 - offer.discount)),
-        );
-        return `<div class="sh-item${unlocked ? '' : ' locked'}">
-          <div class="info">
-            <span class="wname" style="color:${FACTIONS[offer.faction].color}">${NAMED_MAP[offer.named].name}</span>
-            <span class="wmeta">${FACTIONS[offer.faction].name} · ${offer.requiredRep} REP · <b>$${price}</b></span>
-            <span class="wmeta">${offer.desc}</span>
-          </div>
-          <div class="sh-actions">
-            <button data-act="faction-offer" data-id="${offer.id}" ${unlocked ? '' : 'disabled'}>${
-              unlocked ? 'BUY' : 'LOCKED'
-            }</button>
-          </div>
-        </div>`;
-      }).join('');
-      this.stationBodyEl.innerHTML = `
-        <div class="station-grid">
-          <section class="station-col">
-            <div class="kicker">// BLACK MARKET</div>
-            <h2>WEAPONS</h2>
-            <div class="sh-list">${shop}</div>
-            <h2>SELL STORAGE</h2>
-            <div class="sh-list">${stash}</div>
-          </section>
-          <section class="station-col">
-            <h2>CONTRABAND</h2>
-            <div class="sh-list">${contraband}</div>
-            <button class="sh-augments station-reroll" data-act="refresh-market">ROTATE STOCK · $${this.profile.marketRefreshCost()}</button>
-            <h2>INSURANCE</h2>
-            ${insurance}
-            <h2>FACTION BROKER</h2>
-            <div class="sh-list">${factionStock}</div>
-            <button class="sh-augments" data-act="open-exchange">OPEN THE EXCHANGE</button>
-            <p class="sh-note">${intel}</p>
-            <p class="sh-note">Buy ammo from storage. Sell guns and contraband here; pack consumables at the supply depot.</p>
-          </section>
-        </div>`;
+      this.stationBodyEl.innerHTML = renderMarket(this.profile, {
+        shop,
+        stash,
+        contraband,
+        intel,
+      });
     } else if (this.stationView === 'sanctuary') {
       this.stationBodyEl.innerHTML = renderSanctuary(this.profile);
     } else if (this.stationView === 'exchange') {
