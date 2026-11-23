@@ -19,7 +19,9 @@ export interface MissionSpec {
   modifiers?: ModifierId[];
   bossId?: BossId;
   boons?: RunBoon[];
-  /** Fight the four bosses back-to-back in one arena. */
+  /** New Game Plus cycle; scales boss armor, speed and adds. */
+  ngPlus?: number;
+  /** Fight all bosses back-to-back in one arena. */
   bossRush?: boolean;
 }
 

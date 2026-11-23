@@ -316,6 +316,7 @@ export class Game {
         modifiers: contract.modifiers,
         bossId: contract.bossId,
         bossRush: contract.bossRush,
+        ngPlus: this.profile.data.ngPlus,
         boons: config.boons,
       },
       this.profile.runMods(),
@@ -1049,8 +1050,8 @@ export class Game {
       ? CHALLENGE_MAP[contract.challenge].name
       : '';
     this.briefKicker.textContent = `// ${contract.risk} RISK · ${contract.layoutName} · ${approach.name}${
-      challenge ? ` · ${challenge}` : ''
-    }${mods ? ` · ${mods}` : ''}${boons ? ` · ${boons}` : ''} · SEED ${seed}`;
+      this.profile.data.ngPlus > 0 ? ` · NG+${this.profile.data.ngPlus}` : ''
+    }${challenge ? ` · ${challenge}` : ''}${mods ? ` · ${mods}` : ''}${boons ? ` · ${boons}` : ''} · SEED ${seed}`;
     this.briefRoot.dataset.seed = seed;
     this.briefTitle.textContent = contract.title;
     this.briefFaction.textContent = faction.name;

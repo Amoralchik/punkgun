@@ -125,6 +125,7 @@ export class World {
   private currentBossId: BossId | null;
   private readonly bossRushQueue: BossId[];
   private bossRushIndex = -1;
+  private readonly ngPlus: number;
   readonly boons: RunBoon[];
   private readonly mods: RunMods;
   private approachVision = 1;
@@ -160,6 +161,7 @@ export class World {
     this.bossId = mission.bossId ?? null;
     this.currentBossId = mission.bossId ?? null;
     this.bossRushQueue = mission.bossRush ? [...BOSS_ORDER] : [];
+    this.ngPlus = Math.max(0, Math.min(99, Math.floor(mission.ngPlus ?? 0)));
     this.boons = mission.boons ?? [];
     this.rand = mulberry32(seed);
     this.pathfinder = new Pathfinder(level.w, level.h);
@@ -508,9 +510,10 @@ export class World {
     const bossDef = BOSSES[id];
     const spawn = this.findBossSpawn(this.level);
     const boss = this.addEnemy(spawn.x, spawn.y, 1, 'idle', 'boss');
-    boss.armor = bossDef.armor;
-    boss.maxArmor = bossDef.armor;
-    boss.speedMult = bossDef.speedMult;
+    const plus = Math.min(3, this.ngPlus);
+    boss.armor = bossDef.armor + plus;
+    boss.maxArmor = boss.armor;
+    boss.speedMult = Math.min(1.6, bossDef.speedMult + this.ngPlus * 0.04);
     boss.isTarget = true;
     this.currentBossId = id;
     this.targetId = boss.id;
@@ -644,7 +647,8 @@ export class World {
     if (this.mission.objective === 'boss') {
       const boss = this.boss;
       const wave = this.mission.bossRush ? `WAVE ${this.bossRushProgress} · ` : '';
-      return boss ? `${wave}${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
+      const plus = this.ngPlus > 0 ? `NG+${this.ngPlus} · ` : '';
+      return boss ? `${plus}${wave}${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
     }
     const nodeText = objectiveNodeText(this.mission, this.objectives);
     if (nodeText) return nodeText;
@@ -2575,7 +2579,7 @@ export class World {
     this.emit({ type: weak ? 'bossWeakHit' : 'bossHit', x: e.x, y: e.y, angle });
     if (e.armor > 0) {
       e.speedMult = Math.min(1.5, e.speedMult + 0.12);
-      this.spawnReinforcements(this.bossDef.adds, this.bossDef.addKind);
+      this.spawnReinforcements(this.bossDef.adds + Math.min(2, this.ngPlus), this.bossDef.addKind);
       if (this.bossDef.shock) this.bossShock(e);
       e.bossWeakT = 1.4;
       this.emit({ type: 'bossPhase', x: e.x, y: e.y, angle: e.angle });

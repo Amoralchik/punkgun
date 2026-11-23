@@ -184,6 +184,23 @@ describe('mission objectives', () => {
     expect(world.boss?.alive).toBe(true);
   });
 
+  it('scales boss armor and speed on new game plus', () => {
+    const normal = makeWorld(
+      { objective: 'boss', requiredLoot: 0, bossId: 'psycho' },
+      new Set<string>(),
+      'sublevel',
+    );
+    const plus = makeWorld(
+      { objective: 'boss', requiredLoot: 0, bossId: 'psycho', ngPlus: 3 },
+      new Set<string>(),
+      'sublevel',
+    );
+    expect(normal.boss?.maxArmor).toBe(BOSSES.psycho.armor);
+    expect(plus.boss?.maxArmor).toBe(BOSSES.psycho.armor + 3);
+    expect(plus.boss?.speedMult).toBeGreaterThan(normal.boss?.speedMult ?? 0);
+    expect(plus.objectiveText()).toContain('NG+3');
+  });
+
   it('spawns each boss archetype in a reachable arena tile', () => {
     for (const id of BOSS_ORDER) {
       const layoutId = BOSSES[id].layoutId;
