@@ -467,6 +467,18 @@ async function main() {
       throw new Error(`New game reset failed: ${JSON.stringify(fresh)}`);
     }
 
+    const offline = await cdp.evaluate(`(() => {
+      window.dispatchEvent(new Event('offline'));
+      const root = document.getElementById('system-toast');
+      const message = document.getElementById('system-toast-message').textContent;
+      const shown = !root.classList.contains('hidden');
+      window.dispatchEvent(new Event('online'));
+      return { shown, message, hidden: root.classList.contains('hidden') };
+    })()`);
+    if (!offline.shown || !offline.message.includes('OFFLINE') || !offline.hidden) {
+      throw new Error(`Offline toast failed: ${JSON.stringify(offline)}`);
+    }
+
     if (errors.length > 0) throw new Error(`Console errors:\n${errors.join('\n')}`);
 
     console.log(
@@ -487,6 +499,7 @@ async function main() {
           ventures: true,
           role,
           bossRush,
+          offline: true,
           newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
         },

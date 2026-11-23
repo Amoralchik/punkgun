@@ -39,7 +39,7 @@ working checklist.
 | Combat gym | none | **16-archetype gym + three-build clear-rate matrix** | encounter-density tuning |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
-| PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |
+| PWA / offline | shell | **shell + cache v2 + smoke + offline/update toast** | native install prompt |
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | **enforced budget + smoke heap + `npm run soak`** | longer 30-minute soak |
 | Accessibility | partial | **reduced motion, palettes, subtitles, log, presets, arbitrary key remap, gamepad** | gamepad menu navigation |

@@ -1,5 +1,6 @@
 import './style.css';
 import { Game } from './game/game';
+import { SystemToast } from './ui/system-toast';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const fatalRoot = document.getElementById('fatal')!;
@@ -7,6 +8,7 @@ const fatalMessage = document.getElementById('fatal-message')!;
 const fatalReload = document.getElementById('fatal-reload') as HTMLButtonElement;
 
 let running = true;
+const toast = new SystemToast();
 
 function fatal(message: string): void {
   if (!running) return;
@@ -19,7 +21,19 @@ function fatal(message: string): void {
 fatalReload.addEventListener('click', () => window.location.reload());
 
 function registerServiceWorker(): void {
+  const hadController = !!navigator.serviceWorker?.controller;
+  window.addEventListener('offline', () => {
+    toast.show('OFFLINE — CACHED SHELL ACTIVE', null, null);
+  });
+  window.addEventListener('online', () => {
+    if (toast.visible) toast.hide();
+  });
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) {
+      toast.show('UPDATE READY — RELOAD TO APPLY', 'RELOAD', () => window.location.reload());
+    }
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
