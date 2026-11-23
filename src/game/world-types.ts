@@ -123,6 +123,8 @@ export interface Player {
   quickhackCd: number;
   /** True while carrying a secured extraction case: slower, no dash. */
   caseCarried: boolean;
+  /** 0..1 steadiness: rises while planted, collapses while moving. */
+  steady?: number;
 }
 
 export interface Enemy {
@@ -166,6 +168,8 @@ export interface Enemy {
   strafeSign: number;
   aiming: boolean;
   stunT: number;
+  /** Visible stagger from a armor/shield hit: frozen and executable. */
+  staggerT?: number;
   shieldT: number;
   speedMult: number;
   visionMult: number;

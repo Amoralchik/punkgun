@@ -151,6 +151,27 @@ working checklist.
 - Verification: 305 unit tests, verify + budget (app JS 446/450 KB — near
   cap), Chrome smoke PASS.
 
+## Noir sight, combat weight, overtime, silhouettes (2026-11-23)
+
+- Line of sight (`render/sight.ts`): a 420-ray DDA visibility polygon from
+  the operative through sight-blocking tiles (glass stays clear, closed doors
+  block) masks the world at 80% darkness with distance falloff. Enemies and
+  bystanders out of sight fade out; laser aims, muzzle flashes, charge rings
+  and markers sit above the mask so threats are heard/seen, not their bodies.
+- Combat weight: armor/shield hits stagger (frozen, executable, amber ring,
+  EXECUTE prompt in reach). Steady aim: planting tightens spread to ~0.5x,
+  moving widens to ~1.45x, each shot knocks steadiness down. Cyan laser
+  sight shows the line and, via dot size, the current spread; turns magenta
+  on a body.
+- Overtime: once the exit opens, a stalker+rusher pair drops every 20s you
+  linger; objective line counts down `HUNTERS IN Ns`.
+- Silhouettes: operative in a wide-brim hat and trench-coat skirt, corp
+  enemies in visored helmets, street enemies hooded. Map bake adds rooftop
+  AC units, pipes and signage on wall caps plus flat debris/cables/stencils
+  along walls (nothing walkable looks solid).
+- Budget: app JS cap revised 450 -> 475 KB (456.8 KB now).
+- Verification: 309 unit tests, verify + budget, Chrome smoke PASS.
+
 ## Non-goals (unchanged)
 
 Multiplayer, open world, mobile/console-first controls, full voice acting,

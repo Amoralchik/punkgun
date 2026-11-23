@@ -92,10 +92,14 @@ export function playerAttack(host: PlayerAttackHost): void {
     (attachment?.cooldownMult ?? 1) *
     (p.overclockT > 0 ? 0.65 : 1);
   p.flashT = 0.06;
+  // Recoil knocks the aim off a little; follow-ups must re-steady.
+  p.steady = Math.max(0, (p.steady ?? 0) - 0.22);
   const variantSpread = p.variant ? NAMED_MAP[p.variant].spreadMult : 1;
   const precision =
     def.family === 'RIFLE' || def.family === 'DMR' || def.family === 'RAILGUN';
   const overclockSpread = p.overclockT > 0 ? 0.8 : 1;
+  // Plant-and-shoot: a steadied gun groups tight, a gun on the move sprays.
+  const steadySpread = 1.45 - (p.steady ?? 0) * 0.95;
   const muzzleX = p.x + Math.cos(p.angle) * 26;
   const muzzleY = p.y + Math.sin(p.angle) * 26;
 
@@ -108,6 +112,7 @@ export function playerAttack(host: PlayerAttackHost): void {
         host.mods.spread *
         (precision ? host.mods.precisionSpread : 1) *
         overclockSpread *
+        steadySpread *
         variantSpread *
         (attachment?.spreadMult ?? 1);
     host.bullets.push({

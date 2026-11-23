@@ -6,7 +6,8 @@ const DIST = 'dist';
 const kib = (bytes) => bytes / 1024;
 
 const BUDGETS = {
-  appKb: 450,
+  // 2026-11-23: 450 -> 475 for line-of-sight, civilians, setpieces, combat aids.
+  appKb: 475,
   vendorKb: 620,
   totalJsKb: 1120,
   cssKb: 90,

@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { LightPool, type LightSpec } from './lightpool';
+import { SightMask } from './sight';
 import { FilmPass } from './film-pass';
 import { TextureBank } from './textures';
 import { WeatherField, weatherForLevel } from './weather';
@@ -51,6 +52,8 @@ interface UnitView {
   weaponSwapT: number;
   deathT: number;
   spawnT: number;
+  /** 0..1 fade for line-of-sight hiding. */
+  seenK: number;
 }
 
 interface WeaponVisual {
@@ -158,6 +161,12 @@ export class Renderer {
   private shakeScale = 1;
   private bloomScale = 1;
   private conesVisible = true;
+  private readonly sight = new SightMask();
+  private laserLine!: THREE.Mesh;
+  private laserDot!: THREE.Mesh;
+  private laserLineMat!: THREE.MeshBasicMaterial;
+  private laserDotMat!: THREE.MeshBasicMaterial;
+  private executePrompt!: THREE.Mesh;
   private readonly civilianViews = new Map<
     number,
     { root: THREE.Group; body: THREE.Mesh; mat: THREE.MeshBasicMaterial; dead: boolean; tex: THREE.Texture | null }
@@ -186,6 +195,8 @@ export class Renderer {
     this.scene.add(this.weather.group);
     this.lights = new LightPool(this.textures.dot);
     this.scene.add(this.lights.group);
+    this.scene.add(this.sight.mesh);
+    this.buildCombatAids();
     this.buildPools();
     this.slashMat = new THREE.MeshBasicMaterial({
       map: this.textures.slash,
@@ -242,6 +253,59 @@ export class Renderer {
   /* ------------------------------------------------------------------ */
   /* setup                                                               */
   /* ------------------------------------------------------------------ */
+
+  /** Player laser sight and the floating EXECUTE prompt. */
+  private buildCombatAids(): void {
+    this.laserLineMat = new THREE.MeshBasicMaterial({
+      color: 0x5ef1ff,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    this.laserLine = new THREE.Mesh(QUAD, this.laserLineMat);
+    this.laserLine.visible = false;
+    this.laserDotMat = new THREE.MeshBasicMaterial({
+      map: this.textures.dot,
+      color: 0x9ffcff,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    this.laserDot = new THREE.Mesh(QUAD, this.laserDotMat);
+    this.laserDot.visible = false;
+    const c = document.createElement('canvas');
+    c.width = 192;
+    c.height = 48;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = 'rgba(8, 10, 16, 0.82)';
+    ctx.strokeStyle = '#ffc46b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(4, 6, 184, 36, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffc46b';
+    ctx.fillRect(12, 13, 22, 22);
+    ctx.fillStyle = '#0a0c12';
+    ctx.font = 'bold 17px Bahnschrift, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('E', 23, 25);
+    ctx.fillStyle = '#ffc46b';
+    ctx.textAlign = 'left';
+    ctx.fillText('EXECUTE', 44, 25);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.executePrompt = new THREE.Mesh(
+      QUAD,
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
+    );
+    this.executePrompt.scale.set(96, 24, 1);
+    this.executePrompt.visible = false;
+    this.scene.add(this.laserLine, this.laserDot, this.executePrompt);
+  }
 
   private buildPools(): void {
     for (let t = 0; t < 3; t++) {
@@ -588,7 +652,7 @@ export class Renderer {
 
     const laserMesh = new THREE.Mesh(QUAD, this.laserMat);
     laserMesh.scale.set(620, 2, 1);
-    laserMesh.position.set(310, 4, 1.4);
+    laserMesh.position.set(310, 4, 1.8);
     laserMesh.visible = false;
     const bossRing = new THREE.Mesh(
       QUAD,
@@ -684,6 +748,7 @@ export class Renderer {
       markScale: 1,
       weaponSwapT: 0,
       deathT: 0,
+      seenK: 1,
       spawnT: kind === 'enemy' ? 0.4 : 0,
     };
   }
@@ -813,6 +878,8 @@ export class Renderer {
     world.enemies.forEach((e, i) => this.syncUnit(e, i % 2, false, dt));
     if (world.civilians.length > 0) this.syncCivilians(world);
     this.syncCones(world);
+    this.syncSightFade(world, dt);
+    this.syncCombatAids(world);
     this.syncDoors(world);
     this.syncGlass(world);
     this.syncSteam(world);
@@ -830,6 +897,16 @@ export class Renderer {
     this.syncCombatFx(world);
     this.syncLights(world, dt);
     this.updateCamera(world, dt, false);
+    this.sight.setEnabled(world.level.id !== 'safehouse');
+    this.sight.update(
+      world,
+      world.player.x,
+      world.player.y,
+      this.camX,
+      this.camY,
+      this.viewH * this.aspect,
+      this.viewH,
+    );
     this.weather.update(this.camX, this.camY, this.viewH * this.aspect, this.viewH, dt);
     const holoT = performance.now() * 0.0014;
     this.holoMats.forEach((material, index) => {
@@ -1004,7 +1081,7 @@ export class Renderer {
           0.35 + Math.sin(k * Math.PI) * 0.35;
       }
     }
-    view.flash.position.set(58 - recoil, 4 + bob, 1.3);
+    view.flash.position.set(58 - recoil, 4 + bob, 1.8);
     if (isPlayer) {
       const camo = 'camoT' in ent && ent.camoT > 0;
       const bodyMat = view.body.material as THREE.MeshBasicMaterial;
@@ -1173,6 +1250,119 @@ export class Renderer {
       pos.needsUpdate = true;
       view.vision.position.set(enemy.x, enemy.y, 0.06);
     }
+  }
+
+  /**
+   * Enemies and bystanders outside the operative's sightline fade out.
+   * Telegraphs (laser aims, charge rings, intent chevrons) and muzzle flashes
+   * stay on top of the darkness: you hear and see the threat, not the body.
+   */
+  private syncSightFade(world: World, dt: number): void {
+    const allSeen = world.level.id === 'safehouse' || !world.player.alive || world.state !== 'playing';
+    const k = Math.min(1, dt * 7);
+    for (const e of world.enemies) {
+      const view = this.unitViews.get(e.id);
+      if (!view) continue;
+      if (!e.alive) {
+        view.seenK = 1;
+        continue;
+      }
+      const seen = allSeen || e.flashT > 0 || world.playerSees(e.x, e.y);
+      view.seenK += ((seen ? 1 : 0) - view.seenK) * (seen ? 1 : k);
+      const vis = view.seenK > 0.04;
+      const bodyMat = view.body.material as THREE.MeshBasicMaterial;
+      bodyMat.opacity *= view.seenK;
+      view.body.visible = vis;
+      view.shadow.visible = vis;
+      if (!vis) {
+        view.weapon.visible = false;
+        view.shieldMesh.visible = false;
+        view.mark.visible = false;
+        view.targetMark.visible = false;
+        view.bossRing.visible = false;
+        view.weakRing.visible = false;
+        view.reloadRing.visible = false;
+        if (view.vision) view.vision.visible = false;
+      }
+    }
+    for (const c of world.civilians) {
+      const view = this.civilianViews.get(c.id);
+      if (!view) continue;
+      view.root.visible = !c.alive || allSeen || world.playerSees(c.x, c.y);
+    }
+  }
+
+  /**
+   * Laser sight: runs from the muzzle to the first wall or body. It thins
+   * and the dot tightens as the operative steadies — the spread made visible.
+   * Staggered enemies get an amber ring; the one in reach gets EXECUTE.
+   */
+  private syncCombatAids(world: World): void {
+    const p = world.player;
+    const gun = p.weapon !== 'fists' && p.weapon !== 'bat';
+    const show =
+      world.level.id !== 'safehouse' && world.state === 'playing' && p.alive && gun && p.reloadT <= 0;
+    this.laserLine.visible = show;
+    this.laserDot.visible = show;
+    if (show) {
+      const steady = p.steady ?? 0;
+      const ca = Math.cos(p.angle);
+      const sa = Math.sin(p.angle);
+      const sx = p.x + ca * 30;
+      const sy = p.y + sa * 30;
+      let len = 900;
+      let onBody = false;
+      for (let r = 8; r < 900; r += 8) {
+        const x = sx + ca * r;
+        const y = sy + sa * r;
+        if (world.solidAt(x, y)) {
+          len = r;
+          break;
+        }
+        let hit = false;
+        for (const e of world.enemies) {
+          if (e.alive && (e.x - x) ** 2 + (e.y - y) ** 2 < e.r * e.r) {
+            hit = true;
+            break;
+          }
+        }
+        if (hit) {
+          len = r;
+          onBody = true;
+          break;
+        }
+      }
+      this.laserLine.position.set(sx + (ca * len) / 2, sy + (sa * len) / 2, 1.85);
+      this.laserLine.rotation.z = p.angle;
+      this.laserLine.scale.set(len, 1.2 + (1 - steady) * 2.2, 1);
+      this.laserLineMat.opacity = 0.12 + steady * 0.3;
+      this.laserLineMat.color.setHex(onBody ? 0xff2f8e : 0x5ef1ff);
+      const dot = 10 + (1 - steady) * 26;
+      this.laserDot.position.set(sx + ca * len, sy + sa * len, 1.86);
+      this.laserDot.scale.set(dot, dot, 1);
+      this.laserDotMat.opacity = 0.45 + steady * 0.5;
+      this.laserDotMat.color.setHex(onBody ? 0xff6fb0 : 0x9ffcff);
+    }
+
+    const t = performance.now() * 0.001;
+    for (const e of world.enemies) {
+      if (!e.alive) continue;
+      const view = this.unitViews.get(e.id);
+      if (!view) continue;
+      const staggered = (e.staggerT ?? 0) > 0 && view.seenK > 0.3;
+      view.reloadRing.visible = staggered;
+      if (staggered) {
+        const mat = view.reloadRing.material as THREE.MeshBasicMaterial;
+        mat.color.setHex(0xffc46b);
+        mat.opacity = 0.5 + Math.sin(t * 18) * 0.3;
+        view.reloadRing.rotation.z = t * 6;
+        const k = 1.05 + Math.sin(t * 9) * 0.06;
+        view.reloadRing.scale.set(k, k, 1);
+      }
+    }
+    const target = world.state === 'playing' ? world.executionTarget() : null;
+    this.executePrompt.visible = !!target;
+    if (target) this.executePrompt.position.set(target.x, target.y + 58, 2.2);
   }
 
   private syncDoors(_world: World): void {

@@ -99,6 +99,9 @@ import type {
   WorldState,
 } from './world-types';
 
+/** Seconds between overtime hunter drops once the exit is open. */
+export const OVERTIME_WAVE = 20;
+
 export class World {
   readonly player: Player;
   readonly enemies: Enemy[] = [];
@@ -152,6 +155,9 @@ export class World {
   civiliansKilled = 0;
   /** Defended extraction: exit squad spawned / ids of its members. */
   private exitGuardSpawned = false;
+  /** Seconds since the exit opened; hunters drop every OVERTIME_WAVE. */
+  overtimeT = 0;
+  overtimeWaves = 0;
   private readonly exitGuardIds = new Set<number>();
   private readonly civilianHost: CivilianHost;
   defenseT = 0;
@@ -744,6 +750,30 @@ export class World {
     this.emit({ type: 'exitDefended', x: this.level.exit.x, y: this.level.exit.y, angle: 0 });
   }
 
+  /**
+   * Overtime: the job is done and the clock is now the enemy. Every
+   * OVERTIME_WAVE seconds lingering past an open exit drops a hunter pair.
+   */
+  private tickOvertime(dt: number): void {
+    this.overtimeT += dt;
+    if (this.overtimeT < OVERTIME_WAVE * (this.overtimeWaves + 1)) return;
+    this.overtimeWaves++;
+    spawnReinforcements(this.encounterHost, 1, 'stalker');
+    spawnReinforcements(this.encounterHost, 1, 'rusher');
+    this.emit({
+      type: 'overtime',
+      x: this.player.x,
+      y: this.player.y,
+      angle: 0,
+      wave: this.overtimeWaves,
+    });
+  }
+
+  /** Seconds until the next overtime hunter drop (exit open only). */
+  get overtimeLeft(): number {
+    return Math.max(0, OVERTIME_WAVE * (this.overtimeWaves + 1) - this.overtimeT);
+  }
+
   /** True while any defended-extraction guard is still standing. */
   get exitContested(): boolean {
     if (this.exitGuardIds.size === 0) return false;
@@ -1030,6 +1060,9 @@ export class World {
 
   objectiveText(): string {
     if (this.exitOpen && this.exitContested) return 'EXIT HELD — BREAK THE SQUAD OR RUN IT';
+    if (this.exitOpen && this.level.enemies.length > 0) {
+      return `EXIT OPEN — HUNTERS IN ${Math.ceil(this.overtimeLeft)}s`;
+    }
     if (this.exitOpen) return 'EXIT OPEN — GET OUT';
     if (this.mission.objective === 'purge') {
       return `PURGE ${this.enemies.length - this.aliveEnemies}/${this.enemies.length}`;
@@ -1185,6 +1218,9 @@ export class World {
     this.updateEnemies(dt * slow);
     updateBullets(this, dt, slow);
     if (this.civilians.length > 0) updateCivilians(this.civilianHost, dt);
+    if (this.exitOpen && this.state === 'playing' && this.player.alive && this.level.enemies.length > 0) {
+      this.tickOvertime(dt);
+    }
     if (
       this.setpiece === 'defendedExtraction' &&
       this.exitOpen &&
@@ -1231,6 +1267,20 @@ export class World {
     }
     const door = this.doorMap.get(cy * this.level.w + cx);
     return !!door && !door.open;
+  }
+
+  /** Public sight test for the renderer's line-of-sight mask. */
+  sightBlockedTile(cx: number, cy: number): boolean {
+    return this.blocksSight(cx, cy);
+  }
+
+  /** Whether the operative can currently see a world point. */
+  playerSees(x: number, y: number, range = 1150): boolean {
+    const p = this.player;
+    const d = dist(p.x, p.y, x, y);
+    if (d < 110) return true;
+    if (d > range) return false;
+    return this.lineClear(p.x, p.y, x, y);
   }
 
   private blocksSight(cx: number, cy: number): boolean {
@@ -1398,6 +1448,11 @@ export class World {
     this.emit({ type: 'loudBreach', x: this.player.x, y: this.player.y, angle: 0 });
   }
 
+  /** Enemy the operative could execute right now (for the prompt). */
+  executionTarget(): Enemy | null {
+    return this.player.alive ? this.nearestExecution() : null;
+  }
+
   private nearestExecution(): Enemy | null {
     const p = this.player;
     let best: Enemy | null = null;
@@ -1538,6 +1593,9 @@ export class World {
     const p = this.player;
     aimPlayer(p, p.aimX, p.aimY);
     tickPlayerCooldowns(p, dt);
+    // Plant to steady the gun; moving or dashing throws it off fast.
+    const planted = Math.hypot(p.vx, p.vy) < 45 && p.dashT <= 0;
+    p.steady = Math.max(0, Math.min(1, (p.steady ?? 0) + (planted ? dt * 2.6 : -dt * 7)));
     if (p.reloadT > 0) {
       const prev = p.reloadT;
       p.reloadT = Math.max(0, p.reloadT - dt);
@@ -2154,6 +2212,7 @@ export class World {
       e.leapCd = Math.max(0, e.leapCd - dt);
       e.healCd = Math.max(0, e.healCd - dt);
       e.aiming = false;
+      if (e.staggerT && e.staggerT > 0) e.staggerT = Math.max(0, e.staggerT - dt);
       if (e.stunT > 0) {
         e.stunT = Math.max(0, e.stunT - dt);
         e.vx = 0;
@@ -2651,6 +2710,19 @@ export class World {
     this.addSparks(e.x + Math.cos(angle) * 16, e.y + Math.sin(angle) * 16, angle + Math.PI);
     this.emit({ type: 'armorHitEnemy', x: e.x, y: e.y, angle });
     if (e.armor <= 0) this.emit({ type: 'armorBreakEnemy', x: e.x, y: e.y, angle });
+    this.stagger(e, e.armor <= 0 ? 1.1 : 0.75);
+  }
+
+  /**
+   * RE4-style stagger: a solid hit on armor or a shield rocks the target.
+   * It freezes (stunT) and is open to an execution (E) while it recovers.
+   */
+  stagger(e: Enemy, seconds: number): void {
+    if (!e.alive || e.kind === 'boss') return;
+    e.stunT = Math.max(e.stunT, seconds);
+    e.staggerT = Math.max(e.staggerT ?? 0, seconds);
+    e.aiming = false;
+    this.hitstop = Math.max(this.hitstop, 0.035);
   }
 
   killPlayer(angle: number, source: DamageSource | null = null): void {

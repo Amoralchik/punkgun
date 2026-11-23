@@ -82,6 +82,11 @@ export class WorldEventHud {
         this.hud.subtitle(t('event.civilianDown'), 1600);
         this.hud.logLine(`COLLATERAL: ${event.count ?? 1}`);
         return true;
+      case 'overtime':
+        this.audio.alert();
+        this.hud.subtitle(t('event.overtime'), 2200);
+        this.hud.logLine(`OVERTIME: wave ${event.wave ?? 1}`);
+        return true;
       case 'exitDefended':
         this.audio.alert();
         this.hud.subtitle(t('event.exitDefended'), 2200);

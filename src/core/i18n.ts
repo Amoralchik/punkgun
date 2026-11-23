@@ -19,6 +19,7 @@ export type MessageKey =
   | 'event.execution'
   | 'event.caseHeavy'
   | 'event.civilianDown'
+  | 'event.overtime'
   | 'event.exitDefended'
   | 'objective.purge'
   | 'objective.target'
@@ -112,6 +113,7 @@ const EN: Record<MessageKey, string> = {
   'event.execution': 'EXECUTION',
   'event.caseHeavy': 'CASE IN HAND — TOO HEAVY TO DASH',
   'event.civilianDown': 'BYSTANDER DOWN — HEAT UP, PAY DOCKED',
+  'event.overtime': 'OVERTIME — HUNTERS INBOUND. EXTRACT NOW.',
   'event.exitDefended': 'EXIT HELD — SQUAD DUG IN AT EXTRACTION',
   'objective.purge': 'PURGE ALL HOSTILES',
   'objective.target': 'KILL THE MARKED TARGET',
@@ -206,6 +208,7 @@ const ES: Record<MessageKey, string> = {
   'event.execution': 'EJECUCIÓN',
   'event.caseHeavy': 'MALETÍN EN MANO — DEMASIADO PESADO PARA ESQUIVAR',
   'event.civilianDown': 'CIVIL ABATIDO — SUBE EL CALOR, BAJA LA PAGA',
+  'event.overtime': 'TIEMPO EXTRA — CAZADORES EN CAMINO. EXTRAE YA.',
   'event.exitDefended': 'SALIDA TOMADA — ESCUADRÓN ATRINCHERADO EN LA EXTRACCIÓN',
   'objective.purge': 'ELIMINA A TODOS LOS HOSTILES',
   'objective.target': 'MATA AL OBJETIVO MARCADO',

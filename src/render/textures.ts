@@ -34,6 +34,7 @@ function drawOperative(
   palette: { coat: string; coatDark: string; trim: string; hair: string; skin: string; accent: string },
   variant: number,
   frame = 0,
+  style: 'noir' | 'corp' | 'street' = 'corp',
 ): void {
   ctx.save();
   // Top-down walk sway: the frame shifts the whole silhouette so the
@@ -42,6 +43,29 @@ function drawOperative(
   const sway = [0, 2.6, 0, -2.6][phase];
   const lift = [0, -1, 0, 1][phase];
   ctx.translate(sway, lift);
+
+  if (style === 'noir') {
+    // Trench coat skirt flaring behind the walk; sways opposite the step.
+    const flare = [0, 3, 0, -3][phase];
+    ctx.fillStyle = palette.coatDark;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(52, 40);
+    ctx.quadraticCurveTo(22, 46 + flare, 18, 64 + flare);
+    ctx.quadraticCurveTo(22, 82 + flare, 52, 88);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = palette.trim;
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(24, 52 + flare);
+    ctx.quadraticCurveTo(20, 64 + flare, 24, 76 + flare);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
 
   // coat tail / back plate
   ctx.fillStyle = palette.coatDark;
@@ -125,6 +149,64 @@ function drawOperative(
   ctx.beginPath();
   ctx.arc(73, 64, 8.5, -0.85, 0.85);
   ctx.stroke();
+
+  if (style === 'noir') {
+    // Wide-brim hat: the operative's silhouette from above. Solid volume,
+    // lit from the upper left, so it reads as a hat and not a reticle.
+    ctx.fillStyle = '#0d1118';
+    ctx.strokeStyle = 'rgba(94, 241, 255, 0.3)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(67, 64, 19, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = '#04060a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(66, 64, 11.5, 12, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    const crown = ctx.createRadialGradient(62, 59, 1, 66, 64, 12);
+    crown.addColorStop(0, '#3a4658');
+    crown.addColorStop(1, '#161c27');
+    ctx.fillStyle = crown;
+    ctx.beginPath();
+    ctx.ellipse(66, 64, 10.5, 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(60, 64);
+    ctx.lineTo(72, 64);
+    ctx.stroke();
+  } else if (style === 'corp') {
+    // Rounded corp helmet with a lit visor slit.
+    ctx.fillStyle = '#20242e';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(66, 64, 14.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(67, 64, 10, -0.7, 0.7);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.arc(62, 59, 5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Street hood pulled up, a crest of dyed hair showing.
+    ctx.fillStyle = palette.coatDark;
+    ctx.beginPath();
+    ctx.arc(64, 64, 15, Math.PI * 0.45, Math.PI * 1.55);
+    ctx.fill();
+    ctx.fillStyle = palette.accent;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(56, 61, 16, 5);
+    ctx.globalAlpha = 1;
+  }
 
   // small back vents
   ctx.fillStyle = palette.accent;
@@ -778,6 +860,7 @@ export class TextureBank {
         },
         0,
         frame,
+        'noir',
       );
     } else {
       drawOperative(
@@ -801,6 +884,7 @@ export class TextureBank {
             },
         variant,
         frame,
+        variant === 0 ? 'corp' : 'street',
       );
     }
     return c;
@@ -1648,6 +1732,129 @@ export class TextureBank {
             ctx.stroke();
           }
         }
+      }
+    }
+
+    // Rooftop dressing on wall caps (solid tiles only, so nothing walkable
+    // ever looks blocked): AC units, pipe runs, signage boxes.
+    const theme = district.theme;
+    for (let cy = 0; cy < h; cy++) {
+      for (let cx = 0; cx < w; cx++) {
+        if (!isWall(level, cx, cy) || level.glass[cy * w + cx] === 1) continue;
+        if (cx === 0 || cy === 0 || cx === w - 1 || cy === h - 1) continue;
+        const roll = rnd();
+        if (roll > (isHub ? 0.05 : 0.2)) continue;
+        const x = cx * TILE;
+        const y = cy * TILE;
+        const capH = TILE - (isWall(level, cx, cy + 1) ? 0 : WALL_FACE);
+        ctx.save();
+        if (roll < 0.07) {
+          // AC unit with fan
+          ctx.fillStyle = '#1d2531';
+          ctx.fillRect(x + 10, y + 8, 40, Math.min(32, capH - 12));
+          ctx.strokeStyle = 'rgba(140, 170, 205, 0.28)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 10.5, y + 8.5, 39, Math.min(32, capH - 12) - 1);
+          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+          ctx.beginPath();
+          ctx.arc(x + 30, y + 8 + Math.min(32, capH - 12) / 2, 9, 0, Math.PI * 2);
+          ctx.stroke();
+          for (let k = 0; k < 4; k++) {
+            const a = (k / 4) * Math.PI * 2 + rnd();
+            const fx = x + 30;
+            const fy = y + 8 + Math.min(32, capH - 12) / 2;
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.lineTo(fx + Math.cos(a) * 8, fy + Math.sin(a) * 8);
+            ctx.stroke();
+          }
+        } else if (roll < 0.13) {
+          // pipe run
+          ctx.strokeStyle = '#2a3442';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(x, y + 14);
+          ctx.lineTo(x + TILE, y + 14);
+          ctx.stroke();
+          ctx.strokeStyle = 'rgba(170, 200, 230, 0.18)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, y + 12.5);
+          ctx.lineTo(x + TILE, y + 12.5);
+          ctx.stroke();
+        } else {
+          // signage box: a lit panel with glyph bars in the district neon
+          const col = palette[Math.floor(rnd() * palette.length)];
+          const sw = theme === 'corporate' ? 34 : 26;
+          ctx.fillStyle = '#0b0f16';
+          ctx.fillRect(x + 14, y + 10, sw, 16);
+          ctx.shadowColor = col;
+          ctx.shadowBlur = 8;
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + 14.5, y + 10.5, sw - 1, 15);
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = col;
+          ctx.globalAlpha = 0.75;
+          for (let k = 0; k < 3; k++) ctx.fillRect(x + 18 + k * (sw / 3.4), y + 15, sw / 5, 6);
+          ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+      }
+    }
+
+    // Floor clutter hugging the walls: flat, low-contrast, never solid-looking.
+    for (let cy = 1; cy < h - 1; cy++) {
+      for (let cx = 1; cx < w - 1; cx++) {
+        if (isWall(level, cx, cy)) continue;
+        const north = isWall(level, cx, cy - 1);
+        const west = isWall(level, cx - 1, cy);
+        const east = isWall(level, cx + 1, cy);
+        if (!north && !west && !east) continue;
+        const roll = rnd();
+        if (roll > (isHub ? 0.08 : 0.3)) continue;
+        const x = cx * TILE;
+        const y = cy * TILE;
+        const ex = west ? x + 6 : east ? x + TILE - 20 : x + 10 + rnd() * 30;
+        const ey = north ? y + 6 : y + 10 + rnd() * 30;
+        ctx.save();
+        if (roll < 0.1) {
+          // scattered debris / cans
+          for (let k = 0; k < 5; k++) {
+            ctx.fillStyle = k % 2 ? 'rgba(120, 130, 145, 0.35)' : 'rgba(30, 36, 46, 0.8)';
+            ctx.fillRect(ex + rnd() * 18, ey + rnd() * 18, 2 + rnd() * 4, 2 + rnd() * 3);
+          }
+        } else if (roll < 0.18) {
+          // flattened cardboard / paper
+          ctx.translate(ex + 8, ey + 8);
+          ctx.rotate(rnd() * 1.4 - 0.7);
+          ctx.fillStyle = theme === 'corporate' ? 'rgba(200, 210, 225, 0.12)' : 'rgba(150, 118, 80, 0.2)';
+          ctx.fillRect(-9, -6, 18, 12);
+        } else if (roll < 0.24) {
+          // cable bundle along the wall
+          ctx.strokeStyle = 'rgba(8, 10, 14, 0.85)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          if (north) {
+            ctx.moveTo(x, y + 5);
+            ctx.bezierCurveTo(x + 20, y + 11, x + 40, y + 2, x + TILE, y + 7);
+          } else {
+            const vx = west ? x + 5 : x + TILE - 5;
+            ctx.moveTo(vx, y);
+            ctx.bezierCurveTo(vx + 5, y + 20, vx - 4, y + 40, vx, y + TILE);
+          }
+          ctx.stroke();
+        } else {
+          // stencilled floor marking
+          ctx.strokeStyle = theme === 'docks' || theme === 'transit' ? 'rgba(255, 196, 107, 0.16)' : 'rgba(94, 241, 255, 0.1)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 20, y + 40);
+          ctx.lineTo(x + 32, y + 28);
+          ctx.lineTo(x + 44, y + 40);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
     }
 

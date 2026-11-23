@@ -27,6 +27,7 @@ export interface BulletHost {
   damageHeavy(enemy: Enemy, angle: number): void;
   killEnemy(enemy: Enemy, by: 'player' | 'enemy' | 'door', silent?: boolean): void;
   killPlayer(angle: number, source?: DamageSource | null): void;
+  stagger?(enemy: Enemy, seconds: number): void;
   damageSourceFor(
     ownerId: number,
     x: number,
@@ -150,6 +151,7 @@ export function updateBullets(host: BulletHost, dt: number, enemyScale = 1): voi
               ) {
                 host.addSparks(b.x, b.y, from + Math.PI);
                 e.shieldT = 0.42;
+                host.stagger?.(e, 0.4);
                 host.emit({ type: 'shieldHit', x: e.x, y: e.y, angle: from });
                 hit = true;
                 break;
