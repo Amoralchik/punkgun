@@ -40,6 +40,7 @@ import { playWorldEventAudio } from './world-event-audio';
 import { WorldEventHud } from './world-event-hud';
 import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
+import { BossEventFeedback } from './boss-event-feedback';
 import { syncHud } from './hud-sync';
 import { GameStateMachine, type GameState } from './game-state';
 import { FrameShell } from './frame-shell';
@@ -57,6 +58,7 @@ export class Game {
   private readonly eventHud = new WorldEventHud(this.hud, this.audio);
   private readonly combatEvents: CombatEventFeedback;
   private readonly runEvents: RunStateEvents;
+  private readonly bossEvents: BossEventFeedback;
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
   private readonly hub = new Hub();
@@ -111,6 +113,13 @@ export class Game {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
     this.combatEvents = new CombatEventFeedback(this.audio, this.hud, this.profile, () => this.world);
+    this.bossEvents = new BossEventFeedback(
+      this.audio,
+      this.hud,
+      this.bossPhase,
+      this.bossIntro,
+      () => this.world.bossName,
+    );
     this.runEvents = new RunStateEvents(this.profile, this.audio, this.hud, {
       world: () => this.world,
       contract: () => this.currentContract,
@@ -750,13 +759,8 @@ export class Game {
     if (this.eventHud.handle(e)) return;
     if (this.combatEvents.handle(e)) return;
     if (this.runEvents.handle(e)) return;
+    if (this.bossEvents.handle(e)) return;
     switch (e.type) {
-      case 'bossPhase':
-        this.bossPhase.flash('ARMOR PLATE SHATTERED');
-        this.audio.bossPhase();
-        this.hud.subtitle(t('event.bossPhase'));
-        this.hud.logLine('BOSS: plate shattered');
-        break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {
           this.state = 'breach';
@@ -766,13 +770,6 @@ export class Game {
             (this.world.seed ^ Math.imul(e.nodeId, 0x9e3779b1)) >>> 0,
           );
         }
-        break;
-      case 'bossRushWave':
-        this.bossIntro.show('// NEXT BOSS', this.world.bossName, `WAVE ${e.wave}/${e.total}`);
-        this.audio.alert();
-        this.audio.setBossMode(true);
-        this.hud.subtitle(`BOSS RUSH ${e.wave}/${e.total} — ${this.world.bossName}`, 4000);
-        this.hud.logLine(`BOSS RUSH: wave ${e.wave}/${e.total} — ${this.world.bossName}`);
         break;
       default:
         break;
