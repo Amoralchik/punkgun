@@ -2,7 +2,7 @@ import { fmtTime } from '../core/math';
 import { AMMO_PACKS, LOOT_DEFS, LootKind, WEAPON_ECONOMY } from '../game/economy';
 import { StationKind } from '../game/map';
 import { Contract, objectiveDetail, objectiveText } from '../game/missions';
-import { DOSSIERS, dossierUnlocked, FACTIONS, unlockText } from '../game/lore';
+import { DOSSIERS, contractTagline, dossierUnlocked, FACTIONS, unlockText } from '../game/lore';
 import { MODIFIER_MAP } from '../game/modifiers';
 import { BOSSES } from '../game/bosses';
 import { ROLE_MAP, type RoleId } from '../game/roles';
@@ -426,7 +426,7 @@ export class Safehouse {
           .join('')
       : '';
     this.contractDetailEl.innerHTML = selected
-      ? `${objectiveDetail(selected)}<br><span class="cflavor">${selected.tagline}</span>${
+      ? `${objectiveDetail(selected)}<br><span class="cflavor">${contractTagline(selected)}</span>${
           selected.daily ? '<br><span class="daily-badge">DAILY CONTRACT · ONE SEEDED DROP</span>' : ''
         }${
           selected.challenge && selected.challenge !== 'standard'

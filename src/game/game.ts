@@ -1050,8 +1050,8 @@ export class Game {
     this.briefFaction.textContent = faction.name;
     this.briefFaction.style.color = faction.color;
     this.briefObjective.textContent = objectiveText(contract);
-    this.briefHandler.textContent = `MOTH: ${handlerLine(contract.faction, contract.title.length)}`;
-    this.hud.logLine(`MOTH: ${handlerLine(contract.faction, contract.title.length)}`);
+    this.briefHandler.textContent = `MOTH: ${handlerLine(contract.faction, contract.title.length, this.settings.data.locale)}`;
+    this.hud.logLine(`MOTH: ${handlerLine(contract.faction, contract.title.length, this.settings.data.locale)}`);
     this.briefRoot.classList.remove('hidden');
     this.briefT = 1.5;
   }

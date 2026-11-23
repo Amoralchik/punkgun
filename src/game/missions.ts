@@ -28,6 +28,7 @@ export interface Contract {
   reward: number;
   risk: Risk;
   tagline: string;
+  taglineEs?: string;
   faction: FactionId;
   chapter?: ChapterId;
   bossId?: BossId;
@@ -102,6 +103,49 @@ const TAGLINES: Record<ObjectiveKind, string[]> = {
     'Hold the line until the timer dies.',
     'They want the room back. Do not give it to them.',
     'Stand where the light is. Count the seconds.',
+  ],
+};
+
+const TAGLINES_ES: Record<ObjectiveKind, string[]> = {
+  purge: [
+    'Haz ruido. No dejes nada en pie.',
+    'El cliente quiere el piso vacío.',
+    'Sin testigos, sin cámaras, sin supervivientes.',
+  ],
+  target: [
+    'Un nombre en el chip. El resto es mobiliario.',
+    'El objetivo está protegido. El reloj no es tu amigo.',
+    'Entra, elimina al objetivo, sal.',
+  ],
+  recover: [
+    'Los datos valen más que los cuerpos.',
+    'Recoge las cachés. Intenta no morir sosteniéndolas.',
+    'El cliente paga carga, no cadáveres.',
+  ],
+  boss: [
+    'Una arena. Un monstruo. Sin testigos.',
+    'El suelo es una jaula. Tú eres el espectáculo.',
+    'Ya mató a la última cuadrilla. Termínalo.',
+  ],
+  sabotage: [
+    'El cliente quiere el piso a oscuras, no en silencio.',
+    'Coloca los taps. Deja que la red se coma a sí misma.',
+    'Rompe el hardware. Deja a la gente.',
+  ],
+  extraction: [
+    'El maletín sale contigo o no sale.',
+    'Coge el paquete. Todos te oyeron llegar.',
+    'Sin paquete no hay pago. Sin salida no hay paquete.',
+  ],
+  hunt: [
+    'El objetivo corre. De eso se trata.',
+    'Rastréalo. Acorrálalo. Termínalo.',
+    'Sabe que vienes. Haz que no importe.',
+  ],
+  defense: [
+    'Aguanta hasta que muera el reloj.',
+    'Quieren recuperar la sala. No se la des.',
+    'Quédate donde hay luz. Cuenta los segundos.',
   ],
 };
 
@@ -219,6 +263,7 @@ export function rollContracts(count = 3, seed = randomSeed()): Contract[] {
     const risk: Risk = reward >= 140 ? 'HIGH' : reward >= 110 ? 'MED' : 'LOW';
     const modifiers = rollModifiers(rng);
     const contractSeed = (seed + i * 0x9e3779b9) >>> 0;
+    const taglineIndex = Math.floor(rng() * TAGLINES[objective].length);
 
     contracts.push({
       id: `c${contractSeed.toString(36)}-${i}`,
@@ -229,7 +274,8 @@ export function rollContracts(count = 3, seed = randomSeed()): Contract[] {
       requiredLoot,
       reward,
       risk,
-      tagline: TAGLINES[objective][Math.floor(rng() * TAGLINES[objective].length)],
+      tagline: TAGLINES[objective][taglineIndex],
+      taglineEs: TAGLINES_ES[objective][taglineIndex],
       faction: factionForLayout(layout.id),
       modifiers,
       seed: contractSeed,
@@ -248,6 +294,7 @@ export function createBossContract(
   const boss = BOSSES[bossId];
   const layout = LAYOUTS.find((entry) => entry.id === boss.layoutId) ?? LAYOUTS[0];
   const rng = mulberry32(seed);
+  const taglineIndex = Math.floor(rng() * TAGLINES.boss.length);
   return {
     id: `boss-${bossId}-${seed.toString(36)}`,
     title: boss.title,
@@ -257,7 +304,8 @@ export function createBossContract(
     requiredLoot: 0,
     reward: boss.reward + Math.max(0, playerLevel - 1) * 12,
     risk: 'HIGH',
-    tagline: TAGLINES.boss[Math.floor(rng() * TAGLINES.boss.length)],
+    tagline: TAGLINES.boss[taglineIndex],
+    taglineEs: TAGLINES_ES.boss[taglineIndex],
     faction: boss.faction,
     bossId,
     modifiers: [],
@@ -275,6 +323,7 @@ export function createBossRushContract(seed = randomSeed(), playerLevel = 1): Co
     layoutName: 'THE SUBLEVEL',
     reward: 1400 + Math.max(0, playerLevel - 1) * 20,
     tagline: 'Six doors. Six monsters. No extraction until the last one stops moving.',
+    taglineEs: 'Seis puertas. Seis monstruos. Sin extracción hasta que el último deje de moverse.',
     bossRush: true,
     modifiers: ['elite'],
   };
@@ -293,6 +342,7 @@ export function createFinalContract(seed = randomSeed()): Contract {
     reward: boss.reward,
     risk: 'HIGH',
     tagline: 'The tower has one last light. Put it out.',
+    taglineEs: 'La torre tiene una última luz. Apágala.',
     faction: 'helix',
     chapter: 'final',
     bossId: 'board',

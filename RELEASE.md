@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~378 kB | 450 kB |
+| App JS | ~382 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~919 kB | 1120 kB |
+| Total JS | ~923 kB | 1120 kB |
 | CSS | ~63 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~265 kB | 340 kB |
-| Largest single chunk | ~378 kB | 480 kB |
+| Initial gzip (JS + CSS + HTML) | ~267 kB | 340 kB |
+| Largest single chunk | ~382 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 144 unit tests + build + budget)
+- `npm run verify` (typecheck + 145 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -91,9 +91,9 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - English and Spanish catalogs cover objectives, station labels/titles, boon copy,
   HUD events, the full manual, the safehouse tour, authored dialogue, boss briefings
   and dialogue choices.
-- Contract taglines, handler lines and long-form station prose remain inline. Route
-  those through the catalog before claiming full locale coverage. Do not machine-translate
-  them in place.
+- Contract taglines, generated board taglines, daily taglines and handler lines are localized.
+  Long-form station/venture prose remains inline. Route it through the catalog before claiming
+  full locale coverage. Do not machine-translate it in place.
 
 ## Credits
 

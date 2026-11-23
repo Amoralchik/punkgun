@@ -33,6 +33,9 @@ export function createDailyContract(seed: number, cleared = false): Contract {
     tagline: cleared
       ? 'Today is already in the ledger. The sector has not stopped moving.'
       : 'One seeded contract a day. The same city for everyone running it.',
+    taglineEs: cleared
+      ? 'Hoy ya está en el libro. El sector no se ha detenido.'
+      : 'Un contrato sembrado al día. La misma ciudad para todos.',
     daily: true,
   };
 }

@@ -6,6 +6,7 @@ import type { Contract } from './missions';
 import type { Reputation } from './reputation';
 import { ROLE_MAP, type RoleId } from './roles';
 import { LIFEPATH_MAP, type LifepathId } from './lifepath';
+import { getLocale, type Locale } from '../core/i18n';
 
 export type FactionId = 'helix' | 'teeth' | 'orbit' | 'sublevel' | 'market';
 
@@ -378,8 +379,45 @@ const MOTH_LINES: Record<FactionId, string[]> = {
   ],
 };
 
-export function handlerLine(faction: FactionId, seed = 0): string {
-  const lines = MOTH_LINES[faction] ?? MOTH_LINES.market;
+const MOTH_LINES_ES: Record<FactionId, string[]> = {
+  helix: [
+    'Helix construyó la torre sobre cuerpos. Añade otro.',
+    'Seguridad corporativa. Educada hasta que mata.',
+    'Las cámaras ya te miran. Haz que se arrepientan.',
+  ],
+  teeth: [
+    'Los Dientes son ruidosos. Hazlos callar.',
+    'Sonrisas de porcelana, bates baratos. No dejes que te rodeen.',
+    'Este bloque es de GRIN. Recupéralo piso a piso.',
+  ],
+  orbit: [
+    'Low Orbit mueve todo. Hoy, muévelos a ellos.',
+    'Las grúas nunca paran. Los manifiestos tampoco.',
+    'La seguridad del muelle cobra por contenedor. Haz que trabajen.',
+  ],
+  sublevel: [
+    'Esa cosa de abajo fue alguien.',
+    'Tres placas. Rómpelas antes de que te rompa.',
+    'Sin cámara. Sin refuerzos. No viene nadie.',
+  ],
+  market: [
+    'El mercado lo vende todo. Incluso esto.',
+    'Sin recibos. Sin testigos. Sin reembolsos.',
+    'Plaza abierta. Líneas largas. Usa la cobertura.',
+  ],
+};
+
+export function contractTagline(contract: Contract, locale: Locale = getLocale()): string {
+  return locale === 'es' ? (contract.taglineEs ?? contract.tagline) : contract.tagline;
+}
+
+export function handlerLine(
+  faction: FactionId,
+  seed = 0,
+  locale: DialogueLocale = 'en',
+): string {
+  const table = locale === 'es' ? MOTH_LINES_ES : MOTH_LINES;
+  const lines = table[faction] ?? table.market;
   return lines[Math.abs(seed) % lines.length];
 }
 
@@ -647,7 +685,7 @@ export function authoredDialogue(
     {
       speaker: 'MOTH',
       text: es
-        ? `${contract.tagline} El pago es real. El método es tuyo.`
+        ? `${contract.taglineEs ?? contract.tagline} El pago es real. El método es tuyo.`
         : `${contract.tagline} The payout is real. The method is yours.`,
     },
     {

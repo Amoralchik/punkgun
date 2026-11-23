@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rollContracts } from './missions';
-import { BOSS_DIALOGUE, authoredDialogue, localizeDialogue } from './lore';
+import { BOSS_DIALOGUE, authoredDialogue, contractTagline, handlerLine, localizeDialogue } from './lore';
 
 describe('dialogue localization', () => {
   it('localizes authored lines, labels and replies', () => {
@@ -15,6 +15,14 @@ describe('dialogue localization', () => {
     expect(labels).toContain('Trae las placas pesadas');
     expect(labels.some((label) => label.startsWith('ÁNGULO:'))).toBe(true);
     expect(es[2].choices?.[0].reply).toContain('Acceso limpio');
+  });
+
+  it('localizes contract taglines and handler lines', () => {
+    const contract = rollContracts(1, 456)[0];
+    expect(contractTagline(contract, 'es')).toBe(contract.taglineEs);
+    expect(contractTagline(contract, 'en')).toBe(contract.tagline);
+    expect(handlerLine('market', 0, 'es')).toContain('mercado');
+    expect(handlerLine('market', 0, 'en')).toContain('market');
   });
 
   it('localizes the boss briefing and its choices', () => {

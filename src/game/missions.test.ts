@@ -57,6 +57,7 @@ describe('seeded mission generation', () => {
     expect(rush.bossRush).toBe(true);
     expect(rush.objective).toBe('boss');
     expect(rush.reward).toBeGreaterThan(createBossContract(5, 999).reward);
+    expect(rush.taglineEs).toContain('Seis puertas');
   });
 
   it('seeds modifier rolls', () => {

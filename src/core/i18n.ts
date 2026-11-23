@@ -191,6 +191,10 @@ export function setLocale(locale: Locale): void {
   currentLocale = locale;
 }
 
+export function getLocale(): Locale {
+  return currentLocale;
+}
+
 export function t(
   key: MessageKey,
   vars?: Record<string, string | number>,

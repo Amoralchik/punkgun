@@ -1,5 +1,6 @@
 import type { Contract } from '../game/missions';
 import { FACTIONS, handlerLine } from '../game/lore';
+import { getLocale } from '../core/i18n';
 
 export interface ContractsParts {
   contractBlock: string;
@@ -59,7 +60,7 @@ export function renderDeploy(parts: DeployParts): string {
           <div class="deploy-title">${selected ? selected.title : 'NO CONTRACT'}</div>
           <div class="deploy-faction" style="${selected ? `color:${FACTIONS[selected.faction].color}` : ''}">${selected ? FACTIONS[selected.faction].name : ''}</div>
           <div class="station-brief">${parts.brief}</div>
-          <div class="handler-line">MOTH: ${selected ? handlerLine(selected.faction, selected.title.length) : '...'}</div>
+          <div class="handler-line">MOTH: ${selected ? handlerLine(selected.faction, selected.title.length, getLocale()) : '...'}</div>
         </div>
         <h2>INSERTION</h2>
         <div class="approach-list">${parts.approaches}</div>
