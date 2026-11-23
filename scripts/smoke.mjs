@@ -473,6 +473,15 @@ async function main() {
     if (!bossRush.found || bossRush.state !== 'playing' || !bossRush.mission || !bossRush.introVisible || !bossRush.intro) {
       throw new Error(`Boss rush failed: ${JSON.stringify(bossRush)}`);
     }
+    const abilityFlash = await cdp.evaluate(`(() => {
+      const game = window.__game;
+      game.onEvent({ type: 'emp', x: 0, y: 0, angle: 0 });
+      const visible = !document.getElementById('ability-flash').classList.contains('hidden');
+      game.abilityFlash.hide();
+      return visible;
+    })()`);
+    if (!abilityFlash) throw new Error('Ability flash failed.');
+
     const phase = await cdp.evaluate(`(() => {
       const game = window.__game;
       game.onEvent({ type: 'bossPhase', x: 0, y: 0, angle: 0 });
@@ -571,6 +580,7 @@ async function main() {
           bossRush,
           ending: true,
           phase: true,
+          abilityFlash: true,
           offline: true,
           install: true,
           gamepadMenu: true,

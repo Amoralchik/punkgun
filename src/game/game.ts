@@ -41,6 +41,8 @@ import { WorldEventHud } from './world-event-hud';
 import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
 import { BossEventFeedback } from './boss-event-feedback';
+import { AbilityEventFeedback } from './ability-event-feedback';
+import { AbilityFlash } from '../ui/ability-flash';
 import { syncHud } from './hud-sync';
 import { buildMissionSpec } from './mission-spec';
 import { createHubWorld, nearestStation } from './hub-flow';
@@ -67,6 +69,8 @@ export class Game {
   private readonly hub = new Hub();
   private readonly bossIntro = new BossIntro();
   private readonly bossPhase = new BossPhaseOverlay();
+  private readonly abilityFlash = new AbilityFlash();
+  private readonly abilityEvents = new AbilityEventFeedback(this.audio, this.abilityFlash);
   private readonly brief = new MissionBrief();
   private readonly settingsPanel = new SettingsPanel(this.settings, () => this.applySettings());
   private readonly breach = new BreachController(this.input, {
@@ -655,6 +659,7 @@ export class Game {
         Math.max(-1, Math.min(1, (screen.x / Math.max(1, window.innerWidth)) * 2 - 1)),
       );
     }
+    if (this.abilityEvents.handle(e)) return;
     if (playWorldEventAudio(e, this.audio)) return;
     if (this.eventHud.handle(e)) return;
     if (this.combatEvents.handle(e)) return;

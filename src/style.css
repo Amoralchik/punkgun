@@ -2521,6 +2521,31 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+.ability-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 73;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 38%, var(--ability-color, var(--cyan)) 160%);
+  opacity: 0;
+}
+.ability-flash.hidden {
+  display: none;
+}
+.ability-flash.show {
+  animation: ability-flash 0.36s ease-out both;
+}
+@keyframes ability-flash {
+  0% { opacity: 0; }
+  20% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+.reduced-motion .ability-flash.show {
+  animation: none;
+  opacity: 0.25;
+}
+
 .boss-phase {
   position: fixed;
   inset: 0;

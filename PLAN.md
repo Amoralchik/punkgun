@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 180 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 181 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -22,7 +22,7 @@ working checklist.
 | Bosses | 1 | **6 + unique briefings + all-boss rush + NG+ scaling + intro cards + phase pulses + laser hazards + finale grade** | ending-specific setpieces |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Attachments | 4 | **11 with mag/pellet/spread/cooldown/reload/pierce effects** | balance pass |
-| Cyberware | 10 | **22** | active-ability VFX polish |
+| Cyberware | 10 | **22 + active-ability screen flashes** | — |
 | Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
 | Hacking/breach | none | **Breach grid on terminals, cameras, turrets, locked safes and terminal/camera safe chains** | networked objectives |
 | Ventures | 0 | **6 businesses × 3 ranks** | room visuals and event chains |
@@ -94,7 +94,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 180 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 181 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.
