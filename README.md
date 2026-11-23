@@ -52,12 +52,12 @@ The production build is an installable PWA with a service-worker app shell and o
 - Hazards: explosive barrels, security cameras, turrets, laser grids, breakable glass and steam vents
 - Procedural district weather, holo ads, faction music layers, reload/death reactions, 4-frame walk cycles
 - Accessibility: reduced motion, colorblind palettes, subtitles, event log, control presets, per-action key remapping, standard-mapping gamepad
-- English/Spanish catalog for objectives, stations, boons, HUD events, manual, tour, authored/boss dialogue, contract taglines, handler lines, venture cards, street events, event replies, station notes and augment descriptions; breach-protocol minigame
+- English/Spanish catalog for objectives, stations, boons, HUD events, manual, tour, authored/boss dialogue, contract taglines, handler lines, venture cards, street events, event replies, station notes, augment descriptions, attribute/path descriptions and role blurbs; breach-protocol minigame
 - PWA/offline shell with offline/update status toast, save v2 with backup/quarantine recovery, export/import, fatal error boundary
 
 ## Tests
 
-`npm test` runs the Vitest suite (147 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
+`npm test` runs the Vitest suite (148 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

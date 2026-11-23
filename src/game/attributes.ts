@@ -9,7 +9,9 @@ export interface AttributeDef {
   id: AttributeId;
   name: string;
   short: string;
+  shortEs: string;
   desc: string;
+  descEs: string;
   color: string;
 }
 
@@ -18,28 +20,36 @@ export const ATTRIBUTE_DEFS: AttributeDef[] = [
     id: 'body',
     name: 'BODY',
     short: 'STRENGTH',
+    shortEs: 'FUERZA',
     desc: '+1 ARMOR AT 5. UNLOCKS LOUD BREACH AT 5.',
+    descEs: '+1 ARMADURA A 5. DESBLOQUEA BRECHA RUIDOSA A 5.',
     color: '#ff7a4c',
   },
   {
     id: 'reflexes',
     name: 'REFLEXES',
     short: 'AGILITY',
+    shortEs: 'AGILIDAD',
     desc: '+3% MOVE SPEED PER POINT OVER 3.',
+    descEs: '+3% VELOCIDAD POR PUNTO SOBRE 3.',
     color: '#ffc46b',
   },
   {
     id: 'cool',
     name: 'COOL',
     short: 'STYLE',
+    shortEs: 'ESTILO',
     desc: 'ENEMY VISION -3% PER POINT OVER 3. UNLOCKS GHOST ENTRY AT 5.',
+    descEs: 'VISIÓN ENEMIGA -3% POR PUNTO SOBRE 3. DESBLOQUEA ENTRADA FANTASMA A 5.',
     color: '#5ef1ff',
   },
   {
     id: 'tech',
     name: 'TECH',
     short: 'ABILITY',
+    shortEs: 'HABILIDAD',
     desc: 'GUN COOLDOWN -2% PER POINT OVER 3. UNLOCKS BLACKOUT AT 4.',
+    descEs: 'RECARGA DE ARMA -2% POR PUNTO SOBRE 3. DESBLOQUEA APAGÓN A 4.',
     color: '#b38cff',
   },
 ];
@@ -74,6 +84,7 @@ export interface ApproachDef {
   name: string;
   code: string;
   desc: string;
+  descEs: string;
   /** Attribute gate. */
   attribute: AttributeId | null;
   required: number;
@@ -92,6 +103,7 @@ export const APPROACHES: ApproachDef[] = [
     name: 'STANDARD INSERTION',
     code: 'BALANCED',
     desc: 'Walk in clean. No detection modifiers, no payout modifier.',
+    descEs: 'Entra limpio. Sin modificadores de detección ni de pago.',
     attribute: null,
     required: 0,
     visionMult: 1,
@@ -104,6 +116,7 @@ export const APPROACHES: ApproachDef[] = [
     name: 'LOUD BREACH',
     code: 'BODY',
     desc: 'Kick the door. Every hostile hears it and converges. +20% contract pay.',
+    descEs: 'Patea la puerta. Todos los hostiles lo oyen y convergen. +20% pago.',
     attribute: 'body',
     required: 5,
     visionMult: 1,
@@ -116,6 +129,7 @@ export const APPROACHES: ApproachDef[] = [
     name: 'GHOST ENTRY',
     code: 'COOL',
     desc: 'Loop the cameras and move quiet. Enemies detect at half range. +15% pay.',
+    descEs: 'Engaña las cámaras y muévete en silencio. Los enemigos detectan a mitad de alcance. +15% pago.',
     attribute: 'cool',
     required: 5,
     visionMult: 0.5,
@@ -128,6 +142,7 @@ export const APPROACHES: ApproachDef[] = [
     name: 'BLACKOUT',
     code: 'TECH',
     desc: 'Cut the block grid. Enemies only see you at close range. +10% pay.',
+    descEs: 'Corta la red del bloque. Los enemigos solo te ven de cerca. +10% pago.',
     attribute: 'tech',
     required: 4,
     visionMult: 0.3,
@@ -140,6 +155,7 @@ export const APPROACHES: ApproachDef[] = [
     name: 'HIGH LINE',
     code: 'REFLEXES',
     desc: 'Kerenzikov entry. Two seconds of slow time and late detection. +12% pay.',
+    descEs: 'Entrada Kerenzikov. Dos segundos de tiempo lento y detección tardía. +12% pago.',
     attribute: 'reflexes',
     required: 5,
     visionMult: 0.75,

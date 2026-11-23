@@ -269,11 +269,12 @@ export class Safehouse {
   }
 
   private showLifepath(): void {
+    const es = getLocale() === 'es';
     this.lifepathGrid.innerHTML = LIFEPATHS.map(
       (path) => `<button class="lifepath-card" style="--path:${path.color}" data-act="lifepath" data-id="${path.id}">
         <span>${path.kicker}</span>
         <b>${path.name}</b>
-        <p>${path.desc}</p>
+        <p>${es ? path.descEs : path.desc}</p>
         <small>$${path.money} · ${path.startWeapon ? `START WITH ${path.startWeapon.toUpperCase()}` : 'START WITH PISTOL'}</small>
       </button>`,
     ).join('');
@@ -627,6 +628,7 @@ export class Safehouse {
     const kit = this.kitEl.innerHTML;
     const intel = this.intelEl.textContent ?? '';
     const selected = this.selectedContract;
+    const es = getLocale() === 'es';
     const contractBlock = `<div class="sh-contracts station-contracts">${contracts}</div>`;
     const approaches = APPROACHES.map((a) => {
       const unlocked = approachUnlocked(a, this.profile.data.attributes);
@@ -635,7 +637,7 @@ export class Safehouse {
         data-act="select-approach" data-id="${a.id}" ${unlocked ? '' : 'disabled'}>
         <span class="approach-code" style="color:${a.color}">${a.code}</span>
         <span class="approach-name">${a.name}</span>
-        <span class="approach-desc">${a.desc}</span>
+        <span class="approach-desc">${es ? a.descEs : a.desc}</span>
         <span class="approach-req">${
           unlocked ? (active ? 'SELECTED' : 'READY') : `REQUIRES ${approachRequirement(a)}`
         }</span>
@@ -1250,8 +1252,8 @@ export class Safehouse {
           const maxed = value >= ATTR_MAX;
           return `<div class="aug-attr" style="--attr:${def.color}">
             <span class="aug-attr-name">${def.name}<b>${value}</b></span>
-            <span class="aug-attr-short">${def.short}</span>
-            <span class="aug-attr-desc">${def.desc}</span>
+            <span class="aug-attr-short">${es ? def.shortEs : def.short}</span>
+            <span class="aug-attr-desc">${es ? def.descEs : def.desc}</span>
             <button data-act="attr" data-id="${def.id}" ${maxed || attributePoints < 1 ? 'disabled' : ''}>${maxed ? 'MAX' : '+'}</button>
           </div>`;
         }).join('')}

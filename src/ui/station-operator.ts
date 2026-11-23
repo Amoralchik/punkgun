@@ -1,5 +1,5 @@
 import { fmtTime } from '../core/math';
-import { t } from '../core/i18n';
+import { getLocale, t } from '../core/i18n';
 import type { Profile } from '../game/profile';
 import { ATTRIBUTE_DEFS, APPROACHES, approachRequirement, approachUnlocked } from '../game/attributes';
 import { CYBERWARE_DEFS, PERK_DEFS } from '../game/progression';
@@ -15,11 +15,12 @@ import { CHALLENGE_MAP } from '../game/challenges';
 /** Operator sheet body; actions remain in the Safehouse controller. */
 export function renderOperator(profile: Profile): string {
   const data = profile.data;
+  const es = getLocale() === 'es';
   const mods = profile.runMods();
   const attrs = data.attributes;
   const attrRows = ATTRIBUTE_DEFS.map(
     (def) => `<div class="op-attr" style="--attr:${def.color}">
-      <span>${def.name}</span><b>${attrs[def.id]}</b><small>${def.short}</small>
+      <span>${def.name}</span><b>${attrs[def.id]}</b><small>${es ? def.shortEs : def.short}</small>
     </div>`,
   ).join('');
   const approachRows = APPROACHES.map((a) => {
@@ -75,7 +76,7 @@ export function renderOperator(profile: Profile): string {
       data-act="role" data-id="${role.id}">
       <span class="op-role-code">${role.code}</span>
       <b>${role.name}</b>
-      <small>${role.blurb}</small>
+      <small>${es ? role.blurbEs : role.blurb}</small>
       <span class="op-role-state">${active ? 'ACTIVE' : 'SELECT'}</span>
     </button>`;
   }).join('');

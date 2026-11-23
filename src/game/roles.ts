@@ -7,6 +7,7 @@ export interface RoleDef {
   name: string;
   code: string;
   blurb: string;
+  blurbEs: string;
   color: string;
 }
 
@@ -16,6 +17,7 @@ export const ROLES: RoleDef[] = [
     name: 'SOLO',
     code: 'COMBAT',
     blurb: 'Front-line operator. One extra plate and tighter gun control.',
+    blurbEs: 'Operador de primera línea. Una placa extra y mejor control de arma.',
     color: '#ff7a4c',
   },
   {
@@ -23,6 +25,7 @@ export const ROLES: RoleDef[] = [
     name: 'NETRUNNER',
     code: 'INTRUSION',
     blurb: 'Cyberware cooldowns -20% and stronger resistance to hacks.',
+    blurbEs: 'Recargas de ciberware -20% y mayor resistencia a hackeos.',
     color: '#5ef1ff',
   },
   {
@@ -30,6 +33,7 @@ export const ROLES: RoleDef[] = [
     name: 'TECHIE',
     code: 'HARDWARE',
     blurb: 'Faster reloads, cheaper cyberware and more salvage.',
+    blurbEs: 'Recargas más rápidas, ciberware más barato y más chatarra.',
     color: '#b38cff',
   },
   {
@@ -37,6 +41,7 @@ export const ROLES: RoleDef[] = [
     name: 'FIXER',
     code: 'ECONOMY',
     blurb: '+8% contract pay, better cache value and black-market prices.',
+    blurbEs: '+8% pago, mejor valor de caché y precios de mercado negro.',
     color: '#ffc46b',
   },
   {
@@ -44,6 +49,7 @@ export const ROLES: RoleDef[] = [
     name: 'MEDTECH',
     code: 'SUPPORT',
     blurb: 'Faster regen, better speed under pressure and cheaper supplies.',
+    blurbEs: 'Regeneración más rápida, mejor velocidad bajo presión y suministros más baratos.',
     color: '#7dffcf',
   },
 ];
