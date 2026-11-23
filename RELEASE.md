@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 174 unit tests + build + budget)
+- `npm run verify` (typecheck + 175 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -90,7 +90,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions, mission/dead/win timing and frame input/render finalization are split out.
-- Quickhack, medic, flash, Kerenzikov, boss-phase and boss-rush presentation route through dedicated event modules; world-facing mission specs are built in `game/mission-spec.ts`.
+- Quickhack, medic, flash, Kerenzikov, boss-phase and boss-rush presentation route through dedicated event modules; mission specs and hub world/station flow live in `mission-spec` and `hub-flow`.
 - Audio-only coverage includes loot, doors, pickups, suppressed fire, stims, explosives, sniper fire, cyberware and EMP feedback.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.

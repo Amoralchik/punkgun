@@ -43,6 +43,7 @@ import { RunStateEvents } from './run-state-events';
 import { BossEventFeedback } from './boss-event-feedback';
 import { syncHud } from './hud-sync';
 import { buildMissionSpec } from './mission-spec';
+import { createHubWorld, nearestStation } from './hub-flow';
 import { GameStateMachine, type GameState } from './game-state';
 import { FrameShell } from './frame-shell';
 import { stepWorld } from './frame-step';
@@ -197,7 +198,12 @@ export class Game {
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0];
     this.safehouse.setContracts(this.contracts);
-    this.world = this.createHubWorld();
+    this.world = createHubWorld(
+      this.getLevel('safehouse'),
+      this.input,
+      (event) => this.onEvent(event),
+      this.profile.runMods(),
+    );
     this.renderer.bind(this.world);
     this.showHub();
     this.installEvents();
@@ -236,25 +242,6 @@ export class Game {
     return this.contracts;
   }
 
-  private createHubWorld(): World {
-    return new World(
-      this.getLevel('safehouse'),
-      this.input,
-      (e) => this.onEvent(e),
-      {
-        weapon: 'fists',
-        ammo: 0,
-        attachment: null,
-        variant: null,
-        supplyType: null,
-        supplyCharges: 0,
-      },
-      { objective: 'purge', requiredLoot: 0 },
-      this.profile.runMods(),
-      0,
-    );
-  }
-
   private showHub(): void {
     this.panelOpen = false;
     this.hub.show();
@@ -265,22 +252,8 @@ export class Game {
     this.updateHubPrompt();
   }
 
-  private nearestStation(): Station | null {
-    let best: Station | null = null;
-    let bestD = 74;
-    const p = this.world.player;
-    for (const station of this.world.level.stations) {
-      const d = Math.hypot(station.x - p.x, station.y - p.y);
-      if (d < bestD) {
-        bestD = d;
-        best = station;
-      }
-    }
-    return best;
-  }
-
   private updateHubPrompt(): void {
-    this.hub.updatePrompt(this.nearestStation(), this.recoveryNote);
+    this.hub.updatePrompt(nearestStation(this.world), this.recoveryNote);
   }
 
   private openPanel(kind?: StationKind): void {
@@ -723,7 +696,12 @@ export class Game {
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
     this.safehouse.setContracts(this.contracts);
-    this.world = this.createHubWorld();
+    this.world = createHubWorld(
+      this.getLevel('safehouse'),
+      this.input,
+      (event) => this.onEvent(event),
+      this.profile.runMods(),
+    );
     this.renderer.bind(this.world);
     this.acc = 0;
     this.overlayT = 0;
@@ -825,7 +803,7 @@ export class Game {
       this.acc = stepped.acc;
       edgesConsumed = edgesConsumed || stepped.edges;
       this.updateHubPrompt();
-      const station = this.nearestStation();
+      const station = nearestStation(this.world);
       if (station && this.input.wasPressed('KeyE')) this.openPanel(station.kind);
     }
     if (
