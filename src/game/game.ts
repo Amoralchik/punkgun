@@ -39,6 +39,7 @@ import type { WorldEvent } from './world-types';
 import type { RewardSummary } from './results';
 import { buildResult } from './result-flow';
 import { playWorldEventAudio } from './world-event-audio';
+import { WorldEventHud } from './world-event-hud';
 import { settleRun } from './settlement';
 
 const FIXED = 1 / 120;
@@ -53,6 +54,7 @@ export class Game {
   private readonly audio = new AudioEngine();
   private readonly renderer: Renderer;
   private readonly hud = new Hud();
+  private readonly eventHud = new WorldEventHud(this.hud, this.audio);
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
   private readonly hub = new Hub();
@@ -718,6 +720,7 @@ export class Game {
       );
     }
     if (playWorldEventAudio(e, this.audio)) return;
+    if (this.eventHud.handle(e)) return;
     switch (e.type) {
       case 'kill':
         this.audio.kill();
@@ -803,12 +806,6 @@ export class Game {
       case 'camoBreak':
         this.audio.camoBreak();
         break;
-      case 'secondHeart':
-        this.audio.secondHeart();
-        this.hud.flashDamage('armor');
-        this.hud.subtitle(t('event.secondHeart'));
-        this.hud.logLine('SECOND HEART: survived lethal hit');
-        break;
       case 'armorHit':
         this.audio.armorHit();
         this.hud.flashDamage('armor');
@@ -839,10 +836,6 @@ export class Game {
         this.overlayT = 0;
         this.overlayShown = false;
         break;
-      case 'doorLocked':
-        this.audio.uiError();
-        this.hud.logLine('DOOR SEALED — KICK TO BREACH');
-        break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {
           this.state = 'breach';
@@ -853,44 +846,12 @@ export class Game {
           );
         }
         break;
-      case 'breachSuccess':
-        this.hud.subtitle('BREACH COMPLETE — SECURITY LOOPED');
-        this.hud.logLine('BREACH: security looped');
-        this.audio.win();
-        break;
-      case 'breachFail':
-        this.hud.subtitle('BREACH FAILED — SECTOR ALERTED');
-        this.hud.logLine('BREACH: failed');
-        this.audio.uiError();
-        break;
-      case 'netrunnerHack':
-        this.audio.uiError();
-        this.hud.subtitle(t('event.netrunnerHack'), 3200);
-        this.hud.logLine('NETRUNNER: hack landed');
-        break;
-      case 'sabotage':
-        this.hud.subtitle(t('event.sabotage'));
-        this.hud.logLine('SABOTAGE: terminal tapped');
-        break;
-      case 'caseSecured':
-        this.hud.subtitle(t('event.caseSecured'));
-        this.hud.logLine('EXTRACTION: case secured');
-        break;
-      case 'objectiveComplete':
-        this.hud.subtitle(t('event.objectiveComplete'));
-        this.hud.logLine('OBJECTIVE: complete');
-        break;
       case 'bossRushWave':
         this.bossIntro.show('// NEXT BOSS', this.world.bossName, `WAVE ${e.wave}/${e.total}`);
         this.audio.alert();
         this.audio.setBossMode(true);
         this.hud.subtitle(`BOSS RUSH ${e.wave}/${e.total} — ${this.world.bossName}`, 4000);
         this.hud.logLine(`BOSS RUSH: wave ${e.wave}/${e.total} — ${this.world.bossName}`);
-        break;
-      case 'exitOpen':
-        this.audio.exitOpen();
-        this.hud.subtitle(t('event.exitOpen'));
-        this.hud.logLine('EXIT: open');
         break;
       case 'win':
         this.audio.win();
