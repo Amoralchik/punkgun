@@ -8,6 +8,7 @@ import { randomSeed, seedLabel } from '../core/math';
 import { setLocale, t } from '../core/i18n';
 import { resolveKeymap } from '../core/settings';
 import { renderManual, renderTour } from '../ui/manual';
+import { Hub } from '../ui/hub';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -29,7 +30,6 @@ import {
 } from './breach';
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
-import { xpForNext } from './progression';
 import { Profile } from './profile';
 import { RunConfig } from './run';
 import { WEAPONS } from './weapons';
@@ -105,10 +105,7 @@ export class Game {
   private readonly setDialogueLog = document.getElementById(
     'set-dialogue-log',
   ) as HTMLInputElement;
-  private readonly hubRoot = document.getElementById('hub')!;
-  private readonly hubPrompt = document.getElementById('hub-prompt')!;
-  private readonly hubLevel = document.getElementById('hub-level')!;
-  private readonly hubMoney = document.getElementById('hub-money')!;
+  private readonly hub = new Hub();
   private readonly profile: Profile;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -208,7 +205,7 @@ export class Game {
     this.profile.save();
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
-    this.updateHubStats();
+    this.hub.updateStats(this.profile.data);
     return this.contracts;
   }
 
@@ -233,18 +230,12 @@ export class Game {
 
   private showHub(): void {
     this.panelOpen = false;
-    this.hubRoot.classList.remove('hidden');
+    this.hub.show();
     this.safehouse.hide();
     this.hud.setVisible(false);
     this.hud.crosshairAt(this.input.mouseX, this.input.mouseY, false);
-    this.updateHubStats();
+    this.hub.updateStats(this.profile.data);
     this.updateHubPrompt();
-  }
-
-  private updateHubStats(): void {
-    const { level, xp, money } = this.profile.data;
-    this.hubLevel.textContent = `LVL ${level} · ${xp}/${xpForNext(level)} XP`;
-    this.hubMoney.textContent = `$${money.toLocaleString('en-US')}`;
   }
 
   private nearestStation(): Station | null {
@@ -262,30 +253,13 @@ export class Game {
   }
 
   private updateHubPrompt(): void {
-    const station = this.nearestStation();
-    const labels: Record<StationKind, string> = {
-      contracts: t('station.contracts'),
-      workbench: t('station.workbench'),
-      clinic: t('station.clinic'),
-      market: t('station.market'),
-      supplies: t('station.supplies'),
-      archive: t('station.archive'),
-      fabricator: t('station.fabricator'),
-      operator: t('station.operator'),
-      sanctuary: t('station.sanctuary'),
-      deploy: t('station.deploy'),
-    };
-    this.hubPrompt.textContent = station
-      ? `E — ${labels[station.kind]}`
-      : this.recoveryNote
-        ? `${this.recoveryNote} · TAB — OPEN TERMINAL`
-        : 'TAB — OPEN TERMINAL';
+    this.hub.updatePrompt(this.nearestStation(), this.recoveryNote);
   }
 
   private openPanel(kind?: StationKind): void {
     if (this.state !== 'safehouse' || this.panelOpen) return;
     this.panelOpen = true;
-    this.hubRoot.classList.add('hidden');
+    this.hub.hide();
     const notice = this.recoveryNote;
     this.recoveryNote = null;
     if (kind) this.safehouse.openStation(kind);
@@ -298,8 +272,8 @@ export class Game {
     if (!this.panelOpen) return;
     this.panelOpen = false;
     this.safehouse.hide();
-    this.hubRoot.classList.remove('hidden');
-    this.updateHubStats();
+    this.hub.show();
+    this.hub.updateStats(this.profile.data);
     this.updateHubPrompt();
     this.input.endFrame();
   }
@@ -1026,7 +1000,7 @@ export class Game {
     this.audio.setFaction(contract.faction);
     this.audio.setBossMode(contract.objective === 'boss' || contract.chapter === 'final');
     this.panelOpen = false;
-    this.hubRoot.classList.add('hidden');
+    this.hub.hide();
     this.safehouse.hide();
     this.hud.hideResults();
     this.hud.setVisible(true);
