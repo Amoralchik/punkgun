@@ -2607,6 +2607,18 @@ select:focus-visible {
   }
 }
 
+body.finale #game {
+  filter: saturate(0.78) contrast(1.08) hue-rotate(-10deg);
+}
+body.finale #vignette {
+  background:
+    radial-gradient(circle at 50% 45%, transparent 42%, rgba(255, 47, 142, 0.16) 100%),
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(3, 9, 14, 0.55) 100%);
+}
+body.finale #scanlines {
+  opacity: 0.16;
+}
+
 .system-toast {
   position: fixed;
   left: 50%;

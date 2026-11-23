@@ -85,6 +85,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Boss missions and boss-rush waves present the encounter intro card without blocking input.
 - Plate breaks fire a brief full-screen phase pulse; reduced motion keeps it static.
 - Boss plate breaks add two telegraphed arena lasers, disabled for 1.4s on spawn.
+- The final contract applies a magenta color grade and heavier vignette.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
   HIGH adds a heavy or stalker tactical unit.

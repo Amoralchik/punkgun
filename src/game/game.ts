@@ -743,6 +743,7 @@ export class Game {
     this.setApproachVignette(approach);
     document.body.classList.toggle('contract-fog', contract.modifiers.includes('fog'));
     document.body.classList.toggle('contract-blackout', approach === 'blackout');
+    document.body.classList.toggle('finale', contract.chapter === 'final');
     this.showBrief(contract);
     this.playScreenTransition();
     this.input.endFrame();
@@ -794,7 +795,7 @@ export class Game {
     this.briefRoot.classList.add('hidden');
     this.briefT = 0;
     this.approachVignette.className = 'approach-vignette';
-    document.body.classList.remove('contract-fog', 'contract-blackout');
+    document.body.classList.remove('contract-fog', 'contract-blackout', 'finale');
     this.dialogue.close();
     this.pendingRun = null;
     this.profile.clearInsurance();
