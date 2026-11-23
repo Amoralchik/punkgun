@@ -184,6 +184,14 @@ describe('mission objectives', () => {
     expect(world.boss?.alive).toBe(true);
   });
 
+  it('adds baseline enemies for higher contract risk', () => {
+    const low = makeWorld({ objective: 'purge', requiredLoot: 0, risk: 'LOW' }, new Set(), 'sector07');
+    const med = makeWorld({ objective: 'purge', requiredLoot: 0, risk: 'MED' }, new Set(), 'sector07');
+    const high = makeWorld({ objective: 'purge', requiredLoot: 0, risk: 'HIGH' }, new Set(), 'sector07');
+    expect(med.enemies.length).toBe(low.enemies.length + 1);
+    expect(high.enemies.length).toBe(low.enemies.length + 2);
+  });
+
   it('scales boss armor and speed on new game plus', () => {
     const normal = makeWorld(
       { objective: 'boss', requiredLoot: 0, bossId: 'psycho' },

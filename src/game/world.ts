@@ -301,6 +301,20 @@ export class World {
     level.enemies.forEach((spawn, i) =>
       this.addEnemy(spawn.x, spawn.y, i % 2 === 0 ? 1 : -1, 'idle', spawn.kind),
     );
+    const extra = mission.risk === 'HIGH' ? 2 : mission.risk === 'MED' ? 1 : 0;
+    const seedSpawn = level.enemies[0];
+    if (extra > 0 && seedSpawn) {
+      for (let i = 0; i < extra; i++) {
+        const offset = (i + 1) * 26;
+        this.addEnemy(
+          seedSpawn.x + offset,
+          seedSpawn.y - offset,
+          1,
+          'idle',
+          pickEnemyKind(this.rand()),
+        );
+      }
+    }
 
     if (mission.objective === 'boss') {
       if (mission.bossRush) {

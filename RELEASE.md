@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 148 unit tests + build + budget)
+- `npm run verify` (typecheck + 149 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -83,6 +83,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Console clean on boot, run, death, win, safehouse.
 - Boss missions and boss-rush waves present the encounter intro card without blocking input.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
+- Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
 - NG+: boss armor, speed and plate-break adds scale with the cycle; the brief shows `NG+n`.
 - Reduced motion on/off; palette/subtitles/log toggles; control presets.
 - Weather/fog modifiers and holo ads on/off.

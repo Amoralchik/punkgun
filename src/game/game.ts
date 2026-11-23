@@ -266,6 +266,7 @@ export class Game {
         modifiers: contract.modifiers,
         bossId: contract.bossId,
         bossRush: contract.bossRush,
+        risk: contract.risk,
         ngPlus: this.profile.data.ngPlus,
         boons: config.boons,
       },
