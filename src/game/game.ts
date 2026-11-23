@@ -3,13 +3,13 @@ import { districtFor } from './districts';
 import type { LifepathId } from './lifepath';
 import { CHALLENGE_MAP, type ChallengeId } from './challenges';
 import { Input } from '../core/input';
-import { Settings, controlKeymap, type ControlPreset, type Palette } from '../core/settings';
+import { Settings } from '../core/settings';
 import { randomSeed, seedLabel } from '../core/math';
 import { setLocale, t } from '../core/i18n';
 import { resolveKeymap } from '../core/settings';
-import { renderManual, renderTour } from '../ui/manual';
 import { Hub } from '../ui/hub';
 import { BossIntro } from '../ui/boss-intro';
+import { SettingsPanel } from '../ui/settings-panel';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -85,29 +85,9 @@ export class Game {
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
-  private readonly setVolume = document.getElementById('set-volume') as HTMLInputElement;
-  private readonly setShake = document.getElementById('set-shake') as HTMLInputElement;
-  private readonly setBloom = document.getElementById('set-bloom') as HTMLInputElement;
-  private readonly setFlash = document.getElementById('set-flash') as HTMLInputElement;
-  private readonly setScanlines = document.getElementById('set-scanlines') as HTMLInputElement;
-  private readonly setCones = document.getElementById('set-cones') as HTMLInputElement;
-  private readonly setWeather = document.getElementById('set-weather') as HTMLInputElement;
-  private readonly setReducedMotion = document.getElementById(
-    'set-reduced-motion',
-  ) as HTMLInputElement;
-  private readonly setControls = document.getElementById('set-controls') as HTMLSelectElement;
-  private readonly setPalette = document.getElementById('set-palette') as HTMLSelectElement;
-  private readonly setLanguage = document.getElementById('set-locale') as HTMLSelectElement;
-  private readonly remapRoot = document.getElementById('set-remap')!;
-  private readonly manualSections = document.getElementById('manual-sections')!;
-  private readonly tourGrid = document.getElementById('tour-grid')!;
-  private remapAction: string | null = null;
-  private readonly setSubtitles = document.getElementById('set-subtitles') as HTMLInputElement;
-  private readonly setDialogueLog = document.getElementById(
-    'set-dialogue-log',
-  ) as HTMLInputElement;
   private readonly hub = new Hub();
   private readonly bossIntro = new BossIntro();
+  private readonly settingsPanel = new SettingsPanel(this.settings, () => this.applySettings());
   private readonly profile: Profile;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -177,7 +157,7 @@ export class Game {
     this.showHub();
     this.installEvents();
     this.applySettings();
-    this.syncSettingsUI();
+    this.settingsPanel.sync();
     if (!this.settings.data.tutorialSeen) this.showManual();
     else if (!this.settings.data.tourSeen) this.showTour();
   }
@@ -352,44 +332,7 @@ export class Game {
       if ((ev.target as HTMLElement).closest('[data-act="close-manual"]')) this.closeManual();
     });
 
-    for (const el of [this.setVolume, this.setShake, this.setBloom]) {
-      el.addEventListener('input', () => this.onSettingsInput());
-    }
-    for (const el of [
-      this.setFlash,
-      this.setScanlines,
-      this.setCones,
-      this.setWeather,
-      this.setReducedMotion,
-      this.setSubtitles,
-      this.setDialogueLog,
-    ]) {
-      el.addEventListener('change', () => this.onSettingsInput());
-    }
-    for (const el of [this.setControls, this.setPalette, this.setLanguage]) {
-      el.addEventListener('change', () => this.onSettingsInput());
-    }
-    this.remapRoot.addEventListener('click', (event) => {
-      const button = (event.target as HTMLElement).closest<HTMLElement>('[data-remap]');
-      if (!button?.dataset.remap) return;
-      this.remapAction = button.dataset.remap;
-      this.renderRemapButtons();
-    });
-
     window.addEventListener('keydown', (e) => {
-      if (this.remapAction) {
-        e.preventDefault();
-        if (e.code !== 'Escape') {
-          this.settings.set('keymap', {
-            ...this.settings.data.keymap,
-            [this.remapAction]: e.code,
-          });
-          this.applySettings();
-        }
-        this.remapAction = null;
-        this.renderRemapButtons();
-        return;
-      }
       if (e.code === 'KeyM') {
         this.audio.toggleMute();
         return;
@@ -553,43 +496,6 @@ export class Game {
     }
   }
 
-  private renderRemapButtons(): void {
-    const labels: Array<[string, string]> = [
-      ['KeyW', 'MOVE UP'],
-      ['KeyA', 'MOVE LEFT'],
-      ['KeyS', 'MOVE DOWN'],
-      ['KeyD', 'MOVE RIGHT'],
-      ['KeyR', 'RELOAD'],
-      ['KeyE', 'INTERACT'],
-      ['KeyQ', 'SUPPLY'],
-      ['Space', 'DASH'],
-      ['ShiftLeft', 'SANDEVISTAN'],
-      ['KeyC', 'CAMO'],
-      ['KeyX', 'EMP'],
-      ['KeyV', 'BERSERK'],
-      ['KeyG', 'OVERCLOCK'],
-      ['KeyH', 'INTRUSION'],
-      ['KeyZ', 'QUICKHACK'],
-    ];
-    const keymap = resolveKeymap(this.settings.data.controls, this.settings.data.keymap);
-    const pretty = (code: string): string => {
-      if (code === 'Space') return 'SPACE';
-      if (code === 'ShiftLeft' || code === 'ShiftRight') return 'SHIFT';
-      if (code.startsWith('Key')) return code.slice(3);
-      if (code.startsWith('Digit')) return code.slice(5);
-      if (code.startsWith('Arrow')) return code.replace('Arrow', '');
-      return code.toUpperCase();
-    };
-    this.remapRoot.innerHTML = labels
-      .map(
-        ([code, label]) =>
-          `<button class="remap-key${this.remapAction === code ? ' listening' : ''}" data-remap="${code}"><span>${label}</span><b>${
-            this.remapAction === code ? 'PRESS KEY' : pretty(keymap[code] ?? code)
-          }</b></button>`,
-      )
-      .join('');
-  }
-
   private applySettings(): void {
     const reduced = this.settings.data.reducedMotion;
     this.input.setKeymap(
@@ -613,43 +519,6 @@ export class Game {
     document.body.classList.toggle('reduced-motion', reduced);
   }
 
-  private syncSettingsUI(): void {
-    this.setVolume.value = String(Math.round(this.settings.data.volume * 100));
-    this.setShake.value = String(Math.round(this.settings.data.shake * 100));
-    this.setBloom.value = String(Math.round(this.settings.data.bloom * 100));
-    this.setFlash.checked = this.settings.data.flash;
-    this.setScanlines.checked = this.settings.data.scanlines;
-    this.setCones.checked = this.settings.data.cones;
-    this.setWeather.checked = this.settings.data.weather;
-    this.setReducedMotion.checked = this.settings.data.reducedMotion;
-    this.setControls.value = this.settings.data.controls;
-    this.setPalette.value = this.settings.data.palette;
-    this.setLanguage.value = this.settings.data.locale;
-    this.setSubtitles.checked = this.settings.data.subtitles;
-    this.setDialogueLog.checked = this.settings.data.dialogueLog;
-    this.manualSections.innerHTML = renderManual(this.settings.data.locale);
-    this.tourGrid.innerHTML = renderTour(this.settings.data.locale);
-    this.renderRemapButtons();
-  }
-
-  private onSettingsInput(): void {
-    this.settings.set('volume', Number(this.setVolume.value) / 100);
-    this.settings.set('shake', Number(this.setShake.value) / 100);
-    this.settings.set('bloom', Number(this.setBloom.value) / 100);
-    this.settings.set('flash', this.setFlash.checked);
-    this.settings.set('scanlines', this.setScanlines.checked);
-    this.settings.set('cones', this.setCones.checked);
-    this.settings.set('weather', this.setWeather.checked);
-    this.settings.set('reducedMotion', this.setReducedMotion.checked);
-    this.settings.set('controls', this.setControls.value as ControlPreset);
-    this.settings.set('palette', this.setPalette.value as Palette);
-    this.settings.set('locale', this.setLanguage.value === 'es' ? 'es' : 'en');
-    this.settings.set('subtitles', this.setSubtitles.checked);
-    this.settings.set('dialogueLog', this.setDialogueLog.checked);
-    this.applySettings();
-    this.syncSettingsUI();
-  }
-
   private pauseGame(): void {
     if (this.state !== 'playing') return;
     this.state = 'paused';
@@ -662,7 +531,7 @@ export class Game {
       window.clearTimeout(this.abandonTimer);
       this.abandonTimer = null;
     }
-    this.syncSettingsUI();
+    this.settingsPanel.sync();
     this.hud.crosshairAt(this.input.mouseX, this.input.mouseY, false);
     this.input.endFrame();
   }
@@ -684,7 +553,7 @@ export class Game {
         break;
       case 'settings':
         this.pauseSettingsEl.classList.toggle('hidden');
-        this.syncSettingsUI();
+        this.settingsPanel.sync();
         break;
       case 'manual':
         this.showManual();
