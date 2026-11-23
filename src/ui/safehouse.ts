@@ -1235,6 +1235,7 @@ export class Safehouse {
   }
 
   private renderAugments(): void {
+    const es = getLocale() === 'es';
     const { level, xp, perkPoints, money, cyberware, perks, attributes, attributePoints } =
       this.profile.data;
     const next = xpForNext(level);
@@ -1288,7 +1289,7 @@ export class Safehouse {
       return `<div class="aug-item${overCapacity ? ' locked' : ''}">
         <div class="aug-info">
           <span class="aug-name">${def.name}</span>
-          <span class="aug-desc">${def.desc}</span>
+          <span class="aug-desc">${es ? def.descEs : def.desc}</span>
           <span class="aug-rank">RANK ${rank}/${def.maxRank} · LOAD ${
             maxed ? '—' : `+${info.nextCost}`
           }${!maxed && riskPct > 0 ? ` · RISK ${riskPct}%` : ''}${
@@ -1310,7 +1311,7 @@ export class Safehouse {
       return `<div class="aug-item">
         <div class="aug-info">
           <span class="aug-name">${def.name}</span>
-          <span class="aug-desc">${def.desc}</span>
+          <span class="aug-desc">${es ? def.descEs : def.desc}</span>
           <span class="aug-rank">RANK ${rank}/${def.maxRank}</span>
         </div>
         <div class="sh-actions aug-action">
