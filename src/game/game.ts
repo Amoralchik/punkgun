@@ -41,6 +41,7 @@ import { buildResult } from './result-flow';
 import { playWorldEventAudio } from './world-event-audio';
 import { WorldEventHud } from './world-event-hud';
 import { CombatEventFeedback } from './combat-event-feedback';
+import { RunStateEvents } from './run-state-events';
 import { settleRun } from './settlement';
 
 const FIXED = 1 / 120;
@@ -57,6 +58,7 @@ export class Game {
   private readonly hud = new Hud();
   private readonly eventHud = new WorldEventHud(this.hud, this.audio);
   private readonly combatEvents: CombatEventFeedback;
+  private readonly runEvents: RunStateEvents;
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
   private readonly hub = new Hub();
@@ -93,9 +95,6 @@ export class Game {
   private lastKills = 0;
   private startedWithWeapon = false;
   private lastReward: RewardSummary | null = null;
-  private lastDeathInsured = false;
-  private lastDeathInsuredWeapon: string | null = null;
-  private deathRecorded = false;
   private panelOpen = false;
   private recoveryNote: string | null = null;
 
@@ -103,6 +102,22 @@ export class Game {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
     this.combatEvents = new CombatEventFeedback(this.audio, this.hud, this.profile, () => this.world);
+    this.runEvents = new RunStateEvents(this.profile, this.audio, this.hud, {
+      world: () => this.world,
+      contract: () => this.currentContract,
+      challenge: () => this.currentChallenge,
+      onDeath: () => {
+        this.state = 'dead';
+        this.overlayT = 0;
+        this.overlayShown = false;
+      },
+      onWin: () => {
+        this.state = 'win';
+        this.overlayT = 0;
+        this.overlayShown = false;
+        this.bankClear();
+      },
+    });
     this.menu = new MenuNavigation(
       this.input,
       () => this.menuIsOpen(),
@@ -628,8 +643,7 @@ export class Game {
     this.overlayT = 0;
     this.overlayShown = false;
     this.lastReward = null;
-    this.lastDeathInsured = false;
-    this.deathRecorded = false;
+    this.runEvents.reset();
     this.state = 'playing';
     this.world.player.invulnT = 1.2;
     if (contract.challenge === 'glass') {
@@ -725,6 +739,7 @@ export class Game {
     if (playWorldEventAudio(e, this.audio)) return;
     if (this.eventHud.handle(e)) return;
     if (this.combatEvents.handle(e)) return;
+    if (this.runEvents.handle(e)) return;
     switch (e.type) {
       case 'quickhack':
         this.audio.quickhack();
@@ -791,31 +806,6 @@ export class Game {
       case 'camoBreak':
         this.audio.camoBreak();
         break;
-      case 'playerDeath':
-        this.audio.death();
-        this.hud.flashDamage('death');
-        this.hud.damageDirection(e.angle + Math.PI);
-        const policy = this.profile.data.insurance;
-        this.lastDeathInsuredWeapon = policy ? WEAPONS[policy.weapon].name : null;
-        this.lastDeathInsured = !!this.profile.claimInsurance();
-        if (!this.deathRecorded) {
-          this.deathRecorded = true;
-          this.profile.recordRun({
-            title: this.currentContract?.title ?? 'UNKNOWN CONTRACT',
-            layoutName: this.currentContract?.layoutName ?? '',
-            time: this.world.time,
-            kills: this.world.kills,
-            payout: 0,
-            rank: '—',
-            success: false,
-            daily: this.currentContract?.daily === true,
-            challenge: this.currentContract?.challenge ?? this.currentChallenge,
-          });
-        }
-        this.state = 'dead';
-        this.overlayT = 0;
-        this.overlayShown = false;
-        break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {
           this.state = 'breach';
@@ -832,13 +822,6 @@ export class Game {
         this.audio.setBossMode(true);
         this.hud.subtitle(`BOSS RUSH ${e.wave}/${e.total} — ${this.world.bossName}`, 4000);
         this.hud.logLine(`BOSS RUSH: wave ${e.wave}/${e.total} — ${this.world.bossName}`);
-        break;
-      case 'win':
-        this.audio.win();
-        this.state = 'win';
-        this.overlayT = 0;
-        this.overlayShown = false;
-        this.bankClear();
         break;
       default:
         break;
@@ -862,8 +845,8 @@ export class Game {
       contract: this.currentContract,
       world: this.world,
       carriedWeapon: this.startedWithWeapon || this.world.player.weapon !== 'fists',
-      insured: this.lastDeathInsured,
-      insuredWeapon: this.lastDeathInsuredWeapon,
+      insured: this.runEvents.deathInsured,
+      insuredWeapon: this.runEvents.deathInsuredWeapon,
       reward: this.lastReward,
       approachId: this.currentApproach,
       ending: this.profile.data.ending,
