@@ -41,9 +41,9 @@ import { WorldEventHud } from './world-event-hud';
 import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
 import { syncHud } from './hud-sync';
+import { stepWorld } from './frame-step';
 import { settleRun } from './settlement';
 
-const FIXED = 1 / 120;
 const deathDelay = 0.7;
 const winDelay = 0.35;
 
@@ -879,15 +879,12 @@ export class Game {
 
     let edgesConsumed = false;
     if (this.state === 'safehouse' && !this.panelOpen && !this.pause.isManualOpen) {
-      this.acc = Math.min(this.acc + dt, 0.2);
-      let edge = true;
-      let guard = 0;
-      while (this.acc >= FIXED && guard++ < 16) {
-        this.world.update(FIXED, aim, edge);
-        if (edge) edgesConsumed = true;
-        edge = false;
-        this.acc -= FIXED;
-      }
+      const stepped = stepWorld(this.world, this.acc, dt, aim, {
+        state: 'safehouse',
+        reducedMotion: this.settings.data.reducedMotion,
+      });
+      this.acc = stepped.acc;
+      edgesConsumed = edgesConsumed || stepped.edges;
       this.updateHubPrompt();
       const station = this.nearestStation();
       if (station && this.input.wasPressed('KeyE')) this.openPanel(station.kind);
@@ -906,29 +903,19 @@ export class Game {
       this.audio.death();
     }
 
-    if (this.state === 'playing' && this.briefT > 0) {
+    const briefing = this.state === 'playing' && this.briefT > 0;
+    if (briefing) {
       this.briefT = Math.max(0, this.briefT - dt);
       if (this.briefT === 0) this.brief.hide();
-      this.acc = 0;
-      edgesConsumed = true;
-    } else if (this.state === 'playing' || this.state === 'dead') {
-      const reduced = this.settings.data.reducedMotion;
-      if (!reduced && this.world.hitstop > 0) {
-        this.world.hitstop = Math.max(0, this.world.hitstop - dt);
-        this.world.update(dt * 0.08, aim, true);
-        edgesConsumed = true;
-      } else {
-        const scale = this.state === 'dead' && !reduced ? 0.32 : 1;
-        this.acc = Math.min(this.acc + dt * scale, 0.2);
-        let edge = true;
-        let guard = 0;
-        while (this.acc >= FIXED && guard++ < 16) {
-          this.world.update(FIXED, aim, edge);
-          if (edge) edgesConsumed = true;
-          edge = false;
-          this.acc -= FIXED;
-        }
-      }
+    }
+    if (this.state === 'playing' || this.state === 'dead') {
+      const stepped = stepWorld(this.world, this.acc, dt, aim, {
+        state: this.state,
+        reducedMotion: this.settings.data.reducedMotion,
+        briefActive: briefing,
+      });
+      this.acc = stepped.acc;
+      edgesConsumed = edgesConsumed || stepped.edges;
     }
 
     if (this.state === 'dead' || this.state === 'win') {
