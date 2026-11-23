@@ -76,7 +76,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - `npm run soak` (60s headless heap/error soak; `SOAK_MS` / `--minutes` override)
 - `npm run soak:long` (30-minute profile; not run in this environment)
 - `npm run package`
-- CI: `.github/workflows/ci.yml` runs verify, Chrome/Firefox/WebKit smoke and the 60s soak.
+- CI: `.github/workflows/ci.yml` runs verify, Chrome/Firefox/WebKit smoke and the 60s soak; weekly/manual runs add the 30-minute soak.
 - Full matrix and manual checklist: [QA.md](./QA.md)
 - Production preview: boot, deploy, reload, pause, operator import/export, boss rush, NEW GAME reset.
 - Offline preview: service worker controlled (cache `punkgun-v2`), network disabled, cached shell loads.
