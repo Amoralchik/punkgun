@@ -271,6 +271,10 @@ export class Safehouse {
     this.stationPanel.scrollTop = 0;
   }
 
+  openNewGame(): void {
+    this.showLifepath();
+  }
+
   private showLifepath(): void {
     this.lifepathGrid.innerHTML = LIFEPATHS.map(
       (path) => `<button class="lifepath-card" style="--path:${path.color}" data-act="lifepath" data-id="${path.id}">

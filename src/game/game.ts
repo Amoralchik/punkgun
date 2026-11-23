@@ -329,8 +329,13 @@ export class Game {
 
   private installEvents(): void {
     for (const id of ['overlay-death', 'overlay-win']) {
-      document.getElementById(id)!.addEventListener('click', () => {
-        if (this.state === 'dead' || this.state === 'win') this.returnToSafehouse();
+      document.getElementById(id)!.addEventListener('click', (event) => {
+        if (this.state !== 'dead' && this.state !== 'win') return;
+        const newGame = (event.target as HTMLElement).closest<HTMLElement>(
+          '[data-act="win-new-game"]',
+        );
+        this.returnToSafehouse();
+        if (newGame) this.safehouse.openNewGame();
       });
     }
 

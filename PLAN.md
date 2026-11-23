@@ -33,7 +33,7 @@ working checklist.
 | Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
 | Endings | 1 | **4** (burn, broadcast, vanish, remember) | branch epilogue scenes |
-| New game flow | reset only | **confirmed new-game reset + campaign reroll** | ending-screen shortcut |
+| New game flow | reset only | **confirmed reset, lifepath selection, NG+, ending-screen shortcut** | — |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
 | Combat gym | none | **16-archetype gym + three-build clear-rate matrix** | encounter-density tuning |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
