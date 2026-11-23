@@ -49,7 +49,7 @@ The production build is an installable PWA with a service-worker app shell and o
 - Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, sanctuary, deploy; confirmed NEW GAME reset, campaign reroll, NG+ (build/gear retained, boss armor/speed/adds scaled) and seeded daily contracts
 - Four challenge stamps (Standard, Fists Only, Glass, Rush), faction broker hardware gated by standing, a daily clear bonus, local run history/leaderboard and a first-minute safehouse tour
 - 12 contract modifiers, 8 objectives (purge, target, recover, sabotage, extraction, hunt, defense, boss), faction storylines with attribute/reputation/role/lifepath dialogue checks and run boons, insertion approaches, faction reputation, seeded market stock and price drift
-- 12 combat layouts, risk-scaled encounter density with high-risk heavy/stalker squads, 16 enemy archetypes, 6 bosses across three campaign chapters, boss encounter intro cards, phase-shift pulses, arena laser hazards and a finale color grade, a post-finale all-boss rush, plus a branching four-ending finale (one secret)
+- 12 combat layouts, risk-scaled encounter density with high-risk heavy/stalker squads, 16 enemy archetypes, 6 bosses across three campaign chapters with unique briefings, boss encounter intro cards, phase-shift pulses, arena laser hazards and a finale color grade, a post-finale all-boss rush, plus a branching four-ending finale (one secret)
 - Stealth takedowns, body discovery, enemy vision cones, alert propagation, zero-detection ghost-run bonuses, flanking/cover/suppression squad AI and archetype combat-gym coverage
 - Hazards: explosive barrels, security cameras, turrets, laser grids, breakable glass and steam vents
 - Procedural district weather, holo ads, faction music layers, reload/death reactions, 4-frame walk cycles
@@ -59,7 +59,7 @@ The production build is an installable PWA with a service-worker app shell and o
 
 ## Tests
 
-`npm test` runs the Vitest suite (151 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
+`npm test` runs the Vitest suite (153 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

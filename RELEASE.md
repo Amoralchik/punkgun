@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~403 kB | 450 kB |
+| App JS | ~405 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~944 kB | 1120 kB |
+| Total JS | ~946 kB | 1120 kB |
 | CSS | ~65 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~276 kB | 340 kB |
-| Largest single chunk | ~403 kB | 480 kB |
+| Largest single chunk | ~405 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 151 unit tests + build + budget)
+- `npm run verify` (typecheck + 153 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -86,6 +86,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Plate breaks fire a brief full-screen phase pulse; reduced motion keeps it static.
 - Boss plate breaks add two telegraphed arena lasers, disabled for 1.4s on spawn.
 - The final contract applies a magenta color grade and heavier vignette.
+- Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
   HIGH adds a heavy or stalker tactical unit.

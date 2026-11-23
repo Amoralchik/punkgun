@@ -23,9 +23,8 @@ import { LayoutId, Level, loadLevel, Station, StationKind } from './map';
 import { CONSUMABLE_MAP } from './consumables';
 import type { Contract } from './missions';
 import { buildBoard } from './campaign';
-import { BOSSES } from './bosses';
 import { DialogueSession } from './dialogue-session';
-import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, localizeDialogue, type DialogueLine } from './lore';
+import { FACTIONS, authoredDialogue, bossBriefing, localizeDialogue } from './lore';
 import { availableEndings, type EndingId } from './endings';
 import type { RunBoon } from './boons';
 
@@ -544,39 +543,8 @@ export class Game {
     this.audio.unlock();
     if (contract.objective === 'boss') {
       this.pendingRun = { contract, approachId, challenge };
-      const boss = contract.bossId ? BOSSES[contract.bossId] : null;
-      const es = this.settings.data.locale === 'es';
-      const dialogueLines: DialogueLine[] =
-        contract.bossId === 'psycho' || !boss
-          ? BOSS_DIALOGUE
-          : [
-              {
-                speaker: 'MOTH',
-                text: es ? `${boss.name}. ${boss.blurbEs}` : `${boss.name}. ${boss.blurb}`,
-              },
-              {
-                speaker: 'KESTREL',
-                text: es
-                  ? contract.chapter === 'final'
-                    ? '¿Y después del consejo, qué queda?'
-                    : '¿Y la salida?'
-                  : contract.chapter === 'final'
-                    ? 'And after the board, what is left?'
-                    : 'And the exit?',
-              },
-              {
-                speaker: 'MOTH',
-                text: es
-                  ? contract.chapter === 'final'
-                    ? 'Lo que decidas. La correa termina aquí.'
-                    : 'Hay una salida. Llega. Mantendré las luces encendidas.'
-                  : contract.chapter === 'final'
-                    ? 'Whatever you decide. The leash ends here.'
-                    : 'There is an exit. Reach it. I will keep the lights on.',
-              },
-            ];
       this.dialogue.start(
-        localizeDialogue(dialogueLines, this.settings.data.locale),
+        localizeDialogue(bossBriefing(contract.bossId), this.settings.data.locale),
         `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`,
         contract.faction,
       );

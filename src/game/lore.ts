@@ -1,4 +1,5 @@
 import type { LayoutId } from './map';
+import type { BossId } from './bosses';
 import type { EndingId } from './endings';
 import type { AttributeId, Attributes } from './attributes';
 import type { RunBoon } from './boons';
@@ -899,3 +900,97 @@ export const BOSS_DIALOGUE: DialogueLine[] = [
     ],
   },
 ];
+
+const BOSS_BRIEFINGS: Partial<Record<BossId, DialogueLine[]>> = {
+  grin: [
+    {
+      speaker: 'GRIN',
+      text: 'You walked into my house with my ledger on your hip. Say something worth the rent.',
+      textEs: 'Entraste en mi casa con mi libro en la cadera. Di algo que valga el alquiler.',
+    },
+    {
+      speaker: 'MOTH',
+      text: 'Three plates and a mouth full of porcelain. The first lie is free.',
+      textEs: 'Tres placas y la boca llena de porcelana. La primera mentira es gratis.',
+    },
+    {
+      speaker: 'KESTREL',
+      text: 'No extraction. Just the floor, the smile, and the door behind you.',
+      textEs: 'Sin extracción. Solo el piso, la sonrisa y la puerta a tu espalda.',
+    },
+  ],
+  crane: [
+    {
+      speaker: 'MOTH',
+      text: 'Half forklift, half man. The hook has a reach. Do not stand under it.',
+      textEs: 'Mitad montacargas, mitad hombre. El gancho tiene alcance. No te pongas debajo.',
+    },
+    {
+      speaker: 'KESTREL',
+      text: 'The docks are already loud. Make them quieter.',
+      textEs: 'Los muelles ya son ruidosos. Hazlos más silenciosos.',
+    },
+    {
+      speaker: 'MOTH',
+      text: 'The manifest says one operator. The manifest is wrong.',
+      textEs: 'El manifiesto dice un operador. El manifiesto se equivoca.',
+    },
+  ],
+  board: [
+    {
+      speaker: 'MOTH',
+      text: 'The board has five plates and a committee of voices. Break the plates, not the voice.',
+      textEs: 'El consejo tiene cinco placas y un comité de voces. Rompe las placas, no la voz.',
+    },
+    {
+      speaker: 'KESTREL',
+      text: 'After this, there is no floor above you.',
+      textEs: 'Después de esto, no hay piso encima de ti.',
+    },
+    {
+      speaker: 'MOTH',
+      text: 'You are a line item that learned to shoot. Make the ledger bleed.',
+      textEs: 'Eres una línea de gastos que aprendió a disparar. Haz sangrar el libro.',
+    },
+  ],
+  seraph: [
+    {
+      speaker: 'MOTH',
+      text: 'Rogue netrunner. Every camera in the alley is hers.',
+      textEs: 'Netrunner renegada. Todas las cámaras del callejón son suyas.',
+    },
+    {
+      speaker: 'KESTREL',
+      text: 'Kill the signal before it finishes wearing you.',
+      textEs: 'Mata la señal antes de que termine de llevarte puesto.',
+    },
+    {
+      speaker: 'MOTH',
+      text: 'It remembers a face like yours. It might be wearing it.',
+      textEs: 'Recuerda una cara como la tuya. Puede que la esté llevando.',
+    },
+  ],
+  archivist: [
+    {
+      speaker: 'MOTH',
+      text: 'It remembers every version of you. Do not let it remember this one.',
+      textEs: 'Recuerda cada versión de ti. No dejes que recuerde esta.',
+    },
+    {
+      speaker: 'KESTREL',
+      text: 'Burn the index. Leave the building standing.',
+      textEs: 'Quema el índice. Deja el edificio en pie.',
+    },
+    {
+      speaker: 'MOTH',
+      text: 'You are on file. Several files. Try to leave one alive.',
+      textEs: 'Estás en el archivo. En varios. Intenta dejar uno vivo.',
+    },
+  ],
+};
+
+/** Boss-specific briefing lines; psycho keeps the original campaign briefing. */
+export function bossBriefing(id?: BossId): DialogueLine[] {
+  if (!id || id === 'psycho') return BOSS_DIALOGUE;
+  return BOSS_BRIEFINGS[id] ?? BOSS_DIALOGUE;
+}
