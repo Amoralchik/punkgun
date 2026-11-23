@@ -3,20 +3,10 @@ import { AMMO_PACKS, LOOT_DEFS, LootKind, WEAPON_ECONOMY } from '../game/economy
 import { StationKind } from '../game/map';
 import { Contract, objectiveDetail, objectiveText } from '../game/missions';
 import { DOSSIERS, dossierUnlocked, FACTIONS, handlerLine, unlockText } from '../game/lore';
-import { nextRepRank, repDiscount, repPayBonus, repSellBonus } from '../game/reputation';
 import { MODIFIER_MAP } from '../game/modifiers';
-import { BOSSES, BOSS_ORDER } from '../game/bosses';
-import { chapterProgress } from '../game/campaign';
-import { ENDINGS } from '../game/endings';
-import { ROLES, ROLE_MAP, type RoleId } from '../game/roles';
-import {
-  VENTURES,
-  VENTURE_MAP,
-  ventureCost,
-  ventureIncome,
-  venturePayMult,
-  type VentureId,
-} from '../game/ventures';
+import { BOSSES } from '../game/bosses';
+import { ROLE_MAP, type RoleId } from '../game/roles';
+import { VENTURE_MAP, type VentureId } from '../game/ventures';
 import {
   CYBERWARE_DEFS,
   CyberwareId,
@@ -52,6 +42,8 @@ import {
 import { GunId, NAMED_MAP, NAMED_WEAPONS, NamedWeaponId, WEAPONS, WeaponId, isGun } from '../game/weapons';
 import { CaseView } from './case-view';
 import { Workbench } from './workbench';
+import { renderVentures } from './station-ventures';
+import { renderOperator } from './station-operator';
 import { t } from '../core/i18n';
 
 export interface SafehouseHooks {
@@ -793,220 +785,9 @@ export class Safehouse {
           </section>
         </div>`;
     } else if (this.stationView === 'operator') {
-      const data = this.profile.data;
-      const mods = this.profile.runMods();
-      const attrs = data.attributes;
-      const attrRows = ATTRIBUTE_DEFS.map(
-        (def) => `<div class="op-attr" style="--attr:${def.color}">
-          <span>${def.name}</span><b>${attrs[def.id]}</b><small>${def.short}</small>
-        </div>`,
-      ).join('');
-      const approachRows = APPROACHES.map((a) => {
-        const ok = approachUnlocked(a, attrs);
-        return `<div class="op-approach${ok ? '' : ' locked'}" style="--approach:${a.color}">
-          <span>${a.name}</span><b>${ok ? 'READY' : approachRequirement(a)}</b>
-        </div>`;
-      }).join('');
-      const repRows = (Object.keys(FACTIONS) as (keyof typeof FACTIONS)[])
-        .map((id) => {
-          const faction = FACTIONS[id];
-          const rep = this.profile.rep(id);
-          const rank = this.profile.repRank(id);
-          const next = nextRepRank(rep);
-          const discount = Math.round(repDiscount(rep) * 100);
-          const pay = Math.round(repPayBonus(rep) * 100);
-          return `<div class="op-rep" style="--faction:${faction.color}">
-            <div class="op-rep-name">${faction.name}<b>${rank.name}</b></div>
-            <div class="op-rep-meta">${rep} REP · PAY +${pay}%${
-              id === 'market'
-                ? ` · MARKET -${discount}%`
-                : id === 'helix'
-                  ? ` · CYBER -${discount}%`
-                  : id === 'teeth'
-                    ? ` · SELL +${Math.round(repSellBonus(rep) * 100)}%`
-                    : id === 'sublevel'
-                      ? ` · CLINIC -${discount}%`
-                      : ''
-            }</div>
-            <div class="op-rep-bar"><i style="width:${next ? Math.min(100, (rep / next.rank.min) * 100) : 100}%"></i></div>
-            <small>${next ? `${next.remaining} TO ${next.rank.name}` : 'MAX STANDING'}</small>
-          </div>`;
-        })
-        .join('');
-      const installed = [
-        ...CYBERWARE_DEFS.filter((d) => data.cyberware[d.id] > 0).map(
-          (d) => `${d.name} ${data.cyberware[d.id]}/${d.maxRank}`,
-        ),
-        ...PERK_DEFS.filter((d) => data.perks[d.id] > 0).map(
-          (d) => `${d.name} ${data.perks[d.id]}/${d.maxRank}`,
-        ),
-      ];
-      const progress = chapterProgress(this.profile);
-      const chapterName = progress.def?.name ?? 'FINALE';
-      const gateName = progress.def ? BOSSES[progress.def.gateBoss].name : 'THE BOARD';
-      const bossLine = BOSS_ORDER.map(
-        (id) => `${BOSSES[id].name.split(' ')[0]} ${data.bossesCleared[id] ? '✓' : '×'}`,
-      ).join(' · ');
-      const ending = data.ending ? ENDINGS[data.ending] : null;
-      const roleRows = ROLES.map((role) => {
-        const active = data.role === role.id;
-        return `<button class="op-role${active ? ' selected' : ''}" style="--role:${role.color}"
-          data-act="role" data-id="${role.id}">
-          <span class="op-role-code">${role.code}</span>
-          <b>${role.name}</b>
-          <small>${role.blurb}</small>
-          <span class="op-role-state">${active ? 'ACTIVE' : 'SELECT'}</span>
-        </button>`;
-      }).join('');
-      const rankValue: Record<string, number> = { S: 4, A: 3, B: 2, C: 1 };
-      const historyRows = [...data.runHistory]
-        .sort(
-          (a, b) =>
-            (rankValue[b.rank] ?? 0) - (rankValue[a.rank] ?? 0) || a.time - b.time,
-        )
-        .slice(0, 6)
-        .map(
-          (run, index) => `<div class="op-run">
-            <span><b>${String(index + 1).padStart(2, '0')}</b> ${run.title}</span>
-            <small>${run.success ? `${run.rank} · ${fmtTime(run.time)} · $${run.payout}` : `DEAD · ${fmtTime(run.time)}`}${
-              run.daily ? ' · DAILY' : ''
-            }${run.challenge !== 'standard' ? ` · ${CHALLENGE_MAP[run.challenge].name}` : ''}</small>
-          </div>`,
-        )
-        .join('');
-      const presetRows = data.presets
-        .map((preset, index) => {
-          const label = preset
-            ? `${preset.name}${preset.attachment ? ` · ${ATTACHMENT_MAP[preset.attachment].name}` : ''}`
-            : 'EMPTY';
-          return `<div class="op-preset${preset ? '' : ' empty'}">
-            <span><b>0${index + 1}</b> ${label}</span>
-            <span class="op-preset-actions">
-              <button data-act="preset-load" data-index="${index}" ${preset ? '' : 'disabled'}>EQUIP</button>
-              <button data-act="preset-save" data-index="${index}">SAVE</button>
-              ${
-                preset
-                  ? `<button data-act="preset-clear" data-index="${index}">CLEAR</button>`
-                  : ''
-              }
-            </span>
-          </div>`;
-        })
-        .join('');
-      this.stationBodyEl.innerHTML = `
-        <div class="station-grid operator-grid">
-          <section class="station-col">
-            <div class="kicker">// BUILD</div>
-            <h2>ATTRIBUTES</h2>
-            <div class="op-attrs">${attrRows}</div>
-            <p class="sh-note">${data.attributePoints} attribute point${data.attributePoints === 1 ? '' : 's'} available. Spend them at the clinic.</p>
-            <h2>DERIVED</h2>
-            <div class="op-stats">
-              <span>ARMOR <b>${mods.armor}</b></span>
-              <span>SPEED <b>${Math.round(mods.speed * 100)}%</b></span>
-              <span>GUN CD <b>${Math.round(mods.gunCooldown * 100)}%</b></span>
-              <span>SPREAD <b>${Math.round(mods.spread * 100)}%</b></span>
-              <span>DETECTION <b>${Math.round(mods.vision * 100)}%</b></span>
-              <span>MELEE <b>${Math.round(mods.meleeReach * 100)}%</b></span>
-            </div>
-            <h2>INSERTION</h2>
-            <div class="op-approaches">${approachRows}</div>
-          </section>
-          <section class="station-col">
-            <div class="kicker">// STANDING</div>
-            <h2>FACTIONS</h2>
-            <div class="op-reps">${repRows}</div>
-            <h2>OPERATOR ROLE</h2>
-            <div class="op-roles">${roleRows}</div>
-            <h2>PROGRESS</h2>
-            <div class="op-progress">
-              <span>CHAPTER <b>${chapterName}</b></span>
-              <span>GATE <b>${progress.bossDefeated ? 'CLEARED' : `${gateName} · ${data.regularClears}/${progress.requiredClears}`}</b></span>
-              <span>BOSSES <b>${bossLine}</b></span>
-              <span>FINALE <b>${data.finalCleared ? 'CLEARED' : data.bossesCleared.crane ? 'UNLOCKED' : 'LOCKED'}</b></span>
-              <span>ENDING <b>${ending ? ending.title : 'UNCHOSEN'}</b></span>
-              <span>RUNS <b>${data.runs}</b></span>
-              <span>CLEARS <b>${data.clears}</b></span>
-              <span>BEST <b>${data.bestTime === null ? '—' : fmtTime(data.bestTime)}</b></span>
-            </div>
-            <h2>RUN HISTORY</h2>
-            <div class="op-history">${
-              historyRows || '<span class="sh-note">NO RUNS RECORDED. DEPLOY AND COME BACK.</span>'
-            }</div>
-            <h2>INSTALLED</h2>
-            <div class="op-installed">${
-              installed.length
-                ? installed.map((x) => `<span>${x}</span>`).join('')
-                : '<span>NO AUGMENTS INSTALLED</span>'
-            }</div>
-            <h2>LOADOUT PRESETS</h2>
-            <div class="op-presets">${presetRows}</div>
-            <p class="sh-note">Save the currently equipped fit, then re-equip it from storage. Presets never duplicate gear.</p>
-            <h2>SAVE DATA</h2>
-            <div class="op-save">
-              <button type="button" data-act="export-save">EXPORT SAVE</button>
-              <button type="button" data-act="import-save">IMPORT SAVE</button>
-            </div>
-            <p class="sh-note">Export a validated v2 JSON snapshot, or import a v1/v2 save. Import replaces current progress.</p>
-          </section>
-        </div>`;
+      this.stationBodyEl.innerHTML = renderOperator(this.profile);
     } else if (this.stationView === 'ventures') {
-      const ranks = this.profile.data.ventures;
-      const income = ventureIncome(ranks);
-      const pay = Math.round((venturePayMult(ranks) - 1) * 100);
-      const pending = this.profile.pendingVentureEvent();
-      const eventCard = pending
-        ? `<div class="venture-event" style="--venture:${VENTURE_MAP[pending.venture].color}">
-            <div class="kicker">// STREET EVENT</div>
-            <h2>${pending.title}</h2>
-            <p>${pending.text}</p>
-            <div class="venture-event-actions">
-              ${pending.choices
-                .map(
-                  (choice) =>
-                    `<button data-act="venture-event" data-id="${choice.id}">${choice.label}</button>`,
-                )
-                .join('')}
-            </div>
-          </div>`
-        : '';
-      const cards = VENTURES.map((venture) => {
-        const rank = ranks[venture.id] ?? 0;
-        const maxed = rank >= venture.maxLevel;
-        const cost = maxed ? 0 : ventureCost(venture, rank);
-        return `<div class="venture-card${maxed ? ' maxed' : ''}" style="--venture:${venture.color}">
-          <div class="venture-top">
-            <span>${venture.name}</span>
-            <b>${rank}/${venture.maxLevel}</b>
-          </div>
-          <small>${venture.tagline}</small>
-          <p>${venture.desc}</p>
-          <div class="venture-effect">${venture.effect}</div>
-          <button data-act="venture" data-id="${venture.id}" ${maxed ? 'disabled' : ''}>${
-            maxed ? 'MAX LEVEL' : `INVEST $${cost}`
-          }</button>
-        </div>`;
-      }).join('');
-      this.stationBodyEl.innerHTML = `
-        <div class="station-grid">
-          <section class="station-col">
-            <div class="kicker">// STREET BUSINESS</div>
-            <h2>FRONTS &amp; INCOME</h2>
-            <div class="venture-grid">${cards}</div>
-          </section>
-          <section class="station-col">
-            ${eventCard}
-            <div class="kicker">// LEDGER</div>
-            <h2>MONTHLY TAKE</h2>
-            <div class="op-progress">
-              <span>PASSIVE PER CLEAR <b>$${income}</b></span>
-              <span>CONTRACT BONUS <b>+${pay}%</b></span>
-            </div>
-            <p class="sh-note">Businesses pay after every clean extraction. Upgrades compound through three ranks.</p>
-            <p class="sh-note">Bars move faction standing. Clinics cut prices. Chop shops feed the fabricator.</p>
-            <button class="sh-augments" data-act="open-exchange">OPEN THE EXCHANGE</button>
-          </section>
-        </div>`;
+      this.stationBodyEl.innerHTML = renderVentures(this.profile);
     } else if (this.stationView === 'market') {
       const policy = this.profile.data.insurance;
       const premium = this.profile.insurancePremium();
