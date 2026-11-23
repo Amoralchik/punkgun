@@ -473,7 +473,16 @@ async function main() {
     if (!bossRush.found || bossRush.state !== 'playing' || !bossRush.mission || !bossRush.introVisible || !bossRush.intro) {
       throw new Error(`Boss rush failed: ${JSON.stringify(bossRush)}`);
     }
+    const phase = await cdp.evaluate(`(() => {
+      const game = window.__game;
+      game.onEvent({ type: 'bossPhase', x: 0, y: 0, angle: 0 });
+      const visible = !document.getElementById('boss-phase').classList.contains('hidden');
+      game.bossPhase.hide();
+      return visible;
+    })()`);
+    if (!phase) throw new Error('Boss phase overlay failed.');
     await cdp.evaluate(`window.__game.returnToSafehouse()`);
+
     const ending = await cdp.evaluate(`(() => {
       const game = window.__game;
       game.ending.showChoice();
@@ -542,6 +551,7 @@ async function main() {
           role,
           bossRush,
           ending: true,
+          phase: true,
           offline: true,
           gamepadMenu: true,
           newGame: fresh,

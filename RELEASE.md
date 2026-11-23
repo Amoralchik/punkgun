@@ -24,7 +24,7 @@ the manifest/SW URLs.
 | App JS | ~402 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
 | Total JS | ~943 kB | 1120 kB |
-| CSS | ~64 kB | 90 kB |
+| CSS | ~65 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~275 kB | 340 kB |
 | Largest single chunk | ~402 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
@@ -83,6 +83,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Save migration: v1 → v2 money/level/stash/equipped preserved; corrupt primary recovers from `.bak`.
 - Console clean on boot, run, death, win, safehouse.
 - Boss missions and boss-rush waves present the encounter intro card without blocking input.
+- Plate breaks fire a brief full-screen phase pulse; reduced motion keeps it static.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
 - NG+: boss armor, speed and plate-break adds scale with the cycle; the brief shows `NG+n`.

@@ -19,7 +19,7 @@ working checklist.
 |---|---:|---:|---|
 | Combat layouts | 6 | **12** | target exceeded; add district-specific setpieces |
 | Enemy archetypes | 11 | **16** | target exceeded; tune squad compositions |
-| Bosses | 1 | **6 + all-boss rush + NG+ scaling + intro cards** | arena setpiece choreography |
+| Bosses | 1 | **6 + all-boss rush + NG+ scaling + intro cards + phase pulses** | arena setpiece hazards |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Attachments | 4 | **11 with mag/pellet/spread/cooldown/reload/pierce effects** | balance pass |
 | Cyberware | 10 | **22** | active-ability VFX polish |

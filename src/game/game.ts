@@ -9,6 +9,7 @@ import { setLocale, t } from '../core/i18n';
 import { resolveKeymap } from '../core/settings';
 import { Hub } from '../ui/hub';
 import { BossIntro } from '../ui/boss-intro';
+import { BossPhaseOverlay } from '../ui/boss-phase';
 import { SettingsPanel } from '../ui/settings-panel';
 import { BreachController } from '../ui/breach-controller';
 import { DialogueController } from '../ui/dialogue-controller';
@@ -65,6 +66,7 @@ export class Game {
   )!;
   private readonly hub = new Hub();
   private readonly bossIntro = new BossIntro();
+  private readonly bossPhase = new BossPhaseOverlay();
   private readonly settingsPanel = new SettingsPanel(this.settings, () => this.applySettings());
   private readonly breach = new BreachController(this.input, {
     onFinish: (success, nodeId, hazard, reward) =>
@@ -845,6 +847,7 @@ export class Game {
     this.currentBoons = [];
     this.hud.setHacked(false);
     this.bossIntro.hide();
+    this.bossPhase.hide();
     this.state = 'safehouse';
     this.pauseRoot.classList.add('hidden');
     this.manualRoot.classList.add('hidden');
@@ -991,6 +994,7 @@ export class Game {
         this.audio.bossHit();
         break;
       case 'bossPhase':
+        this.bossPhase.flash('ARMOR PLATE SHATTERED');
         this.audio.bossPhase();
         this.hud.subtitle(t('event.bossPhase'));
         this.hud.logLine('BOSS: plate shattered');
