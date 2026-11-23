@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 179 unit tests + build + budget)
+- `npm run verify` (typecheck + 180 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -90,6 +90,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Epilogues append faction, role and lifepath consequence lines, localized in English/Spanish.
 - Enemies patrol fixed route points around their spawn instead of rerolling every waypoint.
+- Explosions alert enemies within 420 units, beyond their damage radius.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions, mission/dead/win timing and frame input/render finalization are split out.
 - Quickhack, medic, flash, Kerenzikov, boss-phase and boss-rush presentation route through dedicated event modules; mission specs, hub flow and keyboard routing live in `mission-spec`, `hub-flow` and `keyboard-controller`.

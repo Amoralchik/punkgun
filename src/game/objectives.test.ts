@@ -250,6 +250,17 @@ describe('mission objectives', () => {
     expect(events).toContain('networkUnlock');
   });
 
+  it('uses explosions as noise sources beyond the damage radius', () => {
+    const world = makeWorld({ objective: 'purge', requiredLoot: 0 }, new Set(), 'sector07');
+    const barrel = world.barrels[0];
+    const enemy = world.enemies[0];
+    enemy.x = barrel.x + 300;
+    enemy.y = barrel.y;
+    world.blowBarrel(barrel);
+    expect(enemy.alive).toBe(true);
+    expect(enemy.state).toBe('chase');
+  });
+
   it('gives patrols fixed route points', () => {
     const world = makeWorld({ objective: 'purge', requiredLoot: 0 }, new Set(), 'sector07');
     expect(world.enemies.length).toBeGreaterThan(0);

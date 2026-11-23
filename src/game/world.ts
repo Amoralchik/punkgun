@@ -1760,6 +1760,7 @@ export class World {
   ): void {
     this.explosions.push({ id: this.nextId++, x, y, life: 0.35, maxLife: 0.35 });
     this.addHeat(25);
+    this.alertAt(x, y, 420);
     this.shake = 1;
     this.hitstop = Math.max(this.hitstop, 0.06);
     this.emit({ type: 'explosion', x, y, angle: 0 });
