@@ -260,9 +260,10 @@ async function main() {
     if (!playing.hud) throw new Error('HUD not visible during mission.');
     const breach = await cdp.evaluate(`(() => {
       const g = window.__game;
-      g.openBreach(4242);
+      g.state = 'breach';
+      g.breach.open(4242, null, (g.world.seed ^ Math.imul(4242, 0x9e3779b1)) >>> 0);
       const open = !document.getElementById('overlay-breach').classList.contains('hidden');
-      for (const step of g.breachState.solution) {
+      for (const step of g.breach.state.solution) {
         document.querySelector('[data-breach="' + step.row + ':' + step.column + '"]')?.click();
       }
       return {

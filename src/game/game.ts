@@ -10,6 +10,7 @@ import { resolveKeymap } from '../core/settings';
 import { Hub } from '../ui/hub';
 import { BossIntro } from '../ui/boss-intro';
 import { SettingsPanel } from '../ui/settings-panel';
+import { BreachController } from '../ui/breach-controller';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -22,13 +23,7 @@ import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogue
 import { DialogueSession } from './dialogue-session';
 import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
-import {
-  breachReward,
-  generateBreach,
-  selectBreachCell,
-  tickBreach,
-  type BreachState,
-} from './breach';
+
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
 import { Profile } from './profile';
@@ -76,18 +71,18 @@ export class Game {
   private readonly epilogueKicker = document.getElementById('epilogue-kicker')!;
   private readonly epilogueTitle = document.getElementById('epilogue-title')!;
   private readonly epilogueBody = document.getElementById('epilogue-body')!;
-  private readonly breachRoot = document.getElementById('overlay-breach')!;
-  private readonly breachGrid = document.getElementById('breach-grid')!;
-  private readonly breachTarget = document.getElementById('breach-target')!;
-  private readonly breachBuffer = document.getElementById('breach-buffer')!;
-  private readonly breachTimerEl = document.getElementById('breach-timer')!;
-  private readonly breachMsg = document.getElementById('breach-msg')!;
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
   private readonly hub = new Hub();
   private readonly bossIntro = new BossIntro();
   private readonly settingsPanel = new SettingsPanel(this.settings, () => this.applySettings());
+  private readonly breach = new BreachController(this.input, {
+    onFinish: (success, nodeId, hazard, reward) =>
+      this.finishBreach(success, nodeId, hazard, reward),
+    onClick: () => this.audio.uiClick(),
+    onError: () => this.audio.uiError(),
+  });
   private readonly profile: Profile;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -107,9 +102,6 @@ export class Game {
     challenge: ChallengeId;
   } | null = null;
   private currentBoons: RunBoon[] = [];
-  private breachState: BreachState | null = null;
-  private breachNodeId: number | null = null;
-  private breachHazard: 'camera' | 'turret' | null = null;
   private dialogueOpen = false;
   private dialogueSession: DialogueSession | null = null;
   private lastShotsHit = 0;
@@ -316,7 +308,7 @@ export class Game {
         .ending;
       if (id) this.chooseEnding(id as EndingId);
     });
-    this.breachRoot.addEventListener('click', (ev) => this.handleBreachClick(ev));
+    document.getElementById('overlay-breach')!.addEventListener('click', (ev) => this.breach.handleClick(ev));
     this.epilogueRoot.addEventListener('click', (ev) => {
       if ((ev.target as HTMLElement).closest('[data-act="epilogue-next"]')) {
         this.finishEpilogue();
@@ -347,7 +339,7 @@ export class Game {
       if (this.state === 'breach') {
         if (e.code === 'Escape') {
           e.preventDefault();
-          this.finishBreach(false);
+          this.breach.finish(false);
         }
         return;
       }
@@ -682,79 +674,17 @@ export class Game {
     this.commitRun(contract, approachId, [], challenge);
   }
 
-  private openBreach(nodeId: number, hazard?: 'camera' | 'turret'): void {
-    const seed = (this.world.seed ^ Math.imul(nodeId, 0x9e3779b1)) >>> 0;
-    this.breachState = generateBreach(seed);
-    this.breachNodeId = nodeId;
-    this.breachHazard = hazard ?? null;
-    this.state = 'breach';
-    this.breachRoot.classList.remove('hidden');
-    this.renderBreach();
-    this.input.endFrame();
-  }
-
-  private renderBreach(): void {
-    const state = this.breachState;
-    if (!state) return;
-    this.breachTimerEl.textContent = `${state.timeLeft.toFixed(1)}S`;
-    this.breachTarget.innerHTML = state.target
-      .map(
-        (token, index) =>
-          `<span class="breach-token${index < state.progress ? ' hit' : ''}">${token}</span>`,
-      )
-      .join('');
-    this.breachBuffer.innerHTML =
-      state.buffer.map((token) => `<span class="breach-token">${token}</span>`).join('') ||
-      '<span class="breach-token">EMPTY</span>';
-    this.breachGrid.innerHTML = state.grid
-      .flatMap((row, rowIndex) =>
-        row.map(
-          (token, columnIndex) =>
-            `<button class="breach-cell${state.used[rowIndex][columnIndex] ? ' used' : ''}"
-              data-breach="${rowIndex}:${columnIndex}"
-              ${state.used[rowIndex][columnIndex] || state.status !== 'ready' ? 'disabled' : ''}>${token}</button>`,
-        ),
-      )
-      .join('');
-    this.breachMsg.textContent = 'MATCH THE TARGET SEQUENCE. ROW → COLUMN → ROW.';
-  }
-
-  private handleBreachClick(event: MouseEvent): void {
-    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-act], [data-breach]');
-    if (!target) return;
-    if (target.dataset.act === 'breach-abort') {
-      this.finishBreach(false);
-      return;
-    }
-    const cell = target.dataset.breach;
-    if (!cell || !this.breachState) return;
-    const [row, column] = cell.split(':').map(Number);
-    const result = selectBreachCell(this.breachState, row, column);
-    if (!result.ok) {
-      this.breachMsg.textContent = result.reason ?? 'INVALID SELECTION';
-      this.audio.uiError();
-      return;
-    }
-    this.renderBreach();
-    if (result.won) this.finishBreach(true);
-    else if (result.lost) this.finishBreach(false);
-    else this.audio.uiClick();
-  }
-
-  private finishBreach(success: boolean): void {
-    const state = this.breachState;
-    const nodeId = this.breachNodeId;
-    if (!state || nodeId === null) return;
-    const hazard = this.breachHazard;
-    this.breachState = null;
-    this.breachNodeId = null;
-    this.breachHazard = null;
-    this.breachRoot.classList.add('hidden');
+  private finishBreach(
+    success: boolean,
+    nodeId: number,
+    hazard: 'camera' | 'turret' | null,
+    reward: number,
+  ): void {
     this.state = 'playing';
     if (hazard) this.world.resolveHazardBreach(hazard, nodeId, success);
     else this.world.resolveBreach(nodeId, success);
     if (success) {
-      this.profile.data.money += breachReward(state);
+      this.profile.data.money += reward;
       this.profile.addComponent(1);
       this.profile.save();
     }
@@ -1300,7 +1230,12 @@ export class Game {
         break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {
-          this.openBreach(e.nodeId, e.hazard);
+          this.state = 'breach';
+          this.breach.open(
+            e.nodeId,
+            e.hazard ?? null,
+            (this.world.seed ^ Math.imul(e.nodeId, 0x9e3779b1)) >>> 0,
+          );
         }
         break;
       case 'breachSuccess':
@@ -1455,10 +1390,8 @@ export class Game {
     }
     const aim = this.renderer.screenToWorld(this.input.mouseX, this.input.mouseY);
 
-    if (this.state === 'breach' && this.breachState) {
-      tickBreach(this.breachState, dt);
-      this.breachTimerEl.textContent = `${this.breachState.timeLeft.toFixed(1)}S`;
-      if (this.breachState.status === 'lost') this.finishBreach(false);
+    if (this.state === 'breach') {
+      this.breach.tick(dt);
       this.renderer.sync(this.world, dt);
       this.input.endFrame();
       return;
