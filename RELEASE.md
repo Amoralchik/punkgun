@@ -64,7 +64,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 82 unit tests + build + budget)
+- `npm run verify` (typecheck + 83 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`

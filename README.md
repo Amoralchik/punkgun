@@ -51,7 +51,7 @@ The production build is an installable PWA with a service-worker app shell and o
 
 ## Tests
 
-`npm test` runs the Vitest suite (82 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run test:gym` exercises all 14 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
+`npm test` runs the Vitest suite (83 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run test:gym` exercises all 14 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

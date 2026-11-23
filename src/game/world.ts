@@ -2,6 +2,8 @@ import { Input } from '../core/input';
 import { angleDelta, clamp, dist, mulberry32, randomSeed, turnToward } from '../core/math';
 import { Level, TILE, isWall, tileCenter, worldToTile } from './map';
 import { Pathfinder } from './path';
+import { updateDoorAngles } from './world-doors';
+import { segmentHitsCircle } from './world-geometry';
 import { baseMods, RunMods } from './progression';
 import { CONSUMABLE_MAP, ConsumableId } from './consumables';
 import { ATTACHMENT_MAP, AttachmentId } from './attachments';
@@ -47,27 +49,6 @@ const PLAYER_SPEED = 252;
 const ENEMY_SPEED = 148;
 const SWING_DURATION = 0.24;
 const SWING_HIT_AT = 0.065;
-
-function segmentHitsCircle(
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-  cx: number,
-  cy: number,
-  r: number,
-): boolean {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const l2 = dx * dx + dy * dy;
-  let t = 0;
-  if (l2 > 0.0001) t = clamp(((cx - ax) * dx + (cy - ay) * dy) / l2, 0, 1);
-  const px = ax + dx * t;
-  const py = ay + dy * t;
-  const ex = px - cx;
-  const ey = py - cy;
-  return ex * ex + ey * ey <= r * r;
-}
 
 export class World {
   readonly player: Player;
@@ -2462,15 +2443,7 @@ export class World {
   /* ------------------------------------------------------------------ */
 
   private updateDoors(dt: number): void {
-    for (const d of this.doors) {
-      if (Math.abs(d.angle - d.target) < 0.01) {
-        d.angle = d.target;
-        continue;
-      }
-      const step = d.speed * dt;
-      if (d.angle < d.target) d.angle = Math.min(d.target, d.angle + step);
-      else d.angle = Math.max(d.target, d.angle - step);
-    }
+    updateDoorAngles(this.doors, dt);
   }
 
   openDoor(d: Door, kicked: boolean): void {

@@ -111,8 +111,8 @@ types.
 - Localization extraction is underway: objectives, station labels/titles, boons and
   HUD event copy route through `src/core/i18n.ts`; station/manual/dialogue copy remains inline.
 - Positional audio panning covers gameplay SFX through a stereo panner; music and ambience are centered beds.
-- Deep module splits are partial: world objectives/gym helpers, the Safehouse
-  workbench and Game dialogue state are extracted; `world.ts`, `safehouse.ts`, and
+- Deep module splits are partial: world objectives/doors/geometry/gym helpers, the
+  Safehouse workbench and Game dialogue state are extracted; `world.ts`, `safehouse.ts`, and
   `game.ts` still carry the combat loop, station views and flow.
 - Unknown/unsupported browsers fail to the fatal boundary rather than offering a
   reduced renderer.

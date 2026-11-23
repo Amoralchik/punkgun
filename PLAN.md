@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 82 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 83 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -39,7 +39,7 @@ working checklist.
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
 | Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
 | Localization readiness | none | **typed catalog: objectives, stations, boons, HUD events** | extract station/manual/dialogue copy, add locale |
-| Deep module splits | not started | **world objectives + gym helper; Safehouse workbench; Game dialogue session** | player/AI/bullets/doors; station views |
+| Deep module splits | not started | **world objectives/doors/geometry + gym helper; Safehouse workbench; Game dialogue session** | player/AI/bullets; station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
