@@ -213,7 +213,7 @@ export class Renderer {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.55);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.38, 0.3, 0.72);
     this.composer.addPass(this.bloom);
     this.film = new FilmPass();
     this.composer.addPass(this.film);
@@ -797,7 +797,7 @@ export class Renderer {
     });
 
     this.bloom.strength =
-      (0.52 + Math.sin(performance.now() * 0.0016) * 0.04 + world.shake * 0.2) * this.bloomScale;
+      (0.4 + Math.sin(performance.now() * 0.0016) * 0.03 + world.shake * 0.15) * this.bloomScale;
     this.composer.render();
   }
 
