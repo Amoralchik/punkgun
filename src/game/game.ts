@@ -29,13 +29,13 @@ import { availableEndings, type EndingId } from './endings';
 import type { RunBoon } from './boons';
 
 import { APPROACH_MAP, ApproachId } from './attributes';
-import { MODIFIER_MAP } from './modifiers';
 import { Profile } from './profile';
 import { RunConfig } from './run';
 import { WEAPONS } from './weapons';
 import { World } from './world';
 import type { WorldEvent } from './world-types';
-import { deathResult, winResult, type RewardSummary } from './results';
+import type { RewardSummary } from './results';
+import { buildResult } from './result-flow';
 import { settleRun } from './settlement';
 
 const FIXED = 1 / 120;
@@ -1111,38 +1111,25 @@ export class Game {
   }
 
   private showResultOverlay(): void {
-    if (this.state === 'dead') {
-      const contract = this.currentContract;
-      const { stats, note } = deathResult({
-        contractTitle: contract?.title ?? null,
-        time: this.world.time,
-        kills: this.world.kills,
-        lootValue: this.world.lootValue,
-        deathCause: this.world.deathCause,
-        carriedWeapon: this.startedWithWeapon || this.world.player.weapon !== 'fists',
-        insured: this.lastDeathInsured,
-        insuredWeapon: this.lastDeathInsuredWeapon,
-      });
-      this.hud.showResult('death', stats, note);
-      return;
-    }
-
-    if (this.currentContract?.chapter === 'final' && !this.profile.data.ending) {
+    const view = buildResult({
+      dead: this.state === 'dead',
+      contract: this.currentContract,
+      world: this.world,
+      carriedWeapon: this.startedWithWeapon || this.world.player.weapon !== 'fists',
+      insured: this.lastDeathInsured,
+      insuredWeapon: this.lastDeathInsuredWeapon,
+      reward: this.lastReward,
+      approachId: this.currentApproach,
+      ending: this.profile.data.ending,
+      money: this.profile.data.money,
+    });
+    if (view.kind === 'ending') {
       this.ending.showChoice();
       return;
     }
-
-    const r = this.lastReward;
-    if (!r) return;
-    const { stats, note } = winResult(r, {
-      approachName: APPROACH_MAP[this.currentApproach].name,
-      approachMult: APPROACH_MAP[this.currentApproach].payoutMult,
-      modifierNames: (this.currentContract?.modifiers ?? []).map((id) => MODIFIER_MAP[id].name),
-      final: this.currentContract?.chapter === 'final',
-      money: this.profile.data.money,
-      ending: this.profile.data.ending,
-    });
-    this.hud.showResult('win', stats, note);
+    if (view.kind === 'death' || view.kind === 'win') {
+      this.hud.showResult(view.kind, view.stats, view.note);
+    }
   }
 
   frame(dtRaw: number): void {
