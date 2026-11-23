@@ -92,6 +92,37 @@ describe('mission objectives', () => {
     expect(world.exitOpen).toBe(true);
   });
 
+  it('breaches a camera and disables it', () => {
+    const pressed = new Set<string>();
+    const events: string[] = [];
+    const world = new World(
+      loadLevel('sector07'),
+      fakeInput(pressed),
+      (event) => events.push(event.type),
+      {
+        weapon: 'fists',
+        ammo: 0,
+        attachment: null,
+        variant: null,
+        supplyType: null,
+        supplyCharges: 0,
+      },
+      { objective: 'purge', requiredLoot: 0 },
+      baseMods(),
+      42,
+    );
+    world.enemies.length = 0;
+    const camera = world.cameras[0];
+    world.player.x = camera.x;
+    world.player.y = camera.y;
+    pressed.add('KeyE');
+    world.update(1 / 120, { x: camera.x + 50, y: camera.y }, true);
+    expect(events).toContain('breachStart');
+    expect(world.promptText()).toBe('E — BREACH CAMERA');
+    world.resolveHazardBreach('camera', camera.id, true);
+    expect(camera.alive).toBe(false);
+  });
+
   it('secures an extraction case and applies pressure', () => {
     const pressed = new Set<string>();
     const world = makeWorld({ objective: 'extraction', requiredLoot: 1 }, pressed);

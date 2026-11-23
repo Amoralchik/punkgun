@@ -124,6 +124,7 @@ export class Game {
   private currentBoons: RunBoon[] = [];
   private breachState: BreachState | null = null;
   private breachNodeId: number | null = null;
+  private breachHazard: 'camera' | 'turret' | null = null;
   private dialogueOpen = false;
   private dialogueSession: DialogueSession | null = null;
   private lastShotsHit = 0;
@@ -698,10 +699,11 @@ export class Game {
     this.commitRun(contract, approachId, [], challenge);
   }
 
-  private openBreach(nodeId: number): void {
+  private openBreach(nodeId: number, hazard?: 'camera' | 'turret'): void {
     const seed = (this.world.seed ^ Math.imul(nodeId, 0x9e3779b1)) >>> 0;
     this.breachState = generateBreach(seed);
     this.breachNodeId = nodeId;
+    this.breachHazard = hazard ?? null;
     this.state = 'breach';
     this.breachRoot.classList.remove('hidden');
     this.renderBreach();
@@ -760,11 +762,14 @@ export class Game {
     const state = this.breachState;
     const nodeId = this.breachNodeId;
     if (!state || nodeId === null) return;
+    const hazard = this.breachHazard;
     this.breachState = null;
     this.breachNodeId = null;
+    this.breachHazard = null;
     this.breachRoot.classList.add('hidden');
     this.state = 'playing';
-    this.world.resolveBreach(nodeId, success);
+    if (hazard) this.world.resolveHazardBreach(hazard, nodeId, success);
+    else this.world.resolveBreach(nodeId, success);
     if (success) {
       this.profile.data.money += breachReward(state);
       this.profile.addComponent(1);
@@ -1303,7 +1308,9 @@ export class Game {
         this.audio.shieldHit();
         break;
       case 'breachStart':
-        if (this.state === 'playing' && e.nodeId !== undefined) this.openBreach(e.nodeId);
+        if (this.state === 'playing' && e.nodeId !== undefined) {
+          this.openBreach(e.nodeId, e.hazard);
+        }
         break;
       case 'breachSuccess':
         this.hud.subtitle('BREACH COMPLETE — SECURITY LOOPED');

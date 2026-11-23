@@ -676,6 +676,31 @@ export class World {
     }
   }
 
+  resolveHazardBreach(
+    hazard: 'camera' | 'turret',
+    hazardId: number,
+    success: boolean,
+  ): void {
+    const target =
+      hazard === 'camera'
+        ? this.cameras.find((camera) => camera.id === hazardId)
+        : this.turrets.find((turret) => turret.id === hazardId);
+    if (!target || !target.alive) return;
+    if (!success) {
+      this.addHeat(10);
+      this.emit({ type: 'breachFail', x: target.x, y: target.y, angle: 0 });
+      return;
+    }
+    target.alive = false;
+    this.emit({
+      type: hazard === 'camera' ? 'cameraBroken' : 'turretBroken',
+      x: target.x,
+      y: target.y,
+      angle: 0,
+    });
+    this.emit({ type: 'breachSuccess', x: target.x, y: target.y, angle: 0 });
+  }
+
   resolveBreach(nodeId: number, success: boolean): void {
     const node = this.objectives.find((entry) => entry.id === nodeId);
     if (!node || node.completed) return;
@@ -1007,6 +1032,33 @@ export class World {
     return best;
   }
 
+  private nearestBreachable(): {
+    kind: 'camera' | 'turret';
+    id: number;
+    x: number;
+    y: number;
+  } | null {
+    let best: { kind: 'camera' | 'turret'; id: number; x: number; y: number } | null = null;
+    let bestD = 72;
+    for (const camera of this.cameras) {
+      if (!camera.alive || camera.disabledT > 0) continue;
+      const d = dist(this.player.x, this.player.y, camera.x, camera.y);
+      if (d < bestD) {
+        bestD = d;
+        best = { kind: 'camera', id: camera.id, x: camera.x, y: camera.y };
+      }
+    }
+    for (const turret of this.turrets) {
+      if (!turret.alive || turret.disabledT > 0) continue;
+      const d = dist(this.player.x, this.player.y, turret.x, turret.y);
+      if (d < bestD) {
+        bestD = d;
+        best = { kind: 'turret', id: turret.id, x: turret.x, y: turret.y };
+      }
+    }
+    return best;
+  }
+
   private nearestDoor(): Door | null {
     let best: Door | null = null;
     let bestD = 86;
@@ -1033,6 +1085,8 @@ export class World {
     if (loot) return `E — GRAB ${LOOT_DEFS[loot.kind].name} · $${loot.value}`;
     const p = this.nearestPickup();
     if (p) return `E — TAKE ${WEAPONS[p.weapon].name}`;
+    const breachable = this.nearestBreachable();
+    if (breachable) return `E — BREACH ${breachable.kind.toUpperCase()}`;
     const d = this.nearestDoor();
     if (d) return 'E — SLAM DOOR';
     if (this.exitOpen) {
@@ -1675,6 +1729,18 @@ export class World {
       p.variant = pick.variant;
       this.pickups.splice(this.pickups.indexOf(pick), 1);
       this.emit({ type: 'pickup', x: p.x, y: p.y, angle: p.angle });
+      return;
+    }
+    const breachable = this.nearestBreachable();
+    if (breachable) {
+      this.emit({
+        type: 'breachStart',
+        x: breachable.x,
+        y: breachable.y,
+        angle: 0,
+        nodeId: breachable.id,
+        hazard: breachable.kind,
+      });
       return;
     }
     const door = this.nearestDoor();
