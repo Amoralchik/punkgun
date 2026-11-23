@@ -11,6 +11,7 @@ import { Hub } from '../ui/hub';
 import { BossIntro } from '../ui/boss-intro';
 import { SettingsPanel } from '../ui/settings-panel';
 import { BreachController } from '../ui/breach-controller';
+import { DialogueController } from '../ui/dialogue-controller';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -19,8 +20,8 @@ import { CONSUMABLE_MAP } from './consumables';
 import { Contract, objectiveText } from './missions';
 import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
-import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine, localizeDialogue, type DialogueLine } from './lore';
 import { DialogueSession } from './dialogue-session';
+import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, handlerLine, localizeDialogue, type DialogueLine } from './lore';
 import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
 
@@ -58,13 +59,6 @@ export class Game {
   private readonly briefFaction = document.getElementById('brief-faction')!;
   private readonly briefObjective = document.getElementById('brief-objective')!;
   private readonly briefHandler = document.getElementById('brief-handler')!;
-  private readonly dialogueRoot = document.getElementById('overlay-dialogue')!;
-  private readonly dialogueKickerEl = document.getElementById('dialogue-kicker')!;
-  private readonly dialogueSpeakerEl = document.getElementById('dialogue-speaker')!;
-  private readonly dialogueTextEl = document.getElementById('dialogue-text')!;
-  private readonly dialogueProgressEl = document.getElementById('dialogue-progress')!;
-  private readonly dialogueNextEl = document.getElementById('dialogue-next') as HTMLButtonElement;
-  private readonly dialogueChoicesEl = document.getElementById('dialogue-choices')!;
   private readonly endingRoot = document.getElementById('overlay-ending')!;
   private readonly endingOptions = document.getElementById('ending-options')!;
   private readonly epilogueRoot = document.getElementById('overlay-epilogue')!;
@@ -84,6 +78,7 @@ export class Game {
     onError: () => this.audio.uiError(),
   });
   private readonly profile: Profile;
+  private readonly dialogue: DialogueController;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
   private contracts: Contract[] = [];
@@ -102,8 +97,6 @@ export class Game {
     challenge: ChallengeId;
   } | null = null;
   private currentBoons: RunBoon[] = [];
-  private dialogueOpen = false;
-  private dialogueSession: DialogueSession | null = null;
   private lastShotsHit = 0;
   private lastKills = 0;
   private startedWithWeapon = false;
@@ -123,6 +116,13 @@ export class Game {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
+    this.dialogue = new DialogueController(this.profile, {
+      onDeploy: (boons) => this.deployPending(boons),
+      onLog: (text) => this.hud.logLine(text),
+      onSubtitle: (text, duration) => this.hud.subtitle(text, duration),
+      onClick: () => this.audio.uiClick(),
+      onError: () => this.audio.uiError(),
+    });
     this.recoveryNote = this.profile.recoveryNote();
     this.safehouse = new Safehouse(this.profile, {
       onDeploy: (contractId, approachId, challenge) =>
@@ -296,13 +296,7 @@ export class Game {
       });
     }
 
-    this.dialogueRoot.addEventListener('click', (ev) => {
-      const target = (ev.target as HTMLElement).closest<HTMLElement>('[data-act], [data-choice]');
-      const act = target?.dataset.act;
-      if (act === 'dialogue-next') this.advanceDialogue();
-      else if (act === 'dialogue-cancel') this.cancelDialogue();
-      else if (target?.dataset.choice) this.chooseDialogue(target.dataset.choice);
-    });
+    document.getElementById('overlay-dialogue')!.addEventListener('click', (ev) => this.dialogue.handleClick(ev));
     this.endingRoot.addEventListener('click', (ev) => {
       const id = (ev.target as HTMLElement).closest<HTMLElement>('[data-ending]')?.dataset
         .ending;
@@ -643,19 +637,17 @@ export class Game {
                     : 'There is an exit. Reach it. I will keep the lights on.',
               },
             ];
-      this.dialogueSession = new DialogueSession(
+      this.dialogue.start(
         localizeDialogue(dialogueLines, this.settings.data.locale),
+        `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`,
+        contract.faction,
       );
-      this.dialogueKickerEl.textContent = `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`;
-      this.dialogueOpen = true;
-      this.dialogueRoot.classList.remove('hidden');
-      this.renderDialogue();
       this.input.endFrame();
       return;
     }
     if (contract.authored) {
       this.pendingRun = { contract, approachId, challenge };
-      this.dialogueSession = new DialogueSession(
+      this.dialogue.start(
         authoredDialogue(
           contract,
           this.profile.data.story,
@@ -663,11 +655,9 @@ export class Game {
           this.profile.data.lifepath,
           this.settings.data.locale,
         ),
+        `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`,
+        contract.faction,
       );
-      this.dialogueKickerEl.textContent = `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`;
-      this.dialogueOpen = true;
-      this.dialogueRoot.classList.remove('hidden');
-      this.renderDialogue();
       this.input.endFrame();
       return;
     }
@@ -723,103 +713,34 @@ export class Game {
     });
   }
 
-  private renderDialogue(): void {
-    const session = this.dialogueSession;
-    const line = session?.current;
-    if (!session || !line) return;
-    this.dialogueSpeakerEl.textContent = line.speaker;
-    this.dialogueSpeakerEl.style.color =
-      line.speaker === 'MOTH' ? 'var(--cyan)' : 'var(--magenta)';
-    this.dialogueTextEl.textContent = line.text;
-    this.dialogueProgressEl.textContent = `${session.index + 1} / ${session.lines.length}`;
-    const hasChoices = session.hasChoices;
-    this.dialogueNextEl.style.display = hasChoices ? 'none' : '';
-    this.dialogueNextEl.textContent = session.atEnd ? 'DEPLOY' : 'CONTINUE';
-    this.dialogueChoicesEl.innerHTML = hasChoices
-      ? line.choices!
-          .map((choice) => {
-            const met = dialogueCheckMet(
-              choice.check,
-              this.profile.data.attributes,
-              this.profile.data.reputation,
-              this.profile.data.role,
-              this.profile.data.lifepath,
-            );
-            const checkLabel = choice.check
-              ? `<small>${dialogueCheckLabel(choice.check)}${met ? ' · READY' : ' · LOCKED'}</small>`
-              : '';
-            const repLabel = choice.reputation
-              ? Object.entries(choice.reputation)
-                  .map(([faction, delta]) => {
-                    const name = FACTIONS[faction as keyof typeof FACTIONS].name.split(' ')[0];
-                    return `${name} ${delta > 0 ? '+' : ''}${delta}`;
-                  })
-                  .join(' · ')
-              : '';
-            const consequence = repLabel ? `<small>${repLabel}</small>` : '';
-            return `<button class="dialogue-choice" data-choice="${choice.id}" ${
-              met ? '' : 'disabled'
-            }><span>${choice.label}</span>${checkLabel}${consequence}</button>`;
-          })
-          .join('')
-      : '';
-    this.hud.logLine(`${line.speaker}: ${line.text}`);
-    this.hud.subtitle(`${line.speaker}: ${line.text}`, 4200);
+  private get dialogueOpen(): boolean {
+    return this.dialogue.isOpen;
+  }
+
+  private get dialogueSession(): DialogueSession | null {
+    return this.dialogue.session;
   }
 
   private advanceDialogue(): void {
-    const session = this.dialogueSession;
-    if (!this.dialogueOpen || !session) return;
-    if (session.hasChoices) return;
-    this.audio.uiClick();
-    if (!session.atEnd) {
-      session.advance();
-      this.renderDialogue();
-      return;
-    }
-    const pending = this.pendingRun;
-    const boons = [...session.boons];
-    this.closeDialogue();
-    if (pending) {
-      this.commitRun(pending.contract, pending.approachId, boons, pending.challenge);
-    }
+    this.dialogue.advance();
   }
 
   private chooseDialogue(choiceId: string): void {
-    const session = this.dialogueSession;
-    const pending = this.pendingRun;
-    if (!this.dialogueOpen || !session || !pending) return;
-    const result = session.choose(choiceId, this.profile, pending.contract.faction);
-    if (!result.ok) {
-      this.audio.uiError();
-      return;
-    }
-    this.audio.uiClick();
-    if (result.boon) {
-      this.hud.logLine(`BOON: ${BOONS[result.boon].label} — ${BOONS[result.boon].desc}`);
-    }
-    if (result.reputation.length > 0) {
-      this.hud.logLine(
-        `STANDING: ${result.reputation
-          .map(([faction, delta]) => `${FACTIONS[faction].name.split(' ')[0]} ${delta > 0 ? '+' : ''}${delta}`)
-          .join(' · ')}`,
-      );
-    }
-    this.renderDialogue();
-  }
-
-  private closeDialogue(): void {
-    this.dialogueOpen = false;
-    this.dialogueSession = null;
-    this.dialogueRoot.classList.add('hidden');
-    this.pendingRun = null;
-    this.input.endFrame();
+    this.dialogue.choose(choiceId);
   }
 
   private cancelDialogue(): void {
-    if (!this.dialogueOpen) return;
-    this.audio.uiClick();
-    this.closeDialogue();
+    this.dialogue.cancel();
+    this.pendingRun = null;
+  }
+
+  private deployPending(boons: RunBoon[]): void {
+    const pending = this.pendingRun;
+    this.pendingRun = null;
+    if (pending) {
+      this.commitRun(pending.contract, pending.approachId, boons, pending.challenge);
+    }
+    this.input.endFrame();
   }
 
   private quickRetry(): void {
@@ -942,8 +863,7 @@ export class Game {
     this.briefT = 0;
     this.approachVignette.className = 'approach-vignette';
     document.body.classList.remove('contract-fog', 'contract-blackout');
-    this.dialogueRoot.classList.add('hidden');
-    this.dialogueOpen = false;
+    this.dialogue.close();
     this.pendingRun = null;
     this.profile.clearInsurance();
     this.contracts = this.rollBoard();
