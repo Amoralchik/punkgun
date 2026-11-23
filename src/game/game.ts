@@ -6,6 +6,7 @@ import { Input } from '../core/input';
 import { Settings, controlKeymap, type ControlPreset, type Palette } from '../core/settings';
 import { randomSeed, seedLabel } from '../core/math';
 import { setLocale, t } from '../core/i18n';
+import { resolveKeymap } from '../core/settings';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -95,6 +96,8 @@ export class Game {
   private readonly setControls = document.getElementById('set-controls') as HTMLSelectElement;
   private readonly setPalette = document.getElementById('set-palette') as HTMLSelectElement;
   private readonly setLanguage = document.getElementById('set-locale') as HTMLSelectElement;
+  private readonly remapRoot = document.getElementById('set-remap')!;
+  private remapAction: string | null = null;
   private readonly setSubtitles = document.getElementById('set-subtitles') as HTMLInputElement;
   private readonly setDialogueLog = document.getElementById(
     'set-dialogue-log',
@@ -385,8 +388,27 @@ export class Game {
     for (const el of [this.setControls, this.setPalette, this.setLanguage]) {
       el.addEventListener('change', () => this.onSettingsInput());
     }
+    this.remapRoot.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLElement>('[data-remap]');
+      if (!button?.dataset.remap) return;
+      this.remapAction = button.dataset.remap;
+      this.renderRemapButtons();
+    });
 
     window.addEventListener('keydown', (e) => {
+      if (this.remapAction) {
+        e.preventDefault();
+        if (e.code !== 'Escape') {
+          this.settings.set('keymap', {
+            ...this.settings.data.keymap,
+            [this.remapAction]: e.code,
+          });
+          this.applySettings();
+        }
+        this.remapAction = null;
+        this.renderRemapButtons();
+        return;
+      }
       if (e.code === 'KeyM') {
         this.audio.toggleMute();
         return;
@@ -495,9 +517,48 @@ export class Game {
     });
   }
 
+  private renderRemapButtons(): void {
+    const labels: Array<[string, string]> = [
+      ['KeyW', 'MOVE UP'],
+      ['KeyA', 'MOVE LEFT'],
+      ['KeyS', 'MOVE DOWN'],
+      ['KeyD', 'MOVE RIGHT'],
+      ['KeyR', 'RELOAD'],
+      ['KeyE', 'INTERACT'],
+      ['KeyQ', 'SUPPLY'],
+      ['Space', 'DASH'],
+      ['ShiftLeft', 'SANDEVISTAN'],
+      ['KeyC', 'CAMO'],
+      ['KeyX', 'EMP'],
+      ['KeyV', 'BERSERK'],
+      ['KeyG', 'OVERCLOCK'],
+      ['KeyH', 'INTRUSION'],
+      ['KeyZ', 'QUICKHACK'],
+    ];
+    const keymap = resolveKeymap(this.settings.data.controls, this.settings.data.keymap);
+    const pretty = (code: string): string => {
+      if (code === 'Space') return 'SPACE';
+      if (code === 'ShiftLeft' || code === 'ShiftRight') return 'SHIFT';
+      if (code.startsWith('Key')) return code.slice(3);
+      if (code.startsWith('Digit')) return code.slice(5);
+      if (code.startsWith('Arrow')) return code.replace('Arrow', '');
+      return code.toUpperCase();
+    };
+    this.remapRoot.innerHTML = labels
+      .map(
+        ([code, label]) =>
+          `<button class="remap-key${this.remapAction === code ? ' listening' : ''}" data-remap="${code}"><span>${label}</span><b>${
+            this.remapAction === code ? 'PRESS KEY' : pretty(keymap[code] ?? code)
+          }</b></button>`,
+      )
+      .join('');
+  }
+
   private applySettings(): void {
     const reduced = this.settings.data.reducedMotion;
-    this.input.setKeymap(controlKeymap(this.settings.data.controls));
+    this.input.setKeymap(
+      resolveKeymap(this.settings.data.controls, this.settings.data.keymap),
+    );
     this.audio.setVolume(this.settings.data.volume);
     this.renderer.setShakeScale(reduced ? 0 : this.settings.data.shake);
     this.renderer.setBloomScale(this.settings.data.bloom);
@@ -530,6 +591,7 @@ export class Game {
     this.setLanguage.value = this.settings.data.locale;
     this.setSubtitles.checked = this.settings.data.subtitles;
     this.setDialogueLog.checked = this.settings.data.dialogueLog;
+    this.renderRemapButtons();
   }
 
   private onSettingsInput(): void {

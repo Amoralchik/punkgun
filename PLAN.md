@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 133 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 134 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -41,7 +41,7 @@ working checklist.
 | PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
-| Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
+| Accessibility | partial | **reduced motion, palettes, subtitles, log, presets, arbitrary key remap** | gamepad
 | Localization readiness | none | **English/Spanish catalog for objectives, stations, boons and HUD** | station/manual/dialogue copy |
 | Deep module splits | not started | **world player/bullets/objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | Safehouse station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
@@ -93,7 +93,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 133 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 134 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.

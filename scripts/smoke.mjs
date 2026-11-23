@@ -298,6 +298,18 @@ async function main() {
       return active;
     })()`);
     if (locale !== 'es') throw new Error(`Locale switch failed: ${locale}`);
+    const remap = await cdp.evaluate(`(() => {
+      const button = document.querySelector('[data-remap="KeyR"]');
+      button?.click();
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', bubbles: true }));
+      const changed = window.__game.settings.data.keymap.KeyR;
+      document.querySelector('[data-remap="KeyR"]')?.click();
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', bubbles: true }));
+      return { changed, restored: window.__game.settings.data.keymap.KeyR };
+    })()`);
+    if (remap.changed !== 'KeyT' || remap.restored !== 'KeyR') {
+      throw new Error(`Key remap failed: ${JSON.stringify(remap)}`);
+    }
     await cdp.evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }))");
     await sleep(200);
 
@@ -431,6 +443,7 @@ async function main() {
           memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
           breach: true,
           locale: true,
+          remap: true,
           paused: true,
           returned: hub.state,
           workbench: true,

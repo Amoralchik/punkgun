@@ -21,6 +21,7 @@ export interface SettingsData {
   dialogueLog: boolean;
   controls: ControlPreset;
   locale: Locale;
+  keymap: Record<string, string>;
 }
 
 const DEFAULTS: SettingsData = {
@@ -39,6 +40,7 @@ const DEFAULTS: SettingsData = {
   dialogueLog: true,
   controls: 'wasd',
   locale: 'en',
+  keymap: {},
 };
 
 const PALETTES: Palette[] = ['default', 'deuteranopia', 'protanopia', 'tritanopia'];
@@ -63,6 +65,13 @@ export function controlKeymap(preset: ControlPreset): Record<string, string> {
     };
   }
   return {};
+}
+
+export function resolveKeymap(
+  preset: ControlPreset,
+  custom: Record<string, string> = {},
+): Record<string, string> {
+  return { ...controlKeymap(preset), ...custom };
 }
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
@@ -111,6 +120,20 @@ export class Settings {
           : DEFAULTS.controls,
         locale:
           p.locale === 'es' || p.locale === 'en' ? p.locale : DEFAULTS.locale,
+        keymap:
+          p.keymap && typeof p.keymap === 'object'
+            ? Object.fromEntries(
+                Object.entries(p.keymap).filter(
+                  ([key, value]) =>
+                    typeof value === 'string' &&
+                    (key.startsWith('Key') ||
+                      key.startsWith('Digit') ||
+                      key.startsWith('Arrow') ||
+                      key === 'Space' ||
+                      key.startsWith('Shift')),
+                ),
+              )
+            : {},
       };
     } catch {
       return { ...DEFAULTS };
