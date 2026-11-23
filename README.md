@@ -27,7 +27,7 @@ npm run soak:long     # 30-minute heap/error soak (--minutes=N supported)
 # Playwright browsers: npx playwright install firefox webkit
 ```
 
-CI runs verify, browser smokes and a soak on push/PR via [.github/workflows/ci.yml](./.github/workflows/ci.yml).
+CI runs verify, browser smokes, a soak and packaging on push/PR via [.github/workflows/ci.yml](./.github/workflows/ci.yml).
 
 The production build is an installable PWA with a service-worker app shell and offline fallback. Deployment instructions, budgets, and the QA matrix are in [RELEASE.md](./RELEASE.md) and [QA.md](./QA.md). Implementation status is tracked in [PLAN.md](./PLAN.md).
 

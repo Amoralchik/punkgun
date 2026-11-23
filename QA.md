@@ -103,7 +103,7 @@ types.
 - [ ] 30-minute session without save loss or softlock.
 - [ ] `npm run soak` stays under the heap/growth limits with zero console errors.
 - [ ] `npm run soak:long` completes 30 minutes without unbounded heap growth.
-- [ ] CI verify/browser/soak jobs pass on the selected Node version.
+- [ ] CI verify/browser/soak/package jobs pass on the selected Node version.
 - [ ] Scheduled 30-minute soak job completes with zero errors and bounded heap.
 
 ## Save recovery policy
