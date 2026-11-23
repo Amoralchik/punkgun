@@ -38,6 +38,7 @@ import { World } from './world';
 import type { WorldEvent } from './world-types';
 import type { RewardSummary } from './results';
 import { buildResult } from './result-flow';
+import { playWorldEventAudio } from './world-event-audio';
 import { settleRun } from './settlement';
 
 const FIXED = 1 / 120;
@@ -716,60 +717,8 @@ export class Game {
         Math.max(-1, Math.min(1, (screen.x / Math.max(1, window.innerWidth)) * 2 - 1)),
       );
     }
+    if (playWorldEventAudio(e, this.audio)) return;
     switch (e.type) {
-      case 'pistol':
-        this.audio.shot(false);
-        break;
-      case 'shotgun':
-        this.audio.shot(true);
-        break;
-      case 'shot-smg':
-        this.audio.smgShot();
-        break;
-      case 'shot-rifle':
-        this.audio.rifleShot();
-        break;
-      case 'shot-ak':
-        this.audio.akShot();
-        break;
-      case 'shot-lmg':
-        this.audio.lmgShot();
-        break;
-      case 'shot-revolver':
-        this.audio.revolverShot();
-        break;
-      case 'shot-carbine':
-        this.audio.carbineShot();
-        break;
-      case 'shot-needler':
-        this.audio.needlerShot();
-        break;
-      case 'shot-dmr':
-        this.audio.dmrShot();
-        break;
-      case 'shot-plasma':
-        this.audio.plasmaShot();
-        break;
-      case 'shot-railgun':
-        this.audio.railgunShot();
-        break;
-      case 'armorHitEnemy':
-        this.audio.shieldHit();
-        break;
-      case 'armorBreakEnemy':
-        this.audio.bossHit();
-        break;
-      case 'enemyShot':
-      case 'enemyShotgun':
-        this.audio.enemyShot();
-        break;
-      case 'swing':
-        this.audio.swing();
-        break;
-      case 'punch':
-      case 'enemyPunch':
-        this.audio.punch();
-        break;
       case 'kill':
         this.audio.kill();
         this.audio.combo(this.world.combo);
@@ -789,9 +738,6 @@ export class Game {
         this.hud.subtitle(t('event.execution'));
         this.hud.logLine('EXECUTION: stunned hostile finished');
         break;
-      case 'dash':
-        this.audio.dash();
-        break;
       case 'quickhack':
         this.audio.quickhack();
         this.hud.subtitle(t('event.quickhack'));
@@ -801,36 +747,15 @@ export class Game {
         this.audio.quickhackFail();
         this.hud.subtitle(t('event.quickhackFail'), 1600);
         break;
-      case 'glassBreak':
-        this.audio.glassBreak();
-        break;
       case 'medicHeal':
         this.audio.medicHeal();
         this.hud.logLine('MEDIC: ally plate restored');
-        break;
-      case 'houndLeap':
-        this.audio.houndLeap();
-        break;
-      case 'siren':
-        this.audio.siren();
-        break;
-      case 'shieldHit':
-        this.audio.shieldHit();
-        break;
-      case 'bossHit':
-        this.audio.bossHit();
         break;
       case 'bossPhase':
         this.bossPhase.flash('ARMOR PLATE SHATTERED');
         this.audio.bossPhase();
         this.hud.subtitle(t('event.bossPhase'));
         this.hud.logLine('BOSS: plate shattered');
-        break;
-      case 'bossShock':
-        this.audio.explosion();
-        break;
-      case 'bossCharge':
-        this.audio.alert();
         break;
       case 'bossWeakHit':
         this.audio.bossHit();
@@ -948,31 +873,6 @@ export class Game {
       case 'empty':
         this.audio.empty();
         break;
-      case 'reloadStart':
-        this.audio.reloadStart();
-        break;
-      case 'reloadEnd':
-        this.audio.reloadEnd();
-        break;
-      case 'reloadCancel':
-        this.audio.reloadCancel();
-        break;
-      case 'alert':
-      case 'bodyFound':
-      case 'cameraAlert':
-        this.audio.alert();
-        break;
-      case 'cameraBroken':
-      case 'turretBroken':
-      case 'laserBroken':
-        this.audio.shieldHit();
-        break;
-      case 'turretShot':
-        this.audio.enemyShot();
-        break;
-      case 'laserHit':
-        this.audio.shieldHit();
-        break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {
           this.state = 'breach';
@@ -1009,9 +909,6 @@ export class Game {
       case 'objectiveComplete':
         this.hud.subtitle(t('event.objectiveComplete'));
         this.hud.logLine('OBJECTIVE: complete');
-        break;
-      case 'operatorDeploy':
-        this.audio.alert();
         break;
       case 'bossRushWave':
         this.bossIntro.show('// NEXT BOSS', this.world.bossName, `WAVE ${e.wave}/${e.total}`);
