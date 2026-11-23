@@ -57,6 +57,36 @@ export function playWorldEventAudio(event: WorldEvent, audio: AudioEngine): bool
     case 'enemyPunch':
       audio.punch();
       return true;
+    case 'biomonitor':
+      audio.biomonitor();
+      return true;
+    case 'suppressedShot':
+      audio.suppressedShot(false);
+      return true;
+    case 'suppressedShotgun':
+      audio.suppressedShot(true);
+      return true;
+    case 'loot':
+      audio.loot();
+      return true;
+    case 'loudBreach':
+      audio.siren();
+      return true;
+    case 'doorSlam':
+      audio.doorSlam();
+      return true;
+    case 'doorOpen':
+      audio.doorOpen();
+      return true;
+    case 'pickup':
+      audio.pickup();
+      return true;
+    case 'throw':
+      audio.throwSfx();
+      return true;
+    case 'empty':
+      audio.empty();
+      return true;
     case 'dash':
       audio.dash();
       return true;

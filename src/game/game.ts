@@ -809,18 +809,6 @@ export class Game {
         this.hud.subtitle(t('event.secondHeart'));
         this.hud.logLine('SECOND HEART: survived lethal hit');
         break;
-      case 'biomonitor':
-        this.audio.biomonitor();
-        break;
-      case 'suppressedShot':
-        this.audio.suppressedShot(false);
-        break;
-      case 'suppressedShotgun':
-        this.audio.suppressedShot(true);
-        break;
-      case 'loot':
-        this.audio.loot();
-        break;
       case 'armorHit':
         this.audio.armorHit();
         this.hud.flashDamage('armor');
@@ -851,27 +839,9 @@ export class Game {
         this.overlayT = 0;
         this.overlayShown = false;
         break;
-      case 'loudBreach':
-        this.audio.siren();
-        break;
-      case 'doorSlam':
-        this.audio.doorSlam();
-        break;
-      case 'doorOpen':
-        this.audio.doorOpen();
-        break;
       case 'doorLocked':
         this.audio.uiError();
         this.hud.logLine('DOOR SEALED — KICK TO BREACH');
-        break;
-      case 'pickup':
-        this.audio.pickup();
-        break;
-      case 'throw':
-        this.audio.throwSfx();
-        break;
-      case 'empty':
-        this.audio.empty();
         break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {

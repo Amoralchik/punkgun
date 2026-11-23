@@ -88,7 +88,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - The final contract applies a magenta color grade and heavier vignette.
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
-- Audio-only world events dispatch from `game/world-event-audio.ts`.
+- Audio-only world events dispatch from `game/world-event-audio.ts`, including loot, doors, pickups, suppressed fire and EMP feedback.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
   HIGH adds a heavy or stalker tactical unit; extras use separate spawn points.
