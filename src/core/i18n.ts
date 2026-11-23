@@ -122,14 +122,79 @@ const EN: Record<MessageKey, string> = {
   'hud.zoneHeld': 'ZONE HELD — EXIT',
 };
 
-const CATALOGS: Record<string, Record<MessageKey, string>> = { en: EN };
+const ES: Record<MessageKey, string> = {
+  'event.bossPhase': 'PLACA DESTRUIDA — CAMBIO DE FASE',
+  'event.caseSecured': 'MALETÍN ASEGURADO — EXTRAE BAJO FUEGO',
+  'event.exitOpen': 'SALIDA ABIERTA — VETE',
+  'event.kerenzikov': 'KERENZIKOV — DILATACIÓN TEMPORAL',
+  'event.netrunnerHack': 'SEÑAL CORTADA — CIBERWARE BLOQUEADO',
+  'event.objectiveComplete': 'OBJETIVO CUMPLIDO — SALIDA ABIERTA',
+  'event.sabotage': 'TAP COLOCADO — RED COMPROMETIDA',
+  'event.secondHeart': 'SEGUNDO CORAZÓN — LÍNEA PLANA EVITADA',
+  'event.quickhack': 'QUICKHACK — OBJETIVO REINICIADO',
+  'event.quickhackFail': 'SIN OBJETIVO VÁLIDO',
+  'event.execution': 'EJECUCIÓN',
+  'objective.purge': 'ELIMINA A TODOS LOS HOSTILES',
+  'objective.target': 'MATA AL OBJETIVO MARCADO',
+  'objective.recover': 'RECUPERA {count} CACHÉ{plural}',
+  'objective.sabotage': 'SABOTEA {count} TERMINAL{plural}',
+  'objective.extraction': 'ASEGURA EL MALETÍN',
+  'objective.hunt': 'CAZA AL OBJETIVO MARCADO',
+  'objective.defense': 'MANTÉN LA ZONA',
+  'objective.boss': 'MATA AL JEFE',
+  'objective.detail.purge': 'Elimina a todos los hostiles del sector y llega a la salida.',
+  'objective.detail.target': 'Solo importa el objetivo ámbar. Mátalo y llega a la salida.',
+  'objective.detail.recover': 'Recoge {count} caché{plural} marcada y llega a la salida.',
+  'objective.detail.sabotage': 'Llega a {count} terminal{plural} marcada y coloca el tap. Cámaras y patrullas hacen ruido.',
+  'objective.detail.extraction': 'Asegura el paquete. El sector convergerá al tocarlo. Llega a la salida.',
+  'objective.detail.hunt': 'El objetivo huye y pide ayuda. Acorrálalo, mátalo y llega a la salida.',
+  'objective.detail.defense': 'Mantén la zona marcada durante 45 segundos. Llegan oleadas.',
+  'objective.detail.boss': 'Rompe las placas del jefe, sobrevive a la arena y llega a la salida.',
+  'station.contracts': 'CONTRATOS',
+  'station.workbench': 'BANCO',
+  'station.clinic': 'CLÍNICA',
+  'station.market': 'MERCADO',
+  'station.supplies': 'SUMINISTROS',
+  'station.archive': 'ARCHIVO',
+  'station.fabricator': 'FABRICADORA',
+  'station.operator': 'OPERADOR',
+  'station.sanctuary': 'SANTUARIO',
+  'station.deploy': 'DESPLIEGUE',
+  'station.title.contracts': 'TABLÓN DE CONTRATOS',
+  'station.title.deploy': 'SELECCIÓN DE MISIÓN',
+  'station.title.market': 'EL MERCADO',
+  'station.title.supplies': 'SUMINISTROS',
+  'station.title.archive': 'FANTASMAS Y LEYENDAS',
+  'station.title.fabricator': 'CONSTRUYE LO TUYO',
+  'station.title.operator': 'HOJA DE OPERADOR',
+  'boon.armor.label': 'PLACA EXTRA',
+  'boon.armor.desc': 'Empieza con una placa de armadura adicional.',
+  'boon.pay.label': 'CORTE DEL FIXER',
+  'boon.pay.desc': '+12% de pago del contrato.',
+  'boon.quiet.label': 'CÓDIGOS DE ACCESO',
+  'boon.quiet.desc': 'Visión enemiga -15% durante la partida.',
+  'boon.components.label': 'RECLAMO DE CHATARRA',
+  'boon.components.desc': 'Extrae con 3 componentes extra.',
+  'hud.sabotage': 'SABOTAJE {done}/{total}',
+  'hud.case': 'ASEGURA EL MALETÍN',
+  'hud.caseSecured': 'MALETÍN ASEGURADO — SALIDA',
+  'hud.holdZone': 'MANTÉN LA ZONA {seconds}S',
+  'hud.zoneHeld': 'ZONA MANTENIDA — SALIDA',
+};
 
-export type Locale = keyof typeof CATALOGS;
+const CATALOGS: Record<Locale, Record<MessageKey, string>> = { en: EN, es: ES };
+let currentLocale: Locale = 'en';
+
+export type Locale = 'en' | 'es';
+
+export function setLocale(locale: Locale): void {
+  currentLocale = locale;
+}
 
 export function t(
   key: MessageKey,
   vars?: Record<string, string | number>,
-  locale: Locale = 'en',
+  locale: Locale = currentLocale,
 ): string {
   let text = CATALOGS[locale]?.[key] ?? EN[key];
   if (vars) {

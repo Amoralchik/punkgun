@@ -5,7 +5,7 @@ import { CHALLENGE_MAP, type ChallengeId } from './challenges';
 import { Input } from '../core/input';
 import { Settings, controlKeymap, type ControlPreset, type Palette } from '../core/settings';
 import { randomSeed, seedLabel } from '../core/math';
-import { t } from '../core/i18n';
+import { setLocale, t } from '../core/i18n';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -94,6 +94,7 @@ export class Game {
   ) as HTMLInputElement;
   private readonly setControls = document.getElementById('set-controls') as HTMLSelectElement;
   private readonly setPalette = document.getElementById('set-palette') as HTMLSelectElement;
+  private readonly setLanguage = document.getElementById('set-locale') as HTMLSelectElement;
   private readonly setSubtitles = document.getElementById('set-subtitles') as HTMLInputElement;
   private readonly setDialogueLog = document.getElementById(
     'set-dialogue-log',
@@ -375,7 +376,7 @@ export class Game {
     ]) {
       el.addEventListener('change', () => this.onSettingsInput());
     }
-    for (const el of [this.setControls, this.setPalette]) {
+    for (const el of [this.setControls, this.setPalette, this.setLanguage]) {
       el.addEventListener('change', () => this.onSettingsInput());
     }
 
@@ -498,6 +499,9 @@ export class Game {
     this.renderer.setWeatherEnabled(this.settings.data.weather);
     this.renderer.setReducedMotion(reduced);
     this.renderer.setPalette(this.settings.data.palette);
+    setLocale(this.settings.data.locale);
+    document.documentElement.lang = this.settings.data.locale;
+    if (this.panelOpen) this.safehouse.render();
     this.hud.setFlashEnabled(this.settings.data.flash && !reduced);
     this.hud.setSubtitlesEnabled(this.settings.data.subtitles);
     this.hud.setLogEnabled(this.settings.data.dialogueLog);
@@ -517,6 +521,7 @@ export class Game {
     this.setReducedMotion.checked = this.settings.data.reducedMotion;
     this.setControls.value = this.settings.data.controls;
     this.setPalette.value = this.settings.data.palette;
+    this.setLanguage.value = this.settings.data.locale;
     this.setSubtitles.checked = this.settings.data.subtitles;
     this.setDialogueLog.checked = this.settings.data.dialogueLog;
   }
@@ -532,6 +537,7 @@ export class Game {
     this.settings.set('reducedMotion', this.setReducedMotion.checked);
     this.settings.set('controls', this.setControls.value as ControlPreset);
     this.settings.set('palette', this.setPalette.value as Palette);
+    this.settings.set('locale', this.setLanguage.value === 'es' ? 'es' : 'en');
     this.settings.set('subtitles', this.setSubtitles.checked);
     this.settings.set('dialogueLog', this.setDialogueLog.checked);
     this.applySettings();

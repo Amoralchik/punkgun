@@ -41,7 +41,7 @@ working checklist.
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
 | Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
-| Localization readiness | none | **typed catalog: objectives, stations, boons, HUD, role/lifepath checks** | station/manual/dialogue copy + second locale |
+| Localization readiness | none | **English/Spanish catalog for objectives, stations, boons and HUD** | station/manual/dialogue copy |
 | Deep module splits | not started | **world objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | player/bullets; station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
@@ -68,7 +68,7 @@ working checklist.
 ## Next sequence
 
 1. Continue the split: World player/bullets and Safehouse station views.
-2. Extract remaining station/manual/dialogue strings and add a second locale fixture.
+2. Extract remaining station/manual/dialogue strings into the catalog.
 3. Extend breach interactions to cameras, safes and security networks.
 4. Tune encounter density and squad compositions from the 16-archetype gym.
 5. Add long-session memory sampling and an ending-screen new-game shortcut.

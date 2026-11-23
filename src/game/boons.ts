@@ -12,26 +12,42 @@ export interface BoonDef {
 export const BOONS: Record<RunBoon, BoonDef> = {
   armor: {
     id: 'armor',
-    label: t('boon.armor.label'),
-    desc: t('boon.armor.desc'),
+    get label() {
+      return t('boon.armor.label');
+    },
+    get desc() {
+      return t('boon.armor.desc');
+    },
     color: '#ff7a4c',
   },
   pay: {
     id: 'pay',
-    label: t('boon.pay.label'),
-    desc: t('boon.pay.desc'),
+    get label() {
+      return t('boon.pay.label');
+    },
+    get desc() {
+      return t('boon.pay.desc');
+    },
     color: '#ffc46b',
   },
   quiet: {
     id: 'quiet',
-    label: t('boon.quiet.label'),
-    desc: t('boon.quiet.desc'),
+    get label() {
+      return t('boon.quiet.label');
+    },
+    get desc() {
+      return t('boon.quiet.desc');
+    },
     color: '#5ef1ff',
   },
   components: {
     id: 'components',
-    label: t('boon.components.label'),
-    desc: t('boon.components.desc'),
+    get label() {
+      return t('boon.components.label');
+    },
+    get desc() {
+      return t('boon.components.desc');
+    },
     color: '#b38cff',
   },
 };

@@ -21,11 +21,11 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~347 kB | 450 kB |
+| App JS | ~350 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~888 kB | 1120 kB |
+| Total JS | ~891 kB | 1120 kB |
 | CSS | ~62 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~254 kB | 340 kB |
+| Initial gzip (JS + CSS + HTML) | ~255 kB | 340 kB |
 | Largest single chunk | ~344 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
@@ -83,10 +83,10 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 ## Localization Readiness
 
 - Document language is `en`; manifest declares `en`.
-- Objectives, station labels/titles, boon copy and HUD events route through
-  `src/core/i18n.ts` with a typed `MessageKey` catalog.
-- Station/manual/dialogue copy is still inline. Route it through the same catalog before adding
-  a second locale. Do not machine-translate the inline copy in place.
+- English and Spanish catalogs cover objectives, station labels/titles, boon copy and
+  HUD events through `src/core/i18n.ts`.
+- Station/manual/dialogue body copy is still inline. Route it through the same catalog before
+  adding full locale coverage. Do not machine-translate the inline copy in place.
 
 ## Credits
 

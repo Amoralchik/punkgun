@@ -49,6 +49,7 @@ The production build is an installable PWA with a service-worker app shell and o
 - Hazards: explosive barrels, security cameras, turrets, laser grids, breakable glass and steam vents
 - Procedural district weather, holo ads, faction music layers, reload/death reactions, 4-frame walk cycles
 - Accessibility: reduced motion, colorblind palettes, subtitles, event log, control presets
+- English/Spanish catalog for objectives, stations, boons and HUD events; breach-protocol minigame
 - PWA/offline shell, save v2 with backup/quarantine recovery, export/import, fatal error boundary
 
 ## Tests

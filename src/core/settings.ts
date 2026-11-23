@@ -1,3 +1,5 @@
+import type { Locale } from './i18n';
+
 const KEY = 'punkgun.settings.v2';
 
 export type Palette = 'default' | 'deuteranopia' | 'protanopia' | 'tritanopia';
@@ -18,6 +20,7 @@ export interface SettingsData {
   subtitles: boolean;
   dialogueLog: boolean;
   controls: ControlPreset;
+  locale: Locale;
 }
 
 const DEFAULTS: SettingsData = {
@@ -35,6 +38,7 @@ const DEFAULTS: SettingsData = {
   subtitles: true,
   dialogueLog: true,
   controls: 'wasd',
+  locale: 'en',
 };
 
 const PALETTES: Palette[] = ['default', 'deuteranopia', 'protanopia', 'tritanopia'];
@@ -105,6 +109,8 @@ export class Settings {
         controls: CONTROLS.includes(p.controls as ControlPreset)
           ? (p.controls as ControlPreset)
           : DEFAULTS.controls,
+        locale:
+          p.locale === 'es' || p.locale === 'en' ? p.locale : DEFAULTS.locale,
       };
     } catch {
       return { ...DEFAULTS };

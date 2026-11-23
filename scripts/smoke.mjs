@@ -287,6 +287,17 @@ async function main() {
       `(() => ({ state: window.__game.state, pauseVisible: !document.getElementById('overlay-pause').classList.contains('hidden') }))()`,
     );
     if (paused.state !== 'paused' || !paused.pauseVisible) throw new Error('Pause overlay failed: ' + JSON.stringify(paused));
+    const locale = await cdp.evaluate(`(() => {
+      document.querySelector('[data-act="settings"]')?.click();
+      const select = document.getElementById('set-locale');
+      select.value = 'es';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      const active = document.documentElement.lang;
+      select.value = 'en';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return active;
+    })()`);
+    if (locale !== 'es') throw new Error(`Locale switch failed: ${locale}`);
     await cdp.evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }))");
     await sleep(200);
 
@@ -419,6 +430,7 @@ async function main() {
           playing: { time: Number(playing.time.toFixed(2)), objective: playing.objective, nodes: playing.nodes, boons: playing.boons },
           memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
           breach: true,
+          locale: true,
           paused: true,
           returned: hub.state,
           workbench: true,
