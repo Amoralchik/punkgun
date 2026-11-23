@@ -4,6 +4,30 @@ import { SystemToast } from './ui/system-toast';
 
 const toast = new SystemToast();
 
+function registerInstallPrompt(): void {
+  let install: (Event & { prompt?: () => Promise<void>; userChoice?: Promise<{ outcome: string }> }) | null =
+    null;
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    install = event as Event & {
+      prompt?: () => Promise<void>;
+      userChoice?: Promise<{ outcome: string }>;
+    };
+    toast.show('INSTALL CLIENT — OFFLINE READY', 'INSTALL', () => {
+      void (async () => {
+        await install?.prompt?.();
+        await install?.userChoice;
+        install = null;
+        toast.hide();
+      })();
+    });
+  });
+  window.addEventListener('appinstalled', () => {
+    install = null;
+    toast.hide();
+  });
+}
+
 function registerServiceWorker(): void {
   const hadController = !!navigator.serviceWorker?.controller;
   window.addEventListener('offline', () => {
@@ -26,4 +50,5 @@ function registerServiceWorker(): void {
 }
 
 bootGame(document.getElementById('game') as HTMLCanvasElement);
+registerInstallPrompt();
 registerServiceWorker();

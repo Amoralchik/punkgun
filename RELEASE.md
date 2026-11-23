@@ -41,7 +41,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Service worker caches the app shell on install and runtime-caches hashed assets.
 - Navigation is network-first with cached `index.html` fallback; then `offline.html`.
 - The SW is registered only in production builds.
-- A status toast reports offline mode and a waiting update; RELOAD applies the update.
+- A status toast reports offline mode, a waiting update, and the browser install prompt.
 - Offline state can be recovered by reconnecting and reloading.
 
 ## Save Recovery

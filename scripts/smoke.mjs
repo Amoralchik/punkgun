@@ -530,6 +530,25 @@ async function main() {
       throw new Error(`Offline toast failed: ${JSON.stringify(offline)}`);
     }
 
+    const install = await cdp.evaluate(`(async () => {
+      let prompted = false;
+      const event = new Event('beforeinstallprompt', { cancelable: true });
+      Object.assign(event, {
+        prompt: async () => { prompted = true; },
+        userChoice: Promise.resolve({ outcome: 'dismissed' }),
+      });
+      window.dispatchEvent(event);
+      const root = document.getElementById('system-toast');
+      const message = document.getElementById('system-toast-message').textContent;
+      const shown = !root.classList.contains('hidden');
+      document.getElementById('system-toast-action').click();
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return { shown, message, prompted, hidden: root.classList.contains('hidden') };
+    })()`);
+    if (!install.shown || !install.message.includes('INSTALL') || !install.prompted || !install.hidden) {
+      throw new Error(`Install prompt failed: ${JSON.stringify(install)}`);
+    }
+
     if (errors.length > 0) throw new Error(`Console errors:\n${errors.join('\n')}`);
 
     console.log(
@@ -553,6 +572,7 @@ async function main() {
           ending: true,
           phase: true,
           offline: true,
+          install: true,
           gamepadMenu: true,
           newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
