@@ -90,7 +90,8 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
-  HIGH adds a heavy or stalker tactical unit.
+  HIGH adds a heavy or stalker tactical unit; extras use separate spawn points.
+- Arena laser hazards form an offset cross around the boss, leaving readable lanes.
 - NG+: boss armor, speed and plate-break adds scale with the cycle; the brief shows `NG+n`.
 - Reduced motion on/off; palette/subtitles/log toggles; control presets.
 - Weather/fog modifiers and holo ads on/off.

@@ -306,13 +306,14 @@ export class World {
     if (extra > 0 && seedSpawn) {
       for (let i = 0; i < extra; i++) {
         const offset = (i + 1) * 26;
+        const spawnPoint = level.enemies[(i + 1) % level.enemies.length] ?? seedSpawn;
         const kind =
           mission.risk === 'HIGH' && i === 1
             ? this.rand() < 0.5
               ? 'heavy'
               : 'stalker'
             : pickEnemyKind(this.rand());
-        this.addEnemy(seedSpawn.x + offset, seedSpawn.y - offset, 1, 'idle', kind);
+        this.addEnemy(spawnPoint.x + offset, spawnPoint.y - offset, 1, 'idle', kind);
       }
     }
 
@@ -2609,7 +2610,7 @@ export class World {
     this.lasers.push({
       id: this.nextId++,
       x: e.x,
-      y: e.y,
+      y: e.y - 72,
       axis: 'h',
       phase,
       alive: true,
@@ -2617,7 +2618,7 @@ export class World {
     });
     this.lasers.push({
       id: this.nextId++,
-      x: e.x,
+      x: e.x + 72,
       y: e.y,
       axis: 'v',
       phase: phase + 1.3,
