@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 135 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 136 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -35,6 +35,7 @@ working checklist.
 | Endings | 1 | **4** (burn, broadcast, vanish, remember) | branch epilogue scenes |
 | New game flow | reset only | **confirmed reset, lifepath selection, NG+, ending-screen shortcut** | — |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
+| Stealth | takedowns only | **vision cones, body discovery, alert propagation, ghost-run bonus** | patrol routes, noise sources |
 | Combat gym | none | **16-archetype gym + three-build clear-rate matrix** | encounter-density tuning |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
@@ -47,7 +48,7 @@ working checklist.
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
-| Onboarding / manual / settings | partial | **first-minute safehouse tour, controls, palettes, subtitles, log** | arbitrary key capture |
+| Onboarding / manual / settings | partial | **tour, controls, palettes, subtitles, log, arbitrary key remap** | manual localization |
 
 ## Tranche status
 
@@ -93,7 +94,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 135 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 136 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.

@@ -50,6 +50,35 @@ describe('run settlement', () => {
   });
 });
 
+describe('ghost run settlement', () => {
+  it('pays the no-detection bonus once and marks the result', () => {
+    const profile = new Profile(3, new MemoryStorage());
+    const contract = rollContracts(3, 456)[0];
+    const world = {
+      time: 55,
+      shotsFired: 6,
+      shotsHit: 6,
+      peakHeat: 0,
+      stealthKills: 5,
+      detections: 0,
+      aliveEnemies: 0,
+      kills: 5,
+      loot: [],
+      player: { weapon: 'fists', ammo: 0, clip: 0, attachment: null, variant: null, alive: true },
+      boons: [],
+    } as unknown as World;
+    const { reward } = settleRun(profile, world, contract, 'standard');
+    expect(reward.ghostRun).toBe(true);
+    expect(reward.ghostBonus).toBeGreaterThan(0);
+    expect(reward.payout).toBe(
+      reward.base +
+        reward.bonus +
+        reward.rankBonus +
+        (reward.ghostBonus ?? 0),
+    );
+  });
+});
+
 describe('dialogue boons in settlement', () => {
   it('adds the fixer bonus and salvage components', () => {
     const profile = new Profile(2, new MemoryStorage());

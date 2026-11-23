@@ -67,6 +67,19 @@ describe('run result text', () => {
     expect(out.note).toContain('MODIFIERS: ALARM · ELITE');
     expect(out.note).toContain('BALANCE: $1,282');
     expect(out.note).toContain('THE LEASH IS CUT');
+
+    const ghost = winResult(
+      { ...reward, ghostRun: true, ghostBonus: 27 },
+      {
+        approachName: 'GHOST',
+        approachMult: 1.1,
+        modifierNames: [],
+        final: false,
+        money: 500,
+      },
+    );
+    expect(ghost.stats).toContain('GHOST BONUS   $27');
+    expect(ghost.note).toContain('STEALTH 1 · GHOST');
   });
 
   it('formats the chosen ending instead of the generic finale line', () => {

@@ -34,6 +34,8 @@ export interface RewardSummary {
   exchangeDividend?: number;
   dailyBonus?: number;
   challengeBonus?: number;
+  ghostBonus?: number;
+  ghostRun?: boolean;
   accuracy: number | null;
   stealthKills: number;
   peakHeat: number;
@@ -101,7 +103,8 @@ export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
   const challengeLine = (r.challengeBonus ?? 0) > 0
     ? `\nCHALLENGE     $${r.challengeBonus}`
     : '';
-  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}${roleLine}${ventureLine}${dividendLine}${dailyLine}${challengeLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
+  const ghostLine = (r.ghostBonus ?? 0) > 0 ? `\nGHOST BONUS   $${r.ghostBonus}` : '';
+  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}${roleLine}${ventureLine}${dividendLine}${dailyLine}${challengeLine}${ghostLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
   const ex = r.extracted;
   const extracted = ex
     ? `${ex.variant ? NAMED_MAP[ex.variant].name : WEAPONS[ex.weapon].name} · ${
@@ -117,7 +120,7 @@ export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
       : `LEVEL ${r.level} · ${r.xp}/${r.xpNext} XP · ${r.perkPoints} PP`;
   const accuracyLine = r.accuracy === null ? 'ACC —' : `ACC ${Math.round(r.accuracy * 100)}%`;
   const comboLine = (r.bestCombo ?? 0) > 0 ? ` · COMBO x${r.bestCombo}` : '';
-  const performance = `${accuracyLine} · STEALTH ${r.stealthKills} · PEAK HEAT ${Math.round(r.peakHeat)}${comboLine}`;
+  const performance = `${accuracyLine} · STEALTH ${r.stealthKills}${r.ghostRun ? ' · GHOST' : ''} · PEAK HEAT ${Math.round(r.peakHeat)}${comboLine}`;
   const finale = ctx.final
     ? ctx.ending
       ? `\nENDING: ${ENDINGS[ctx.ending].title}\n${ENDINGS[ctx.ending].summary}`

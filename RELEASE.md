@@ -21,7 +21,7 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~356 kB | 450 kB |
+| App JS | ~357 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
 | Total JS | ~898 kB | 1120 kB |
 | CSS | ~63 kB | 90 kB |
@@ -64,7 +64,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 135 unit tests + build + budget)
+- `npm run verify` (typecheck + 136 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -78,6 +78,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Offline preview: service worker controlled (cache `punkgun-v2`), network disabled, cached shell loads.
 - Save migration: v1 → v2 money/level/stash/equipped preserved; corrupt primary recovers from `.bak`.
 - Console clean on boot, run, death, win, safehouse.
+- Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Reduced motion on/off; palette/subtitles/log toggles; control presets.
 - Weather/fog modifiers and holo ads on/off.
 

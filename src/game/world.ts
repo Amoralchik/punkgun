@@ -109,6 +109,8 @@ export class World {
   shotsFired = 0;
   shotsHit = 0;
   stealthKills = 0;
+  /** First-time enemy/camera/turret detections; zero means a ghost run. */
+  detections = 0;
   deathCause = 'UNKNOWN';
   reinforcementWave = 0;
   defenseT = 0;
@@ -131,6 +133,8 @@ export class World {
   shake = 0;
 
   private readonly doorMap = new Map<number, Door>();
+  private readonly spotted = new Set<number>();
+  private readonly spottedCameras = new Set<number>();
   private readonly pathfinder: Pathfinder;
   private readonly rand: () => number;
   private nextId = 1;
@@ -484,6 +488,10 @@ export class World {
 
   get bossName(): string {
     return BOSSES[this.currentBossId ?? this.bossId ?? 'psycho'].name;
+  }
+
+  get ghostRun(): boolean {
+    return this.detections === 0 && this.player.alive && this.time > 0;
   }
 
   get bossRushProgress(): string {
@@ -1808,6 +1816,10 @@ export class World {
       if (!this.lineClear(cam.x, cam.y, p.x, p.y)) continue;
       if (this.smokeBlocks(cam.x, cam.y, p.x, p.y)) continue;
       if (cam.alertT <= 0) {
+        if (!this.spottedCameras.has(cam.id)) {
+          this.spottedCameras.add(cam.id);
+          this.detections++;
+        }
         this.emit({ type: 'cameraAlert', x: cam.x, y: cam.y, angle: cam.angle });
         this.alertAt(cam.x, cam.y, 330);
         this.addHeat(6);
@@ -1907,6 +1919,7 @@ export class World {
   }
 
   private turretShoot(t: Turret): void {
+    this.detections = Math.max(1, this.detections);
     const p = this.player;
     if (!p.alive) return;
     t.flashT = 0.08;
@@ -2421,6 +2434,7 @@ export class World {
       e.searchT = 6;
       e.markT = 1;
       this.alertAt(body.x, body.y, 260);
+      this.detections++;
       this.emit({ type: 'bodyFound', x: body.x, y: body.y, angle: e.angle });
       return;
     }
@@ -2449,6 +2463,10 @@ export class World {
 
   private spot(e: Enemy): void {
     if (e.state === 'chase' || e.state === 'alert') return;
+    if (!this.spotted.has(e.id)) {
+      this.spotted.add(e.id);
+      this.detections++;
+    }
     e.state = 'alert';
     e.stateT = 0.2 + this.rand() * 0.1;
     e.markT = 0.9;

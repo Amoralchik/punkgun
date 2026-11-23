@@ -41,12 +41,14 @@ export function settleRun(
   const bonus = timeBonus(world.time);
   const accuracy =
     world.shotsFired > 0 ? Math.min(1, world.shotsHit / world.shotsFired) : null;
+  const ghostRun = world.detections === 0 && world.player.alive !== false;
   let score = 100;
   score -= Math.max(0, world.time - 45) * 1.2;
   score -= world.peakHeat * 0.35;
   score += (accuracy ?? 0.6) * 18;
   score += world.stealthKills * 6;
   score += (world.bestCombo ?? 0) * 3;
+  if (ghostRun) score += 10;
   score += world.loot.filter((item) => item.collected).length * 4;
   score += world.aliveEnemies === 0 ? 5 : 0;
   score = Math.max(0, Math.min(150, score));
@@ -68,6 +70,7 @@ export function settleRun(
   const challengeBonus = Math.round(
     (base + bonus + rankBonus) * challengePayBonus(contract?.challenge),
   );
+  const ghostBonus = ghostRun ? Math.round((base + bonus + rankBonus) * 0.15) : 0;
   const payout =
     base +
     bonus +
@@ -78,7 +81,8 @@ export function settleRun(
     venturePassive +
     dividend +
     dailyBonus +
-    challengeBonus;
+    challengeBonus +
+    ghostBonus;
 
   let extractionAmmo = player.ammo + player.clip;
   if (player.attachment && player.weapon !== 'bat' && player.weapon !== 'fists') {
@@ -141,7 +145,8 @@ export function settleRun(
     world.kills * 4 +
     (world.bestCombo ?? 0) * 2 +
     Math.round(bonus * 0.25) +
-    rankXp;
+    rankXp +
+    (ghostRun ? 40 : 0);
   const levelInfo = profile.addXp(xpGain);
   profile.maybeQueueVentureEvent();
 
@@ -175,6 +180,8 @@ export function settleRun(
     exchangeDividend: dividend,
     dailyBonus,
     challengeBonus,
+    ghostBonus,
+    ghostRun,
     accuracy,
     stealthKills: world.stealthKills,
     peakHeat: world.peakHeat,
