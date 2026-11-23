@@ -36,6 +36,7 @@ The production build is an installable PWA with a service-worker app shell and o
 - `Z` targeted quickhack (requires an Intrusion Deck), `Q` use packed supply
 - `SHIFT` Sandevistan, `C` Optical Camo, `X` EMP, `V` Berserk, `G` Overclock, `H` Intrusion Deck
 - `TAB` safehouse terminal, `M` mute
+- Gamepad: left stick move, right stick aim, RT fire, LT throw, A dash, B reload, X interact, Y quickhack, START pause
 
 ## Current Systems
 
@@ -49,13 +50,13 @@ The production build is an installable PWA with a service-worker app shell and o
 - Stealth takedowns, body discovery, enemy vision cones, alert propagation, zero-detection ghost-run bonuses, flanking/cover/suppression squad AI and archetype combat-gym coverage
 - Hazards: explosive barrels, security cameras, turrets, laser grids, breakable glass and steam vents
 - Procedural district weather, holo ads, faction music layers, reload/death reactions, 4-frame walk cycles
-- Accessibility: reduced motion, colorblind palettes, subtitles, event log, control presets, per-action key remapping
+- Accessibility: reduced motion, colorblind palettes, subtitles, event log, control presets, per-action key remapping, standard-mapping gamepad
 - English/Spanish catalog for objectives, stations, boons, HUD events, manual and tour; breach-protocol minigame
 - PWA/offline shell, save v2 with backup/quarantine recovery, export/import, fatal error boundary
 
 ## Tests
 
-`npm test` runs the Vitest suite (139 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
+`npm test` runs the Vitest suite (142 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

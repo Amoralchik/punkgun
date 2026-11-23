@@ -19,6 +19,10 @@ export const MANUAL_SECTIONS: ManualSection[] = [
         es: '<b>WASD</b> mover · <b>RATÓN</b> apuntar · <b>CLIC IZQ</b> golpear/disparar · <b>R</b> recargar · <b>CLIC DER</b> lanzar arma · <b>ESPACIO</b> impulso · <b>E</b> ejecutar enemigos aturdidos',
       },
       {
+        en: '<b>GAMEPAD</b> — left stick move · right stick aim · RT fire · LT throw · A dash · B reload · X interact · Y quickhack · LB Sandevistan · RB camo · BACK supply · D-PAD abilities · START pause.',
+        es: '<b>MANDO</b> — stick izq mover · stick der apuntar · RT disparar · LT lanzar · A impulso · B recargar · X interactuar · Y quickhack · LB Sandevistan · RB camuflaje · BACK suministro · CRUZ habilidades · START pausa.',
+      },
+      {
         en: 'Everyone dies in one hit. Armor plates from cyberware absorb one hit each and give a short grace window. Dash through a room, chain kills inside the combo window, and finish stunned targets with <b>E</b>. A <b>Z</b> quickhack needs an Intrusion Deck and a visible target.',
         es: 'Todos mueren de un golpe. Las placas de blindaje del ciberware absorben un impacto cada una y dan una breve ventana de gracia. Cruza la sala con el impulso, encadena muertes dentro de la ventana de combo y remata a los objetivos aturdidos con <b>E</b>. Un <b>quickhack Z</b> requiere un mazo de intrusión y un objetivo visible.',
       },

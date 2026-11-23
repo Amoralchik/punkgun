@@ -1525,6 +1525,11 @@ export class Game {
 
   frame(dtRaw: number): void {
     const dt = Math.min(dtRaw, 0.05);
+    this.input.pollGamepad(dt);
+    if (this.input.wasPressed('Pause')) {
+      if (this.state === 'playing') this.pauseGame();
+      else if (this.state === 'paused') this.resumeGame();
+    }
     const aim = this.renderer.screenToWorld(this.input.mouseX, this.input.mouseY);
 
     if (this.state === 'breach' && this.breachState) {
