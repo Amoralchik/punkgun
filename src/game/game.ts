@@ -42,6 +42,7 @@ import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
 import { syncHud } from './hud-sync';
 import { GameStateMachine, type GameState } from './game-state';
+import { FrameShell } from './frame-shell';
 import { stepWorld } from './frame-step';
 import { advanceFrame } from './frame-orchestrator';
 import { settleRun } from './settlement';
@@ -74,6 +75,7 @@ export class Game {
   private readonly ending: EndingController;
   private readonly pause: PauseController;
   private readonly menu: MenuNavigation;
+  private readonly frameShell: FrameShell;
   private readonly launcher: RunLauncher;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -130,6 +132,7 @@ export class Game {
       () => this.menuIsOpen(),
       () => this.menuBack(),
     );
+    this.frameShell = new FrameShell(this.input, this.menu);
     this.pause = new PauseController({
       onResume: () => this.resumeGame(),
       onSettingsSync: () => this.settingsPanel.sync(),
@@ -870,8 +873,7 @@ export class Game {
 
   frame(dtRaw: number): void {
     const dt = Math.min(dtRaw, 0.05);
-    this.input.pollGamepad(dt);
-    this.menu.poll();
+    this.frameShell.begin(dt);
     if (this.input.wasPressed('Pause')) {
       if (this.state === 'playing') this.pauseGame();
       else if (this.state === 'paused') this.resumeGame();
@@ -955,11 +957,6 @@ export class Game {
       this.lastKills = synced.lastKills;
     }
 
-    this.renderer.sync(this.world, dt);
-    // A 165 Hz display can render frames without a fixed 120 Hz sim step.
-    // Keep edge-triggered input pending until a step actually consumes it.
-    if (edgesConsumed || (this.state !== 'playing' && this.state !== 'dead')) {
-      this.input.endFrame();
-    }
+    this.frameShell.finish(this.renderer, this.world, dt, edgesConsumed, this.state);
   }
 }
