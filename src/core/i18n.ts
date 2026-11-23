@@ -72,7 +72,20 @@ export type MessageKey =
   | 'station.note.ventures1'
   | 'station.note.ventures2'
   | 'station.note.contractLocked'
-  | 'station.note.contractKit';
+  | 'station.note.contractKit'
+  | 'epilogue.faction.helix'
+  | 'epilogue.faction.teeth'
+  | 'epilogue.faction.orbit'
+  | 'epilogue.faction.sublevel'
+  | 'epilogue.faction.market'
+  | 'epilogue.role.solo'
+  | 'epilogue.role.netrunner'
+  | 'epilogue.role.techie'
+  | 'epilogue.role.fixer'
+  | 'epilogue.role.medtech'
+  | 'epilogue.path.street'
+  | 'epilogue.path.corp'
+  | 'epilogue.path.nomad';
 
 const EN: Record<MessageKey, string> = {
   'event.bossPhase': 'ARMOR PLATE SHATTERED — BOSS PHASE SHIFT',
@@ -143,6 +156,19 @@ const EN: Record<MessageKey, string> = {
   'station.note.ventures1': 'Businesses pay after every clean extraction. Upgrades compound through three ranks.',
   'station.note.ventures2': 'Bars move faction standing. Clinics cut prices. Chop shops feed the fabricator.',
   'station.note.contractLocked': 'BOSS ACCESS LOCKED — {clears}/{required} regular clears required.',
+  'epilogue.faction.helix': 'Helix files your name under unresolved.',
+  'epilogue.faction.teeth': 'The Teeth keep a chair empty and a debt open.',
+  'epilogue.faction.orbit': 'Low Orbit routes one last container in your name.',
+  'epilogue.faction.sublevel': 'The Sublevel keeps your file warm.',
+  'epilogue.faction.market': 'The night market sells your story without a receipt.',
+  'epilogue.role.solo': 'The block tells it like a straight fight.',
+  'epilogue.role.netrunner': 'The mesh remembers a ghost with your signature.',
+  'epilogue.role.techie': 'Every panel you touched still lies for you.',
+  'epilogue.role.fixer': 'Somebody else is paying your interest now.',
+  'epilogue.role.medtech': 'The crews you patched keep breathing.',
+  'epilogue.path.street': 'The block opens one door it does not open for outsiders.',
+  'epilogue.path.corp': 'Your old badge still clears one elevator.',
+  'epilogue.path.nomad': 'The convoy leaves a gap in the patrol schedule.',
   'station.note.contractKit': 'The packed kit is consumed on launch. Die in the sector and the carried weapon and loot are lost.',
 };
 
@@ -216,6 +242,19 @@ const ES: Record<MessageKey, string> = {
   'station.note.ventures2': 'Los bares mueven la reputación. Las clínicas bajan precios. Los desguaces alimentan la fabricadora.',
   'station.note.contractLocked': 'ACCESO AL JEFE BLOQUEADO — {clears}/{required} limpiezas regulares requeridas.',
   'station.note.contractKit': 'El kit se consume al lanzar. Si mueres en el sector, pierdes el arma y el botín que llevas.',
+  'epilogue.faction.helix': 'Helix archiva tu nombre como no resuelto.',
+  'epilogue.faction.teeth': 'Los Dientes dejan una silla vacía y una deuda abierta.',
+  'epilogue.faction.orbit': 'Low Orbit envía un último contenedor a tu nombre.',
+  'epilogue.faction.sublevel': 'El Subnivel mantiene tu expediente caliente.',
+  'epilogue.faction.market': 'El mercado nocturno vende tu historia sin recibo.',
+  'epilogue.role.solo': 'El bloque lo cuenta como una pelea directa.',
+  'epilogue.role.netrunner': 'La red recuerda un fantasma con tu firma.',
+  'epilogue.role.techie': 'Cada panel que tocaste sigue mintiendo por ti.',
+  'epilogue.role.fixer': 'Ahora otro paga tus intereses.',
+  'epilogue.role.medtech': 'Las cuadrillas que curaste siguen respirando.',
+  'epilogue.path.street': 'El bloque abre una puerta que no abre para extraños.',
+  'epilogue.path.corp': 'Tu vieja placa todavía abre un ascensor.',
+  'epilogue.path.nomad': 'El convoy deja un hueco en el horario de patrullas.',
 };
 
 const CATALOGS: Record<Locale, Record<MessageKey, string>> = { en: EN, es: ES };

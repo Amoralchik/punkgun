@@ -1,4 +1,10 @@
-import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from '../game/endings';
+import {
+  availableEndings,
+  endingUnlocked,
+  epilogueConsequences,
+  ENDINGS,
+  type EndingId,
+} from '../game/endings';
 import type { Profile } from '../game/profile';
 
 export interface EndingHooks {
@@ -60,7 +66,14 @@ export class EndingController {
     this.root.classList.add('hidden');
     this.kicker.textContent = ENDINGS[id].kicker;
     this.title.textContent = ENDINGS[id].title;
-    this.body.innerHTML = ENDINGS[id].body.map((p) => `<p>${p}</p>`).join('');
+    const consequence = epilogueConsequences({
+      reputation: this.profile.data.reputation,
+      role: this.profile.data.role,
+      lifepath: this.profile.data.lifepath,
+    });
+    this.body.innerHTML = [...ENDINGS[id].body, ...consequence]
+      .map((p) => `<p>${p}</p>`)
+      .join('');
     this.epilogueRoot.classList.remove('hidden');
     this.hooks.onWin();
   }

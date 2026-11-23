@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 176 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 178 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -32,7 +32,7 @@ working checklist.
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 6 bosses** | more faction-specific voice |
 | Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
-| Endings | 1 | **4** (burn, broadcast, vanish, remember) | branch epilogue scenes |
+| Endings | 1 | **4** (burn, broadcast, vanish, remember) + consequence-aware epilogues | — |
 | New game flow | reset only | **confirmed reset, lifepath selection, NG+, ending-screen shortcut** | — |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
 | Stealth | takedowns only | **vision cones, body discovery, alert propagation, ghost-run bonus** | patrol routes, noise sources |
@@ -94,7 +94,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 176 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 178 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.

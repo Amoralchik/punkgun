@@ -1,3 +1,5 @@
+import { t } from '../core/i18n';
+
 export type EndingId = 'burn' | 'broadcast' | 'vanish' | 'remember';
 
 export interface EndingDef {
@@ -79,4 +81,22 @@ export function availableEndings(state: EndingUnlockState): EndingId[] {
 export function endingFor(id: string | null | undefined): EndingDef | null {
   if (!id) return null;
   return ENDINGS[id as EndingId] ?? null;
+}
+
+export interface EpilogueProfile {
+  reputation: Record<string, number>;
+  role: string | null;
+  lifepath: string | null;
+}
+
+/** Extra epilogue lines from the highest faction, role and lifepath. */
+export function epilogueConsequences(profile: EpilogueProfile): string[] {
+  const lines: string[] = [];
+  const faction = (['helix', 'teeth', 'orbit', 'sublevel', 'market'] as const)
+    .filter((id) => (profile.reputation[id] ?? 0) >= 5)
+    .sort((a, b) => (profile.reputation[b] ?? 0) - (profile.reputation[a] ?? 0))[0];
+  if (faction) lines.push(t(`epilogue.faction.${faction}` as never));
+  if (profile.role) lines.push(t(`epilogue.role.${profile.role}` as never));
+  if (profile.lifepath) lines.push(t(`epilogue.path.${profile.lifepath}` as never));
+  return lines;
 }
