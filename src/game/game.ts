@@ -42,6 +42,7 @@ import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
 import { BossEventFeedback } from './boss-event-feedback';
 import { syncHud } from './hud-sync';
+import { buildMissionSpec } from './mission-spec';
 import { GameStateMachine, type GameState } from './game-state';
 import { FrameShell } from './frame-shell';
 import { stepWorld } from './frame-step';
@@ -312,17 +313,7 @@ export class Game {
       this.input,
       (e) => this.onEvent(e),
       loadout,
-      {
-        objective: contract.objective,
-        requiredLoot: contract.requiredLoot,
-        approach,
-        modifiers: contract.modifiers,
-        bossId: contract.bossId,
-        bossRush: contract.bossRush,
-        risk: contract.risk,
-        ngPlus: this.profile.data.ngPlus,
-        boons: config.boons,
-      },
+      buildMissionSpec(contract, approach, config.boons, this.profile.data.ngPlus),
       this.profile.runMods(),
       seed,
     );
