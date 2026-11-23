@@ -2521,6 +2521,55 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+.boss-intro {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  z-index: 76;
+  width: min(620px, 86vw);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 0 22px rgba(255, 47, 142, 0.55);
+}
+.boss-intro.hidden {
+  display: none;
+}
+.boss-intro.show {
+  animation: boss-intro-in 2.6s ease-out both;
+}
+.boss-intro-name {
+  margin-top: 8px;
+  font-size: clamp(28px, 6vw, 62px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--magenta);
+  line-height: 0.95;
+}
+.boss-intro-sub {
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: rgba(223, 252, 255, 0.75);
+}
+@keyframes boss-intro-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.08);
+    filter: blur(8px);
+  }
+  12%,
+  72% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.98);
+  }
+}
+
 .system-toast {
   position: fixed;
   left: 50%;

@@ -9,6 +9,7 @@ import { setLocale, t } from '../core/i18n';
 import { resolveKeymap } from '../core/settings';
 import { renderManual, renderTour } from '../ui/manual';
 import { Hub } from '../ui/hub';
+import { BossIntro } from '../ui/boss-intro';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -106,6 +107,7 @@ export class Game {
     'set-dialogue-log',
   ) as HTMLInputElement;
   private readonly hub = new Hub();
+  private readonly bossIntro = new BossIntro();
   private readonly profile: Profile;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -1051,6 +1053,13 @@ export class Game {
     this.epilogueRoot.classList.add('hidden');
     this.world = this.createWorld(config);
     this.renderer.bind(this.world);
+    if (contract.objective === 'boss') {
+      this.bossIntro.show(
+        '// BOSS ENCOUNTER',
+        this.world.bossName,
+        contract.bossRush ? 'BOSS RUSH' : contract.title,
+      );
+    }
     this.acc = 0;
     this.overlayT = 0;
     this.overlayShown = false;
@@ -1118,6 +1127,7 @@ export class Game {
     this.audio.setIntensity(0);
     this.currentBoons = [];
     this.hud.setHacked(false);
+    this.bossIntro.hide();
     this.state = 'safehouse';
     this.pauseRoot.classList.add('hidden');
     this.manualRoot.classList.add('hidden');
@@ -1455,6 +1465,7 @@ export class Game {
         this.audio.alert();
         break;
       case 'bossRushWave':
+        this.bossIntro.show('// NEXT BOSS', this.world.bossName, `WAVE ${e.wave}/${e.total}`);
         this.audio.alert();
         this.audio.setBossMode(true);
         this.hud.subtitle(`BOSS RUSH ${e.wave}/${e.total} — ${this.world.bossName}`, 4000);

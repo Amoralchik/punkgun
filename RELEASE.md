@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~383 kB | 450 kB |
+| App JS | ~384 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~924 kB | 1120 kB |
-| CSS | ~63 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~267 kB | 340 kB |
-| Largest single chunk | ~383 kB | 480 kB |
+| Total JS | ~925 kB | 1120 kB |
+| CSS | ~64 kB | 90 kB |
+| Initial gzip (JS + CSS + HTML) | ~268 kB | 340 kB |
+| Largest single chunk | ~384 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -80,6 +80,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Offline preview: service worker controlled (cache `punkgun-v2`), network disabled, cached shell loads.
 - Save migration: v1 → v2 money/level/stash/equipped preserved; corrupt primary recovers from `.bak`.
 - Console clean on boot, run, death, win, safehouse.
+- Boss missions and boss-rush waves present the encounter intro card without blocking input.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - NG+: boss armor, speed and plate-break adds scale with the cycle; the brief shows `NG+n`.
 - Reduced motion on/off; palette/subtitles/log toggles; control presets.

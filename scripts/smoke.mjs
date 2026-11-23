@@ -463,10 +463,12 @@ async function main() {
         state: game.state,
         wave: game.world.bossRushProgress,
         mission: game.world.mission.bossRush,
+        intro: document.getElementById('boss-intro-name').textContent,
+        introVisible: !document.getElementById('boss-intro').classList.contains('hidden'),
         title: contract.title,
       };
     })()`);
-    if (!bossRush.found || bossRush.state !== 'playing' || !bossRush.mission) {
+    if (!bossRush.found || bossRush.state !== 'playing' || !bossRush.mission || !bossRush.introVisible || !bossRush.intro) {
       throw new Error(`Boss rush failed: ${JSON.stringify(bossRush)}`);
     }
     await cdp.evaluate(`window.__game.returnToSafehouse()`);

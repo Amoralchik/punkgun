@@ -46,7 +46,7 @@ The production build is an installable PWA with a service-worker app shell and o
 - Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, sanctuary, deploy; confirmed NEW GAME reset, campaign reroll, NG+ (build/gear retained, boss armor/speed/adds scaled) and seeded daily contracts
 - Four challenge stamps (Standard, Fists Only, Glass, Rush), faction broker hardware gated by standing, a daily clear bonus, local run history/leaderboard and a first-minute safehouse tour
 - 12 contract modifiers, 8 objectives (purge, target, recover, sabotage, extraction, hunt, defense, boss), faction storylines with attribute/reputation/role/lifepath dialogue checks and run boons, insertion approaches, faction reputation, seeded market stock and price drift
-- 12 combat layouts, 16 enemy archetypes, 6 bosses across three campaign chapters, a post-finale all-boss rush, plus a branching four-ending finale (one secret)
+- 12 combat layouts, 16 enemy archetypes, 6 bosses across three campaign chapters, boss encounter intro cards, a post-finale all-boss rush, plus a branching four-ending finale (one secret)
 - Stealth takedowns, body discovery, enemy vision cones, alert propagation, zero-detection ghost-run bonuses, flanking/cover/suppression squad AI and archetype combat-gym coverage
 - Hazards: explosive barrels, security cameras, turrets, laser grids, breakable glass and steam vents
 - Procedural district weather, holo ads, faction music layers, reload/death reactions, 4-frame walk cycles
