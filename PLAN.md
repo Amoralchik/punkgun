@@ -31,7 +31,7 @@ working checklist.
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 6 bosses** | more faction-specific voice |
 | Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
-| Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense); the extraction case is now a physical burden — slower move, dash locked, HUD warning | objective-specific bespoke rooms |
+| Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) with room-aware placement (`level-rooms.ts`: case in the farthest non-exit room, terminals spread across guarded rooms, defense zone at the largest room); the extraction case is a physical burden — slower move, dash locked, HUD warning | fully bespoke authored rooms per objective |
 | Endings | 1 | **4** (burn, broadcast, vanish, remember) + consequence-aware epilogues | — |
 | New game flow | reset only | **confirmed reset, lifepath selection, NG+, ending-screen shortcut** | — |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |

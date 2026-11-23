@@ -2,6 +2,7 @@ import { t } from '../core/i18n';
 import { dist } from '../core/math';
 import type { Level } from './map';
 import { tileCenter } from './map';
+import { findRooms, pickCaseTile, pickTerminalTiles, pickZoneTile } from './level-rooms';
 import type { LootItem, MissionSpec, ObjectiveNode, Player } from './world-types';
 
 /** Datum positions for terminals/cases, biased to existing caches and spawns. */
@@ -39,7 +40,13 @@ export function createObjectiveNodes(
   const nodes: ObjectiveNode[] = [];
   if (mission.objective === 'sabotage') {
     const count = Math.max(1, mission.requiredLoot);
-    for (const pos of objectivePositions(level, loot, count)) {
+    const positions = pickTerminalTiles(
+      level,
+      findRooms(level),
+      count,
+      objectivePositions(level, loot, count),
+    );
+    for (const pos of positions) {
       nodes.push({
         id: nextId(),
         x: pos.x,
@@ -52,19 +59,11 @@ export function createObjectiveNodes(
       });
     }
   } else if (mission.objective === 'extraction') {
-    let best = level.loot[0] ?? { x: level.exit.x, y: level.exit.y };
-    let bestD = -1;
-    for (const item of level.loot) {
-      const d = dist(item.x, item.y, level.spawn.x, level.spawn.y);
-      if (d > bestD) {
-        bestD = d;
-        best = item;
-      }
-    }
+    const pos = pickCaseTile(level, findRooms(level));
     nodes.push({
       id: nextId(),
-      x: best.x,
-      y: best.y,
+      x: pos.x,
+      y: pos.y,
       kind: 'case',
       progress: 0,
       required: 1,
@@ -72,10 +71,11 @@ export function createObjectiveNodes(
       radius: 58,
     });
   } else if (mission.objective === 'defense') {
+    const pos = pickZoneTile(level, findRooms(level));
     nodes.push({
       id: nextId(),
-      x: level.exit.x,
-      y: level.exit.y,
+      x: pos.x,
+      y: pos.y,
       kind: 'zone',
       progress: 0,
       required: 45,
