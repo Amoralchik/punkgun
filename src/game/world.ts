@@ -2,6 +2,7 @@ import { Input } from '../core/input';
 import { angleDelta, clamp, dist, mulberry32, randomSeed, turnToward } from '../core/math';
 import { Level, TILE, isWall, tileCenter, worldToTile } from './map';
 import { Pathfinder } from './path';
+import { updateBullets } from './world-bullets';
 import { updateDoorAngles } from './world-doors';
 import {
   aimPlayer,
@@ -129,7 +130,7 @@ export class World {
   constructor(
     readonly level: Level,
     private readonly input: Input,
-    private readonly emit: (e: WorldEvent) => void,
+    readonly emit: (e: WorldEvent) => void,
     loadout: {
       weapon: WeaponId;
       ammo: number;
@@ -722,7 +723,7 @@ export class World {
     this.updateTurrets(dt);
     this.updateLasers(dt);
     this.updateEnemies(dt * slow);
-    this.updateBullets(dt, slow);
+    updateBullets(this, dt, slow);
     this.updatePickups(dt);
     this.updateGrenades(dt);
     this.updateSmokes(dt);
@@ -787,7 +788,7 @@ export class World {
     return true;
   }
 
-  private breakGlassAt(x: number, y: number): boolean {
+  breakGlassAt(x: number, y: number): boolean {
     const { cx, cy } = worldToTile(x, y, this.level.h);
     const index = cy * this.level.w + cx;
     if (this.level.glass[index] !== 1 || this.glassBroken.has(index)) return false;
@@ -1592,7 +1593,7 @@ export class World {
     }
   }
 
-  private blowBarrel(b: Barrel): void {
+  blowBarrel(b: Barrel): void {
     if (!b.alive) return;
     b.alive = false;
     this.explode(b.x, b.y, 'barrel');
@@ -2422,7 +2423,7 @@ export class World {
     }
   }
 
-  private damageBoss(e: Enemy, angle: number): void {
+  damageBoss(e: Enemy, angle: number): void {
     if (!e.alive) return;
     if (e.invulnT > 0) {
       this.addSparks(e.x, e.y, angle);
@@ -2524,7 +2525,7 @@ export class World {
     this.killPlayer(e.angle);
   }
 
-  private damageHeavy(e: Enemy, angle: number): void {
+  damageHeavy(e: Enemy, angle: number): void {
     if (e.armor <= 0) return;
     e.armor--;
     e.flashT = 0.08;
@@ -2534,7 +2535,7 @@ export class World {
     if (e.armor <= 0) this.emit({ type: 'armorBreakEnemy', x: e.x, y: e.y, angle });
   }
 
-  private killPlayer(angle: number): void {
+  killPlayer(angle: number): void {
     const p = this.player;
     if (!p.alive) return;
     if (p.invulnT > 0) return;
@@ -2581,129 +2582,6 @@ export class World {
   /* ------------------------------------------------------------------ */
   /* bullets                                                             */
   /* ------------------------------------------------------------------ */
-
-  private updateBullets(dt: number, enemyScale = 1): void {
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const b = this.bullets[i];
-      const step = b.ownerKind === 'player' ? dt : dt * enemyScale;
-      b.px = b.x;
-      b.py = b.y;
-      b.x += b.vx * step;
-      b.y += b.vy * step;
-      b.life -= step;
-
-      if (b.life <= 0) {
-        this.bullets.splice(i, 1);
-        continue;
-      }
-
-      if (this.solidAt(b.x, b.y)) {
-        if (!this.breakGlassAt(b.x, b.y)) {
-          this.addSparks(b.x, b.y, Math.atan2(-b.vy, -b.vx));
-        }
-        this.bullets.splice(i, 1);
-        continue;
-      }
-
-      let hit = false;
-      for (const barrel of this.barrels) {
-        if (!barrel.alive) continue;
-        if (
-          segmentHitsCircle(b.px, b.py, b.x, b.y, barrel.x, barrel.y, barrel.r)
-        ) {
-          this.blowBarrel(barrel);
-          hit = true;
-          break;
-        }
-      }
-      if (!hit) {
-        for (const cam of this.cameras) {
-          if (!cam.alive) continue;
-          if (segmentHitsCircle(b.px, b.py, b.x, b.y, cam.x, cam.y, 20)) {
-            cam.alive = false;
-            this.addSparks(cam.x, cam.y, Math.atan2(-b.vy, -b.vx));
-            this.emit({ type: 'cameraBroken', x: cam.x, y: cam.y, angle: cam.angle });
-            hit = true;
-            break;
-          }
-        }
-      }
-      if (!hit) {
-        for (const t of this.turrets) {
-          if (!t.alive) continue;
-          if (segmentHitsCircle(b.px, b.py, b.x, b.y, t.x, t.y, 22)) {
-            t.alive = false;
-            this.addSparks(t.x, t.y, Math.atan2(-b.vy, -b.vx));
-            this.emit({ type: 'turretBroken', x: t.x, y: t.y, angle: t.angle });
-            hit = true;
-            break;
-          }
-        }
-      }
-      if (!hit) {
-        for (const l of this.lasers) {
-          if (!l.alive) continue;
-          if (segmentHitsCircle(b.px, b.py, b.x, b.y, l.x, l.y, 20)) {
-            l.alive = false;
-            this.addSparks(l.x, l.y, Math.atan2(-b.vy, -b.vx));
-            this.emit({ type: 'laserBroken', x: l.x, y: l.y, angle: 0 });
-            hit = true;
-            break;
-          }
-        }
-      }
-      if (!hit && b.ownerKind !== 'player' && this.player.alive) {
-        if (segmentHitsCircle(b.px, b.py, b.x, b.y, this.player.x, this.player.y, this.player.r)) {
-          this.deathCause = 'GUNFIRE';
-          this.killPlayer(Math.atan2(b.vy, b.vx));
-          hit = true;
-        }
-      }
-      if (!hit && b.ownerKind === 'player') {
-        for (const e of this.enemies) {
-          if (!e.alive || e.id === b.ownerId) continue;
-          if (segmentHitsCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r + 44)) {
-            e.suppressT = Math.max(e.suppressT, 1.2);
-          }
-          if (segmentHitsCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r)) {
-            const from = Math.atan2(-b.vy, -b.vx);
-            if (e.kind === 'boss') {
-              if (b.ownerKind === 'player') this.shotsHit++;
-              this.damageBoss(e, from);
-              hit = true;
-              break;
-            }
-            if (
-              e.kind === 'shield' &&
-              e.shieldT <= 0 &&
-              Math.abs(angleDelta(e.angle, from)) < 1.25
-            ) {
-              this.addSparks(b.x, b.y, from + Math.PI);
-              e.shieldT = 0.42;
-              this.emit({ type: 'shieldHit', x: e.x, y: e.y, angle: from });
-              hit = true;
-              break;
-            }
-            if ((e.kind === 'heavy' || e.kind === 'breacher') && e.armor > 0) {
-              if (b.ownerKind === 'player') this.shotsHit++;
-              this.damageHeavy(e, from);
-              hit = true;
-              break;
-            }
-            if (b.ownerKind === 'player') this.shotsHit++;
-            this.killEnemy(e, b.ownerKind === 'player' ? 'player' : 'enemy');
-            if (b.ownerKind === 'player' && b.pierce > 0) {
-              b.pierce--;
-              continue;
-            }
-            hit = true;
-            break;
-          }
-        }
-      }
-      if (hit) this.bullets.splice(i, 1);
-    }
-  }
 
   /* ------------------------------------------------------------------ */
   /* pickups                                                             */
@@ -2815,7 +2693,7 @@ export class World {
     }
   }
 
-  private killEnemy(e: Enemy, by: 'player' | 'enemy' | 'door', silent = false): void {
+  killEnemy(e: Enemy, by: 'player' | 'enemy' | 'door', silent = false): void {
     if (!e.alive) return;
     e.alive = false;
     e.state = 'dead';

@@ -42,7 +42,7 @@ working checklist.
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
 | Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
 | Localization readiness | none | **English/Spanish catalog for objectives, stations, boons and HUD** | station/manual/dialogue copy |
-| Deep module splits | not started | **world player/objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | bullets; station views |
+| Deep module splits | not started | **world player/bullets/objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | Safehouse station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
@@ -67,7 +67,7 @@ working checklist.
 
 ## Next sequence
 
-1. Continue the split: World player/bullets and Safehouse station views.
+1. Extract Shared Safehouse station views (contracts, market, operator).
 2. Extract remaining station/manual/dialogue strings into the catalog.
 3. Extend breach interactions to cameras, safes and security networks.
 4. Tune encounter density and squad compositions from the 16-archetype gym.
