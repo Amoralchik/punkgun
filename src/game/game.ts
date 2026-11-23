@@ -22,7 +22,6 @@ import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
 import { LayoutId, Level, loadLevel, Station, StationKind } from './map';
-import { CONSUMABLE_MAP } from './consumables';
 import type { Contract } from './missions';
 import { buildBoard } from './campaign';
 import { DialogueSession } from './dialogue-session';
@@ -30,10 +29,9 @@ import { FACTIONS, authoredDialogue, bossBriefing, localizeDialogue } from './lo
 import { availableEndings, type EndingId } from './endings';
 import type { RunBoon } from './boons';
 
-import { APPROACH_MAP, ApproachId } from './attributes';
+import type { ApproachId } from './attributes';
 import { Profile } from './profile';
 import { RunConfig } from './run';
-import { WEAPONS } from './weapons';
 import { World } from './world';
 import type { WorldEvent } from './world-types';
 import type { RewardSummary } from './results';
@@ -42,6 +40,7 @@ import { playWorldEventAudio } from './world-event-audio';
 import { WorldEventHud } from './world-event-hud';
 import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
+import { syncHud } from './hud-sync';
 import { settleRun } from './settlement';
 
 const FIXED = 1 / 120;
@@ -942,78 +941,26 @@ export class Game {
     }
 
     if (this.state !== 'safehouse') {
-      const p = this.world.player;
-      this.hud.setStats(
-        this.world.aliveEnemies,
-        p.weapon,
-        p.variant,
-        p.attachment,
-        p.clip,
-        p.ammo,
-        p.reloadT > 0,
-        this.world.time,
-        this.world.lootValue,
-        p.armor,
-        p.maxArmor,
-        this.world.exitOpen,
-        this.state === 'playing' ? this.world.promptText() : null,
-      );
-      this.hud.setHacked(p.hackedT > 0);
-      this.hud.setObjective(
-        this.currentContract?.title ?? 'OBJECTIVE',
-        this.world.objectiveText(),
-        this.world.exitOpen,
-      );
-      const supply = p.supplyType
-        ? `${CONSUMABLE_MAP[p.supplyType].name} ×${p.supplyCharges}`
-        : '';
-      this.hud.setConsumable(supply, !!p.supplyType && p.supplyCharges > 0);
-      const boss = this.world.boss;
-      this.hud.setBoss(
-        this.world.bossName,
-        boss?.armor ?? 0,
-        boss?.maxArmor ?? 0,
-        !!boss && boss.alive && this.state === 'playing',
-        boss ? Math.max(1, boss.maxArmor - boss.armor + 1) : 1,
-      );
-      if (this.world.shotsHit > this.lastShotsHit || this.world.kills > this.lastKills) {
-        this.hud.hitmarker(this.world.kills > this.lastKills);
-        this.lastShotsHit = this.world.shotsHit;
-        this.lastKills = this.world.kills;
-      }
-      const approachDef = APPROACH_MAP[this.currentApproach];
-      if (approachDef.id === 'blackout') {
-        const screen = this.renderer.worldToScreen(p.x, p.y);
-        this.approachVignette.style.setProperty('--px', `${screen.x}px`);
-        this.approachVignette.style.setProperty('--py', `${screen.y}px`);
-      }
-      this.hud.setApproach(
-        approachDef.id === 'standard' ? '' : approachDef.name,
-        approachDef.color,
-      );
-      this.hud.setHeat(this.world.heat);
-      this.audio.setIntensity(this.world.heat / 100);
-      this.hud.setAbilities(this.world.abilitySlots());
-      this.hud.setCombo(this.world.combo, this.world.comboT, this.world.comboMax);
-      this.hud.setPsychosis(
-        this.profile.humanityStage,
-        this.profile.humanityInfo().label,
-      );
-      const spread =
-        1 +
-        Math.min(
-          0.38,
-          (p.attackCd > 0 ? p.attackCd * 0.9 : 0) + WEAPONS[p.weapon].spread * 1.8,
-        );
-      this.hud.crosshairAt(this.input.mouseX, this.input.mouseY, this.state === 'playing', spread);
-      const ex = this.world.level.exit.x - p.x;
-      const ey = this.world.level.exit.y - p.y;
-      const exitDeg = 90 - (Math.atan2(ey, ex) * 180) / Math.PI;
-      this.hud.exitPointer(
-        exitDeg,
-        Math.round(Math.hypot(ex, ey) / 64),
-        this.world.exitOpen && this.state === 'playing' && p.alive,
-      );
+      const synced = syncHud({
+        state: this.state,
+        world: this.world,
+        profile: this.profile,
+        contract: this.currentContract,
+        approach: this.currentApproach,
+        mouseX: this.input.mouseX,
+        mouseY: this.input.mouseY,
+        lastShotsHit: this.lastShotsHit,
+        lastKills: this.lastKills,
+        hud: this.hud,
+        renderer: this.renderer,
+        audio: this.audio,
+        setVignettePoint: (x, y) => {
+          this.approachVignette.style.setProperty('--px', `${x}px`);
+          this.approachVignette.style.setProperty('--py', `${y}px`);
+        },
+      });
+      this.lastShotsHit = synced.lastShotsHit;
+      this.lastKills = synced.lastKills;
     }
 
     this.renderer.sync(this.world, dt);
