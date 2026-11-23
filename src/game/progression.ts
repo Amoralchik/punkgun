@@ -42,7 +42,9 @@ export type PerkId =
   | 'vulture'
   | 'bladeDancer'
   | 'slipstream'
-  | 'chainKiller';
+  | 'chainKiller'
+  | 'ghostProtocol'
+  | 'warMachine';
 
 export interface CyberwareDef {
   id: CyberwareId;
@@ -61,6 +63,8 @@ export interface PerkDef {
   desc: string;
   descEs: string;
   maxRank: number;
+  requires?: { id: PerkId; rank: number };
+  exclusiveWith?: PerkId[];
 }
 
 export const CYBERWARE_DEFS: CyberwareDef[] = [
@@ -384,6 +388,24 @@ export const PERK_DEFS: PerkDef[] = [
     descEs: 'VENTANA DE COMBO +0.5S POR RANGO. ENCADENA LA SALA.',
     maxRank: 2,
   },
+  {
+    id: 'ghostProtocol',
+    name: 'GHOST PROTOCOL',
+    desc: 'CAPSTONE: ENEMY VISION -10%. EXCLUSIVE WITH WAR MACHINE. REQUIRES GHOST 1.',
+    descEs: 'CAPSTONE: VISIÓN ENEMIGA -10%. EXCLUSIVO CON MÁQUINA DE GUERRA. REQUIERE FANTASMA 1.',
+    maxRank: 1,
+    requires: { id: 'ghost', rank: 1 },
+    exclusiveWith: ['warMachine'],
+  },
+  {
+    id: 'warMachine',
+    name: 'WAR MACHINE',
+    desc: 'CAPSTONE: +1 ARMOR, GUN SPREAD -10%. EXCLUSIVE WITH GHOST PROTOCOL. REQUIRES JUGGERNAUT 1.',
+    descEs: 'CAPSTONE: +1 ARMADURA, DISPERSIÓN -10%. EXCLUSIVO CON PROTOCOLO FANTASMA. REQUIERE JUGGERNAUT 1.',
+    maxRank: 1,
+    requires: { id: 'juggernaut', rank: 1 },
+    exclusiveWith: ['ghostProtocol'],
+  },
 ];
 
 export type CyberwareRanks = Record<CyberwareId, number>;
@@ -499,7 +521,8 @@ export function computeMods(
       (cyberware.painEditor > 0 ? 1 : 0) +
       (cyberware.bioplastic >= 2 ? 1 : 0) +
       (attributes.body >= 5 ? 1 : 0) +
-      (perks.juggernaut > 0 && attributes.body >= 5 ? 1 : 0) -
+      (perks.juggernaut > 0 && attributes.body >= 5 ? 1 : 0) +
+      (perks.warMachine > 0 ? 1 : 0) -
       (strain >= 2 ? 1 : 0),
     0,
     6,
@@ -526,14 +549,20 @@ export function computeMods(
       0.4,
       1,
     ),
-    spread: clamp(1 - cyberware.smartlink * 0.12 - perks.gunslinger * 0.1, 0.25, 1),
+    spread: clamp(
+      (1 - cyberware.smartlink * 0.12 - perks.gunslinger * 0.1) *
+        (perks.warMachine > 0 ? 0.9 : 1),
+      0.25,
+      1,
+    ),
     meleeReach: clamp(1 + perks.brawler * 0.12 + cyberware.mantis * 0.25, 1, 1.85),
     vision: clamp(
       1 -
         cyberware.ocular * 0.08 -
         perks.ghost * 0.07 -
         (attributes.cool - 3) * 0.03 -
-        (strain >= 2 ? 0.05 : 0),
+        (strain >= 2 ? 0.05 : 0) -
+        (perks.ghostProtocol > 0 ? 0.1 : 0),
       0.35,
       1,
     ),

@@ -1995,10 +1995,25 @@ export class Profile {
     return null;
   }
 
-  trainPerk(id: PerkId): string | null {
+  perkBlockReason(id: PerkId): string | null {
     const def = PERK_DEFS.find((d) => d.id === id);
     if (!def) return 'UNKNOWN PERK';
     if (this.data.perks[id] >= def.maxRank) return 'ALREADY AT MAX RANK';
+    if (def.requires && this.data.perks[def.requires.id] < def.requires.rank) {
+      const req = PERK_DEFS.find((d) => d.id === def.requires!.id);
+      return `REQUIRES ${req?.name ?? def.requires.id} ${def.requires.rank}`;
+    }
+    const exclusive = def.exclusiveWith?.find((entry) => this.data.perks[entry] > 0);
+    if (exclusive) {
+      const other = PERK_DEFS.find((d) => d.id === exclusive);
+      return `EXCLUSIVE WITH ${other?.name ?? exclusive}`;
+    }
+    return null;
+  }
+
+  trainPerk(id: PerkId): string | null {
+    const blocked = this.perkBlockReason(id);
+    if (blocked) return blocked;
     if (this.data.perkPoints < 1) return 'NO PERK POINTS';
     this.data.perkPoints--;
     this.data.perks[id]++;

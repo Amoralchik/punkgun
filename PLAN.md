@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 183 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 185 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -26,7 +26,7 @@ working checklist.
 | Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
 | Hacking/breach | none | **Breach grid on terminals, cameras, turrets, locked safes and terminal/camera safe chains** | networked objectives |
 | Ventures | 0 | **6 businesses × 3 ranks** | room visuals and event chains |
-| Perks | 4 | **17** | mutually exclusive capstones |
+| Perks | 4 | **19 + mutually exclusive capstones** | — |
 | Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 6 bosses** | more faction-specific voice |
@@ -54,7 +54,7 @@ working checklist.
 
 1. **Release guardrails** — done: save backup/quarantine, budget gate, smoke test,
    QA matrix, PWA cache version.
-2. **Operator depth** — done: 22 cyberware, 17 perks, humanity/cyberpsychosis,
+2. **Operator depth** — done: 22 cyberware, 19 perks, humanity/cyberpsychosis,
    ripperdoc rejection risk, 12 weapon families / 8 named, loadout presets,
    stock rotation, price drift, faction discounts across stations.
 3. **Contract depth** — done: 8 objectives, 12 modifiers, 12 authored contracts,
@@ -94,7 +94,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 183 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 185 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.

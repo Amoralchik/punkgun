@@ -49,6 +49,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 - Primary save: `punkgun.save.v2` (slots 1–3 namespaced).
 - Slot 1 is canonical; `?slot=2/3` selects another profile, with the operator sheet offering slot switch/reload.
+- GHOST PROTOCOL and WAR MACHINE capstones enforce prerequisites and mutual exclusion.
 - Previous payload: `.bak`; rejected payload: `.corrupt`.
 - Corrupt primary is quarantined, then the backup is loaded; the hub reports the recovery.
 - Future versions are rejected rather than coerced.
@@ -68,7 +69,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 183 unit tests + build + budget)
+- `npm run verify` (typecheck + 185 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`

@@ -17,7 +17,7 @@ import { WEAPON_ECONOMY } from './economy';
 describe('expanded build content', () => {
   it('ships the promised cyberware/perk/weapon counts with valid ranks', () => {
     expect(CYBERWARE_DEFS).toHaveLength(22);
-    expect(PERK_DEFS).toHaveLength(17);
+    expect(PERK_DEFS).toHaveLength(19);
     expect(GUN_IDS).toHaveLength(12);
     expect(NAMED_WEAPONS).toHaveLength(8);
     for (const def of CYBERWARE_DEFS) {

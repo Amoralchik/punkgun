@@ -1319,15 +1319,16 @@ export class Safehouse {
     this.augPerksEl.innerHTML = PERK_DEFS.map((def) => {
       const rank = perks[def.id];
       const maxed = rank >= def.maxRank;
+      const blocked = maxed ? null : this.profile.perkBlockReason(def.id);
       return `<div class="aug-item">
         <div class="aug-info">
           <span class="aug-name">${def.name}</span>
           <span class="aug-desc">${es ? def.descEs : def.desc}</span>
-          <span class="aug-rank">RANK ${rank}/${def.maxRank}</span>
+          <span class="aug-rank">RANK ${rank}/${def.maxRank}${blocked ? ` · ${blocked}` : ''}</span>
         </div>
         <div class="sh-actions aug-action">
           <span class="aug-cost">${maxed ? 'MAX' : '1 PT'}</span>
-          <button data-act="train" data-id="${def.id}" ${maxed ? 'disabled' : ''}>${maxed ? 'MAXED' : 'TRAIN'}</button>
+          <button data-act="train" data-id="${def.id}" ${maxed || blocked ? 'disabled' : ''}>${maxed ? 'MAXED' : blocked ? 'LOCKED' : 'TRAIN'}</button>
         </div>
       </div>`;
     }).join('');
