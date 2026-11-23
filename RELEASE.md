@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~410 kB | 450 kB |
+| App JS | ~411 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~951 kB | 1120 kB |
+| Total JS | ~952 kB | 1120 kB |
 | CSS | ~65 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~278 kB | 340 kB |
-| Largest single chunk | ~410 kB | 480 kB |
+| Largest single chunk | ~411 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 175 unit tests + build + budget)
+- `npm run verify` (typecheck + 176 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -90,7 +90,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions, mission/dead/win timing and frame input/render finalization are split out.
-- Quickhack, medic, flash, Kerenzikov, boss-phase and boss-rush presentation route through dedicated event modules; mission specs and hub world/station flow live in `mission-spec` and `hub-flow`.
+- Quickhack, medic, flash, Kerenzikov, boss-phase and boss-rush presentation route through dedicated event modules; mission specs, hub flow and keyboard routing live in `mission-spec`, `hub-flow` and `keyboard-controller`.
 - Audio-only coverage includes loot, doors, pickups, suppressed fire, stims, explosives, sniper fire, cyberware and EMP feedback.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.

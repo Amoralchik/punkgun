@@ -46,6 +46,7 @@ import { buildMissionSpec } from './mission-spec';
 import { createHubWorld, nearestStation } from './hub-flow';
 import { GameStateMachine, type GameState } from './game-state';
 import { FrameShell } from './frame-shell';
+import { KeyboardController } from '../ui/keyboard-controller';
 import { stepWorld } from './frame-step';
 import { advanceFrame } from './frame-orchestrator';
 import { settleRun } from './settlement';
@@ -80,6 +81,7 @@ export class Game {
   private readonly pause: PauseController;
   private readonly menu: MenuNavigation;
   private readonly frameShell: FrameShell;
+  private readonly keyboard: KeyboardController;
   private readonly launcher: RunLauncher;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -195,6 +197,39 @@ export class Game {
       onClose: () => this.closePanel(),
     });
 
+    this.keyboard = new KeyboardController({
+      state: () => this.state,
+      toggleMute: () => this.audio.toggleMute(),
+      isTourOpen: () => this.pause.isTourOpen,
+      closeTour: () => this.closeTour(),
+      finishBreach: () => this.breach.finish(false),
+      isDialogueOpen: () => this.dialogueOpen,
+      dialogueChoice: (index) =>
+        this.dialogueSession?.current?.choices?.[index]?.id ?? null,
+      cancelDialogue: () => this.cancelDialogue(),
+      advanceDialogue: () => this.advanceDialogue(),
+      chooseDialogue: (id) => this.chooseDialogue(id),
+      isEpilogue: () => this.ending.isEpilogue,
+      finishEpilogue: () => this.ending.finish(),
+      isEnding: () => this.ending.isOpen,
+      endings: () => availableEndings(this.profile.data),
+      chooseEnding: (id) => this.ending.choose(id),
+      isManualOpen: () => this.pause.isManualOpen,
+      closeManual: () => this.closeManual(),
+      pause: () => this.pauseGame(),
+      resume: () => this.resumeGame(),
+      isPanelOpen: () => this.panelOpen,
+      safehouseEscape: () => this.safehouse.handleEscape(),
+      closePanel: () => this.closePanel(),
+      isCaseOpen: () => this.safehouse.caseOpen,
+      rotateCase: () => this.safehouse.rotateSelectedCase(),
+      canOpenDeploy: () =>
+        !this.safehouse.augmentsOpen && !this.safehouse.workbenchOpen,
+      openDeploy: () => this.safehouse.openDeploy(),
+      openPanel: () => this.openPanel(),
+      quickRetry: () => this.quickRetry(),
+      returnToSafehouse: () => this.returnToSafehouse(),
+    });
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0];
     this.safehouse.setContracts(this.contracts);
@@ -236,6 +271,7 @@ export class Game {
     if (this.profile.data.money < cost) return null;
     this.profile.data.money -= cost;
     this.profile.save();
+
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
     this.hub.updateStats(this.profile.data);
@@ -325,113 +361,7 @@ export class Game {
         this.ending.finish();
       }
     });
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyM') {
-        this.audio.toggleMute();
-        return;
-      }
-      if (this.pause.isTourOpen) {
-        if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
-          e.preventDefault();
-          this.closeTour();
-        }
-        return;
-      }
-      if (this.state === 'breach') {
-        if (e.code === 'Escape') {
-          e.preventDefault();
-          this.breach.finish(false);
-        }
-        return;
-      }
-      if (this.dialogueOpen) {
-        const choiceIndex = [
-          'Digit1',
-          'Digit2',
-          'Digit3',
-          'Digit4',
-          'Digit5',
-          'Digit6',
-          'Digit7',
-          'Digit8',
-        ].indexOf(e.code);
-        if (e.code === 'Escape') {
-          e.preventDefault();
-          this.cancelDialogue();
-        } else if (choiceIndex >= 0) {
-          const choice = this.dialogueSession?.current?.choices?.[choiceIndex];
-          if (choice) {
-            e.preventDefault();
-            this.chooseDialogue(choice.id);
-          }
-        } else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') {
-          e.preventDefault();
-          this.advanceDialogue();
-        }
-        return;
-      }
-      if (this.ending.isEpilogue) {
-        if (e.code === 'Enter' || e.code === 'Space') {
-          e.preventDefault();
-          this.ending.finish();
-        }
-        return;
-      }
-      if (this.ending.isOpen) {
-        const endings = availableEndings(this.profile.data);
-        const index = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
-        if (index >= 0) {
-          e.preventDefault();
-          const id = endings[index];
-          if (id) this.ending.choose(id);
-        }
-        return;
-      }
-      if (this.pause.isManualOpen) {
-        if (e.code === 'Escape') this.closeManual();
-        return;
-      }
-      if (this.state === 'playing') {
-        if (e.code === 'Escape') this.pauseGame();
-        return;
-      }
-      if (this.state === 'paused') {
-        if (e.code === 'Escape') this.resumeGame();
-        return;
-      }
-      if (this.state === 'safehouse') {
-        if (this.panelOpen) {
-          if (e.code === 'Escape') {
-            if (!this.safehouse.handleEscape()) this.closePanel();
-          } else if (e.code === 'KeyR' && this.safehouse.caseOpen) {
-            this.safehouse.rotateSelectedCase();
-          } else if (
-            e.code === 'Enter' &&
-            !this.safehouse.augmentsOpen &&
-            !this.safehouse.workbenchOpen &&
-            !(document.activeElement instanceof HTMLButtonElement)
-          ) {
-            this.safehouse.openDeploy();
-          }
-          return;
-        }
-        if (e.code === 'Tab') {
-          e.preventDefault();
-          this.openPanel();
-        }
-        return;
-      }
-      if (this.state === 'dead') {
-        if (e.code === 'KeyR') this.quickRetry();
-        else if (e.code === 'Space' || e.code === 'Enter') this.returnToSafehouse();
-        return;
-      }
-      if (this.state === 'win') {
-        if (e.code === 'KeyR' || e.code === 'Enter' || e.code === 'Space') {
-          this.returnToSafehouse();
-        }
-      }
-    });
+
   }
 
   private menuIsOpen(): boolean {
@@ -693,6 +623,7 @@ export class Game {
     this.dialogue.close();
     this.launcher.cancel();
     this.profile.clearInsurance();
+
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
     this.safehouse.setContracts(this.contracts);
