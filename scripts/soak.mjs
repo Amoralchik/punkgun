@@ -48,7 +48,9 @@ async function main() {
   let browser;
   try {
     await waitHttp(`http://localhost:${PREVIEW_PORT}/index.html`);
-    browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    browser = await chromium
+      .launch({ headless: true, channel: 'chrome' })
+      .catch(() => chromium.launch({ headless: true }));
     const page = await browser.newPage({ viewport: { width: 1365, height: 768 } });
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));

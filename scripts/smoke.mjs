@@ -35,6 +35,7 @@ function chromePath() {
     'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
   ];
   const candidates =
+    process.env.CHROME_PATH ? [process.env.CHROME_PATH] :
     platform() === 'win32'
       ? [...(BROWSER === 'edge' ? edge : chrome), ...(BROWSER === 'edge' ? chrome : edge)]
       : platform() === 'darwin'

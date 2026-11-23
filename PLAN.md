@@ -41,7 +41,7 @@ working checklist.
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | **shell + cache v2 + smoke + offline/update toast** | native install prompt |
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
-| Performance budgets | manual | **enforced budget + smoke heap + soak + `soak:long` profile** | CI-hosted 30-minute run |
+| Performance budgets | manual | **enforced budget + smoke heap + soak + `soak:long` + CI workflow** | CI-hosted 30-minute run |
 | Accessibility | done for this tranche | **reduced motion, palettes, subtitles, log, presets, remap, gamepad + menu navigation** | text-entry gamepad keyboard |
 | Localization readiness | none | **English/Spanish catalog for objectives, stations, boons, HUD, manual, tour, dialogue, taglines, handler lines, ventures, events, replies, notes, augments, attributes, paths and roles** | archive prose |
 | Deep module splits | partial | **world player/bullets/objectives/AI/doors/geometry/gym; all Safehouse station views; hub; client boot; settings; breach; dialogue; endings** | Game flow split |
