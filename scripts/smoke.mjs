@@ -387,6 +387,14 @@ async function main() {
       return value;
     })()`);
     if (role !== 'solo') throw new Error(`Role selection failed: ${role}`);
+    const slotCount = await cdp.evaluate(`(() => {
+      window.__game.safehouse.openStation('operator');
+      const count = document.querySelectorAll('[data-act="switch-slot"]').length;
+      document.querySelector('[data-act="close-station"]')?.click();
+      return count;
+    })()`);
+    if (slotCount !== 3) throw new Error(`Save slots failed: ${slotCount}`);
+
 
     const exchange = await cdp.evaluate(`(() => {
       window.__game.safehouse.openStation('ventures');
@@ -577,6 +585,7 @@ async function main() {
           workbench: true,
           ventures: true,
           role,
+          slots: true,
           bossRush,
           ending: true,
           phase: true,

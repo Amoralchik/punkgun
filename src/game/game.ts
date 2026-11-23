@@ -45,6 +45,7 @@ import { AbilityEventFeedback } from './ability-event-feedback';
 import { AbilityFlash } from '../ui/ability-flash';
 import { syncHud } from './hud-sync';
 import { buildMissionSpec } from './mission-spec';
+import { profileSlot } from './save-slot';
 import { createHubWorld, nearestStation } from './hub-flow';
 import { GameStateMachine, type GameState } from './game-state';
 import { FrameShell } from './frame-shell';
@@ -119,7 +120,7 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
-    this.profile = new Profile();
+    this.profile = new Profile(profileSlot(window.location.search));
     this.combatEvents = new CombatEventFeedback(this.audio, this.hud, this.profile, () => this.world);
     this.bossEvents = new BossEventFeedback(
       this.audio,

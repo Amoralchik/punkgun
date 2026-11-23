@@ -1,6 +1,6 @@
 import { fmtTime } from '../core/math';
 import { getLocale, t } from '../core/i18n';
-import type { Profile } from '../game/profile';
+import { Profile } from '../game/profile';
 import { ATTRIBUTE_DEFS, APPROACHES, approachRequirement, approachUnlocked } from '../game/attributes';
 import { CYBERWARE_DEFS, PERK_DEFS } from '../game/progression';
 import { FACTIONS } from '../game/lore';
@@ -93,6 +93,16 @@ export function renderOperator(profile: Profile): string {
       </div>`,
     )
     .join('');
+  const slots = Profile.listSlots();
+  const slotRows = slots
+    .map(
+      (slot) => `<button class="op-slot${slot.slot === profile.slot ? ' selected' : ''}"
+        data-act="switch-slot" data-id="${slot.slot}">
+        <b>SLOT ${slot.slot}${slot.slot === profile.slot ? ' · ACTIVE' : ''}</b>
+        <span>${slot.exists ? `LVL ${slot.level ?? '?'} · $${slot.money ?? 0} · ${slot.savedAt ? new Date(slot.savedAt).toLocaleDateString() : 'UNKNOWN'}` : 'EMPTY'}</span>
+      </button>`,
+    )
+    .join('');
   const presetRows = data.presets
     .map((preset, index) => {
       const label = preset
@@ -157,6 +167,8 @@ export function renderOperator(profile: Profile): string {
             <h2>LOADOUT PRESETS</h2>
             <div class="op-presets">${presetRows}</div>
             <p class="sh-note">${t('station.note.operatorPresets')}</p>
+            <h2>SAVE SLOTS</h2>
+            <div class="op-slots">${slotRows}</div>
             <h2>SAVE DATA</h2>
             <div class="op-save">
               <button type="button" data-act="export-save">EXPORT SAVE</button>

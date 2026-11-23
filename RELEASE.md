@@ -24,9 +24,9 @@ the manifest/SW URLs.
 |---|---:|---:|
 | App JS | ~411 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~955 kB | 1120 kB |
-| CSS | ~65 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~279 kB | 340 kB |
+| Total JS | ~956 kB | 1120 kB |
+| CSS | ~66 kB | 90 kB |
+| Initial gzip (JS + CSS + HTML) | ~280 kB | 340 kB |
 | Largest single chunk | ~411 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
@@ -48,6 +48,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 ## Save Recovery
 
 - Primary save: `punkgun.save.v2` (slots 1–3 namespaced).
+- Slot 1 is canonical; `?slot=2/3` selects another profile, with the operator sheet offering slot switch/reload.
 - Previous payload: `.bak`; rejected payload: `.corrupt`.
 - Corrupt primary is quarantined, then the backup is loaded; the hub reports the recovery.
 - Future versions are rejected rather than coerced.
@@ -67,7 +68,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 182 unit tests + build + budget)
+- `npm run verify` (typecheck + 183 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`

@@ -1038,6 +1038,15 @@ export class Safehouse {
         this.render();
         return;
       }
+      case 'switch-slot': {
+        const slot = Number(target.dataset.id);
+        if (!Number.isFinite(slot) || slot < 1 || slot > 3) return;
+        const url = new URL(window.location.href);
+        if (slot === 1) url.searchParams.delete('slot');
+        else url.searchParams.set('slot', String(slot));
+        window.location.assign(url.toString());
+        return;
+      }
       case 'faction-offer': {
         const id = target.dataset.id;
         if (!id) return;
