@@ -43,10 +43,9 @@ import { RunStateEvents } from './run-state-events';
 import { syncHud } from './hud-sync';
 import { GameStateMachine, type GameState } from './game-state';
 import { stepWorld } from './frame-step';
+import { advanceFrame } from './frame-orchestrator';
 import { settleRun } from './settlement';
 
-const deathDelay = 0.7;
-const winDelay = 0.35;
 
 export class Game {
   private readonly input = new Input();
@@ -906,34 +905,31 @@ export class Game {
       this.world.deathCause = 'TIME EXPIRED';
       this.world.player.alive = false;
       this.state = 'dead';
-      this.overlayT = 0;
-      this.overlayShown = false;
       this.hud.flashDamage('death');
       this.audio.death();
     }
-
-    const briefing = this.state === 'playing' && this.briefT > 0;
-    if (briefing) {
-      this.briefT = Math.max(0, this.briefT - dt);
-      if (this.briefT === 0) this.brief.hide();
-    }
-    if (this.state === 'playing' || this.state === 'dead') {
-      const stepped = stepWorld(this.world, this.acc, dt, aim, {
-        state: this.state,
-        reducedMotion: this.settings.data.reducedMotion,
-        briefActive: briefing,
-      });
-      this.acc = stepped.acc;
-      edgesConsumed = edgesConsumed || stepped.edges;
-    }
-
-    if (this.state === 'dead' || this.state === 'win') {
-      this.overlayT += dt;
-      const delay = this.state === 'dead' ? deathDelay : winDelay;
-      if (!this.overlayShown && this.overlayT >= delay) {
-        this.overlayShown = true;
-        this.showResultOverlay();
-      }
+    if (this.state !== 'safehouse') {
+      const frame = advanceFrame(
+        this.world,
+        dt,
+        aim,
+        this.state,
+        {
+          acc: this.acc,
+          briefT: this.briefT,
+          overlayT: this.overlayT,
+          overlayShown: this.overlayShown,
+        },
+        this.settings.data.reducedMotion,
+        false,
+      );
+      this.acc = frame.acc;
+      this.briefT = frame.briefT;
+      this.overlayT = frame.overlayT;
+      this.overlayShown = frame.overlayShown;
+      edgesConsumed = edgesConsumed || frame.edges;
+      if (frame.briefHidden) this.brief.hide();
+      if (frame.overlayReady) this.showResultOverlay();
     }
 
     if (this.state !== 'safehouse') {

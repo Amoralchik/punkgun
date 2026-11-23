@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 166 unit tests + build + budget)
+- `npm run verify` (typecheck + 168 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -88,7 +88,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - The final contract applies a magenta color grade and heavier vignette.
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
-- Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement and validated phase transitions live in `hud-sync`, `frame-step` and `game-state`.
+- Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions and mission/dead/win frame timing are split out.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
   HIGH adds a heavy or stalker tactical unit; extras use separate spawn points.
