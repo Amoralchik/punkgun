@@ -21,11 +21,11 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~332 kB | 450 kB |
+| App JS | ~342 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~873 kB | 1120 kB |
-| CSS | ~58 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~248 kB | 340 kB |
+| Total JS | ~883 kB | 1120 kB |
+| CSS | ~60 kB | 90 kB |
+| Initial gzip (JS + CSS + HTML) | ~252 kB | 340 kB |
 | Largest single chunk | ~344 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |

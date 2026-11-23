@@ -17,35 +17,35 @@ working checklist.
 
 | Backlog item | Before | Now | Remaining |
 |---|---:|---:|---|
-| Combat layouts | 6 | **10** | target met; add combat gym variation |
-| Enemy archetypes | 11 | **14** | Hit target; add combat-gym coverage |
+| Combat layouts | 6 | **12** | target exceeded; add district-specific setpieces |
+| Enemy archetypes | 11 | **16** | target exceeded; tune squad compositions |
 | Bosses | 1 | **4** | optional boss-rush/NG+ variants |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Cyberware | 10 | **22** | active-ability VFX polish |
 | Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
 | Ventures | 0 | **6 businesses × 3 ranks** | room visuals and event chains |
-| Perks | 4 | **15** | mutually exclusive capstones |
+| Perks | 4 | **17** | mutually exclusive capstones |
 | Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 4 bosses** | more faction-specific voice |
 | Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
-| Endings | 1 | **3** (burn, broadcast, vanish) | branch epilogue scenes |
+| Endings | 1 | **4** (burn, broadcast, vanish, remember) | branch epilogue scenes |
 | New game flow | reset only | **confirmed new-game reset + campaign reroll** | ending-screen shortcut |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
-| Combat gym | none | **14-archetype gym + three-build clear-rate matrix** | deeper difficulty tuning |
+| Combat gym | none | **16-archetype gym + three-build clear-rate matrix** | encounter-density tuning |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |
-| Browser matrix / QA | manual | **Chrome + Edge smoke; Firefox/WebKit Playwright harnesses** | Firefox/Safari certification runs |
+| Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
 | Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
-| Localization readiness | none | **typed catalog: objectives, stations, boons, HUD events** | extract station/manual/dialogue copy, add locale |
-| Deep module splits | not started | **world objectives/doors/geometry + gym helper; Safehouse workbench; Game dialogue session** | player/AI/bullets; station views |
+| Localization readiness | none | **typed catalog: objectives, stations, boons, HUD, role/lifepath checks** | station/manual/dialogue copy + second locale |
+| Deep module splits | not started | **world objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | player/bullets; station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
-| Onboarding / manual / settings | partial | controls, palettes, subtitles, log | first-minute guided station tour |
+| Onboarding / manual / settings | partial | **first-minute safehouse tour, controls, palettes, subtitles, log** | arbitrary key capture |
 
 ## Tranche status
 
@@ -66,11 +66,11 @@ working checklist.
 
 ## Next sequence
 
-1. Tune the three-build clear-rate matrix: shield/flank behavior and encounter density.
-2. Continue the split: World player/AI/bullets/doors and Safehouse station views.
-3. Extract remaining station/manual/dialogue strings and add a second locale fixture.
-4. Install Firefox/WebKit binaries and run the Playwright certification harnesses.
-5. Add role-specific dialogue checks, venture room visuals/event chains, long-session memory sampling.
+1. Continue the split: World player/bullets and Safehouse station views.
+2. Extract remaining station/manual/dialogue strings and add a second locale fixture.
+3. Add hacking/breach interactions and environmental counterplay.
+4. Tune encounter density and squad compositions from the 16-archetype gym.
+5. Add long-session memory sampling and an ending-screen new-game shortcut.
 
 ## 0.2 CITY PRESSURE status
 
