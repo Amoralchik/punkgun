@@ -41,13 +41,12 @@ import { WorldEventHud } from './world-event-hud';
 import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
 import { syncHud } from './hud-sync';
+import { GameStateMachine, type GameState } from './game-state';
 import { stepWorld } from './frame-step';
 import { settleRun } from './settlement';
 
 const deathDelay = 0.7;
 const winDelay = 0.35;
-
-type GameState = 'safehouse' | 'playing' | 'paused' | 'breach' | 'dead' | 'win';
 
 export class Game {
   private readonly input = new Input();
@@ -82,7 +81,7 @@ export class Game {
   private contracts: Contract[] = [];
   private currentContract: Contract | null = null;
   private world: World;
-  private state: GameState = 'safehouse';
+  private readonly phase = new GameStateMachine();
   private acc = 0;
   private overlayT = 0;
   private overlayShown = false;
@@ -96,6 +95,16 @@ export class Game {
   private lastReward: RewardSummary | null = null;
   private panelOpen = false;
   private recoveryNote: string | null = null;
+
+  private get state(): GameState {
+    return this.phase.state;
+  }
+
+  private set state(next: GameState) {
+    if (!this.phase.transition(next)) {
+      console.warn(`PUNKGUN invalid state transition: ${this.phase.state} -> ${next}`);
+    }
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
