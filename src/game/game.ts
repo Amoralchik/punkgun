@@ -7,6 +7,7 @@ import { Settings, controlKeymap, type ControlPreset, type Palette } from '../co
 import { randomSeed, seedLabel } from '../core/math';
 import { setLocale, t } from '../core/i18n';
 import { resolveKeymap } from '../core/settings';
+import { renderManual, renderTour } from '../ui/manual';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -97,6 +98,8 @@ export class Game {
   private readonly setPalette = document.getElementById('set-palette') as HTMLSelectElement;
   private readonly setLanguage = document.getElementById('set-locale') as HTMLSelectElement;
   private readonly remapRoot = document.getElementById('set-remap')!;
+  private readonly manualSections = document.getElementById('manual-sections')!;
+  private readonly tourGrid = document.getElementById('tour-grid')!;
   private remapAction: string | null = null;
   private readonly setSubtitles = document.getElementById('set-subtitles') as HTMLInputElement;
   private readonly setDialogueLog = document.getElementById(
@@ -593,6 +596,8 @@ export class Game {
     this.setLanguage.value = this.settings.data.locale;
     this.setSubtitles.checked = this.settings.data.subtitles;
     this.setDialogueLog.checked = this.settings.data.dialogueLog;
+    this.manualSections.innerHTML = renderManual(this.settings.data.locale);
+    this.tourGrid.innerHTML = renderTour(this.settings.data.locale);
     this.renderRemapButtons();
   }
 
@@ -611,6 +616,7 @@ export class Game {
     this.settings.set('subtitles', this.setSubtitles.checked);
     this.settings.set('dialogueLog', this.setDialogueLog.checked);
     this.applySettings();
+    this.syncSettingsUI();
   }
 
   private pauseGame(): void {

@@ -293,11 +293,20 @@ async function main() {
       select.value = 'es';
       select.dispatchEvent(new Event('change', { bubbles: true }));
       const active = document.documentElement.lang;
+      const manual = document.getElementById('manual-sections').textContent;
+      const tour = document.getElementById('tour-grid').textContent;
       select.value = 'en';
       select.dispatchEvent(new Event('change', { bubbles: true }));
-      return active;
+      return {
+        active,
+        esManual: manual.includes('MOVIMIENTO Y COMBATE'),
+        esTour: tour.includes('DESPLIEGUE'),
+        enManual: document.getElementById('manual-sections').textContent.includes('MOVEMENT & COMBAT'),
+      };
     })()`);
-    if (locale !== 'es') throw new Error(`Locale switch failed: ${locale}`);
+    if (!locale.active || locale.active !== 'es' || !locale.esManual || !locale.esTour || !locale.enManual) {
+      throw new Error(`Locale switch failed: ${JSON.stringify(locale)}`);
+    }
     const remap = await cdp.evaluate(`(() => {
       const button = document.querySelector('[data-remap="KeyR"]');
       button?.click();

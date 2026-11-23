@@ -404,46 +404,7 @@
             </div>
             <button id="manual-close" class="aug-close" type="button" data-act="close-manual">CLOSE [ESC]</button>
           </header>
-          <div class="manual-grid">
-            <section>
-              <h3>MOVEMENT &amp; COMBAT</h3>
-              <p><b>WASD</b> move · <b>MOUSE</b> aim · <b>LMB</b> strike/shoot · <b>R</b> reload · <b>RMB</b> throw weapon · <b>SPACE</b> dash · <b>E</b> execute stunned enemies</p>
-              <p>Everyone dies in one hit. Armor plates from cyberware absorb one hit each and give a short grace window. Dash through a room, chain kills inside the combo window, and finish stunned targets with <b>E</b>. A <b>Z</b> quickhack needs an Intrusion Deck and a visible target.</p>
-              <p><b>SHIELD</b> units block the front — flank, backstab, or throw. <b>SNIPERS</b> paint a red laser before firing. <b>RUSHERS</b> close fast with melee. <b>GRENADIERS</b> lob red fused grenades and keep their distance. <b>BLADES</b> are unarmed cyberpsychos that close faster than anything else. <b>NETRUNNERS</b> channel a visible hack that scrambles the HUD and locks active cyberware; break sight or kill them first. <b>OPERATORS</b> deploy turrets and carry a sidearm.</p>
-              <p><b>EXPLOSIVE BARRELS</b> chain-react. Shoot one beside a group, or throw a weapon into it. <b>SECURITY CAMERAS</b> sweep corridors and alert the sector; shoot them out. <b>TURRETS</b> paint a red line before firing — break line of sight or destroy them. <b>LASER GRIDS</b> pulse across corridors; cross on the dark phase or shoot the emitter.</p>
-              <p><b>GLASS</b> blocks movement but not sight. Shoot a pane to open a route. <b>STEAM VENTS</b> pulse sight-blocking clouds; use them or wait out the cycle. <b>HOUNDS</b> leap; <b>MEDICS</b> restore ally plates; kill the medic first.</p>
-            </section>
-            <section>
-              <h3>CONTRACTS</h3>
-              <p><b>PURGE</b> kill every hostile · <b>HIT</b> kill the marked target · <b>RECOVER</b> extract caches · <b>SABOTAGE</b> plant taps on marked terminals · <b>EXTRACTION</b> secure the case and survive the converge · <b>HUNT</b> chase a fleeing mark · <b>DEFENSE</b> hold the zone for 45 seconds. Exit opens when the objective is done.</p>
-              <p><b>CHAPTERS</b> street, Sublevel, and Spire each gate on three clears and a boss. Six bosses: the augmented psycho, GRIN, DEADWEIGHT, the Board, SERAPH, and THE ARCHIVIST. The finale usually ends in one of three choices; the Sublevel REMEMBER choice opens a fourth.</p>
-              <p><b>BOSS RUSH</b> unlocks after the finale: six bosses back-to-back in one arena. The exit stays sealed until the last one stops moving. <b>BREACH</b> terminals, cameras, and turrets with the row/column intrusion grid; success loops security, failure raises heat.</p>
-              <p><b>BOSSES</b> break armor plates; every shattered plate summons adds and releases a radial shockwave. From phase 2 they telegraph a charge — break line of sight or sidestep. After a charge or plate break the magenta core is exposed; a hit in that window removes two plates.</p>
-              <p><b>SAFEHOUSE</b> stations: CONTRACTS, MARKET, SUPPLIES, WORKBENCH, CLINIC, ARCHIVE, FABRICATOR, OPERATOR, SANCTUARY, and DEPLOY. <b>TAB</b> opens the terminal overview and the attaché case. SANCTUARY upgrades change the room and your run; the MARKET sells insurance and opens the EXCHANGE. The deploy pad always asks which contract to run before launch.</p>
-            </section>
-            <section>
-              <h3>LOOT &amp; MONEY</h3>
-              <p><b>E</b> grabs caches, weapons, and slams doors. Loot becomes contraband only on a clean exit; sell it in the safehouse. Contract pay + time bonus are banked on clear.</p>
-              <p><b>Q</b> uses your packed supply: stim armor, smoke, flashbang, or frag grenade.</p>
-              <p><b>COMPONENTS</b> drop from kills; the FABRICATOR turns them into ammo, attachments, stims, and weapons that stow in the attaché case.</p>
-              <p><b>ATTACHMENTS</b> change behavior: magazine size, pellets, spread, cooldown, reload speed, pierce, or stealth noise. One attachment per gun; replacing it destroys the old one.</p>
-            </section>
-            <section>
-              <h3>AUGMENTS &amp; XP</h3>
-              <p>Clears grant XP and levels. Levels give perk points for the clinic; credits buy permanent cyberware. Armor, speed, spread, and enemy vision all come from your build.</p>
-              <p><b>ACTIVE 'WARE</b> — <b>SHIFT</b> Sandevistan slows the world; <b>C</b> Optical Camo breaks line of sight; <b>X</b> Microgenerator EMP; <b>V</b> Berserk; <b>G</b> Overclock; <b>H</b> Intrusion Deck. Second Heart, Biomonitor, Mantis Blades, and Gorilla Arms are passive installs.</p>
-              <p><b>NEURAL LOAD</b> — every implant consumes humanity. Above 60% strain the ripperdoc may reject an install; above 85% armor and vision suffer. BODY and level raise capacity.</p>
-            </section>
-            <section>
-              <h3>STEALTH &amp; HEAT</h3>
-              <p>Vision cones show enemy sight. Approach from behind and press <b>E</b> for a silent takedown. Gunfire raises heat; at high heat, reinforcements breach the sector. Bodies can be discovered, and any enemy, camera, turret, or discovered body breaks a <b>GHOST RUN</b>; zero detections pays a 15% bonus.</p>
-              <p><b>ACCESSIBILITY</b> — pause &rarr; settings: reduced motion, colorblind palettes, subtitles, event log, WASD/ESDF/ARROWS presets, and per-action key remapping. Click a remap slot, then press the new key.</p>
-            </section>
-            <section>
-              <h3>DEATH &amp; RETRY</h3>
-              <p>On death, <b>R</b> retries the same contract with fists; <b>SPACE</b> returns to the safehouse. A clear extracts whatever weapon you are holding and pays out.</p>
-            </section>
-          </div>
+          <div id="manual-sections" class="manual-grid"></div>
           <div class="manual-foot">
             PUNKGUN 0.2.0 · THREE.JS · PROCEDURAL ART + AUDIO · <b>NO EXTERNAL ASSETS</b><br />
             FIRST DEPLOYMENT BRIEFING — CLOSE TO CONTINUE.
@@ -455,13 +416,7 @@
         <div class="tour-panel">
           <div class="kicker">// SAFEHOUSE TOUR</div>
           <h2 class="manual-title">ONE MINUTE IN THE ROOM</h2>
-          <div class="tour-grid">
-            <div><b>01 · CONTRACTS</b><span>Read the board, then pick a contract and insertion.</span></div>
-            <div><b>02 · MARKET</b><span>Buy gear, ammunition, insurance or faction hardware. Open the exchange for dividends.</span></div>
-            <div><b>03 · SANCTUARY</b><span>Invest in the room. Upgrades change the diorama and the next run.</span></div>
-            <div><b>04 · DEPLOY</b><span>Choose an approach and a challenge. Fists, Glass and Rush change the rules.</span></div>
-            <div><b>05 · THE SECTOR</b><span>Dash, flank, execute stunned targets, break glass and extract. The city is one hit deep.</span></div>
-          </div>
+          <div id="tour-grid" class="tour-grid"></div>
           <button class="sh-deploy" type="button" data-act="tour-close">START WORKING</button>
         </div>
       </div>
