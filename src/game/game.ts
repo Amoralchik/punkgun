@@ -40,6 +40,7 @@ import type { RewardSummary } from './results';
 import { buildResult } from './result-flow';
 import { playWorldEventAudio } from './world-event-audio';
 import { WorldEventHud } from './world-event-hud';
+import { CombatEventFeedback } from './combat-event-feedback';
 import { settleRun } from './settlement';
 
 const FIXED = 1 / 120;
@@ -55,6 +56,7 @@ export class Game {
   private readonly renderer: Renderer;
   private readonly hud = new Hud();
   private readonly eventHud = new WorldEventHud(this.hud, this.audio);
+  private readonly combatEvents: CombatEventFeedback;
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
   private readonly hub = new Hub();
@@ -100,6 +102,7 @@ export class Game {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
+    this.combatEvents = new CombatEventFeedback(this.audio, this.hud, this.profile, () => this.world);
     this.menu = new MenuNavigation(
       this.input,
       () => this.menuIsOpen(),
@@ -721,26 +724,8 @@ export class Game {
     }
     if (playWorldEventAudio(e, this.audio)) return;
     if (this.eventHud.handle(e)) return;
+    if (this.combatEvents.handle(e)) return;
     switch (e.type) {
-      case 'kill':
-        this.audio.kill();
-        this.audio.combo(this.world.combo);
-        this.profile.addComponent(
-          Math.random() < this.profile.data.perks.scavenger * 0.25 ? 2 : 1,
-        );
-        break;
-      case 'stealthKill':
-        this.audio.stealthKill();
-        this.audio.combo(this.world.combo);
-        this.profile.addComponent(
-          Math.random() < this.profile.data.perks.scavenger * 0.25 ? 2 : 1,
-        );
-        break;
-      case 'execution':
-        this.audio.execution();
-        this.hud.subtitle(t('event.execution'));
-        this.hud.logLine('EXECUTION: stunned hostile finished');
-        break;
       case 'quickhack':
         this.audio.quickhack();
         this.hud.subtitle(t('event.quickhack'));
@@ -805,11 +790,6 @@ export class Game {
         break;
       case 'camoBreak':
         this.audio.camoBreak();
-        break;
-      case 'armorHit':
-        this.audio.armorHit();
-        this.hud.flashDamage('armor');
-        this.hud.damageDirection(e.angle + Math.PI);
         break;
       case 'playerDeath':
         this.audio.death();
