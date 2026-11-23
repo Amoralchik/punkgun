@@ -18,13 +18,13 @@ export function renderVentures(profile: Profile): string {
   const eventCard = pending
     ? `<div class="venture-event" style="--venture:${VENTURE_MAP[pending.venture].color}">
         <div class="kicker">// STREET EVENT</div>
-        <h2>${pending.title}</h2>
-        <p>${pending.text}</p>
+        <h2>${es ? pending.titleEs : pending.title}</h2>
+        <p>${es ? pending.textEs : pending.text}</p>
         <div class="venture-event-actions">
           ${pending.choices
             .map(
               (choice) =>
-                `<button data-act="venture-event" data-id="${choice.id}">${choice.label}</button>`,
+                `<button data-act="venture-event" data-id="${choice.id}">${es ? choice.labelEs : choice.label}</button>`,
             )
             .join('')}
         </div>
