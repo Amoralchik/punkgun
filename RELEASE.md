@@ -23,7 +23,7 @@ the manifest/SW URLs.
 |---|---:|---:|
 | App JS | ~411 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~954 kB | 1120 kB |
+| Total JS | ~955 kB | 1120 kB |
 | CSS | ~65 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~279 kB | 340 kB |
 | Largest single chunk | ~411 kB | 480 kB |
@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 178 unit tests + build + budget)
+- `npm run verify` (typecheck + 179 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -89,6 +89,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - The final contract applies a magenta color grade and heavier vignette.
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Epilogues append faction, role and lifepath consequence lines, localized in English/Spanish.
+- Enemies patrol fixed route points around their spawn instead of rerolling every waypoint.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions, mission/dead/win timing and frame input/render finalization are split out.
 - Quickhack, medic, flash, Kerenzikov, boss-phase and boss-rush presentation route through dedicated event modules; mission specs, hub flow and keyboard routing live in `mission-spec`, `hub-flow` and `keyboard-controller`.

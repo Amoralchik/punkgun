@@ -1000,6 +1000,8 @@ export class World {
       patrolX: x,
       patrolY: y,
       patrolT: 0,
+      patrolPath: [],
+      patrolIndex: 0,
       baseAngle,
       targetAngle: baseAngle,
       scanT: 0.5 + this.rand() * 2,
@@ -1041,6 +1043,22 @@ export class World {
       enemy.angle = Math.atan2(this.player.y - y, this.player.x - x);
       enemy.fireCd = 0.4 + this.rand() * 0.4;
     }
+    const route = [{ x, y }];
+    for (let i = 0; i < 2; i++) {
+      for (let attempts = 0; attempts < 4; attempts++) {
+        const angle = this.rand() * Math.PI * 2;
+        const radius = 48 + this.rand() * 84;
+        const tx = x + Math.cos(angle) * radius;
+        const ty = y + Math.sin(angle) * radius;
+        if (this.solidAt(tx, ty)) continue;
+        route.push({ x: tx, y: ty });
+        break;
+      }
+    }
+    enemy.patrolPath = route;
+    enemy.patrolIndex = 0;
+    enemy.patrolX = route[0].x;
+    enemy.patrolY = route[0].y;
     this.enemies.push(enemy);
     return enemy;
   }
@@ -2072,15 +2090,21 @@ export class World {
         } else {
           e.patrolT -= dt;
           if (e.patrolT <= 0) {
-            for (let i = 0; i < 5; i++) {
-              const a = this.rand() * Math.PI * 2;
-              const r = 36 + this.rand() * 92;
-              const tx = e.x + Math.cos(a) * r;
-              const ty = e.y + Math.sin(a) * r;
-              if (this.solidAt(tx, ty)) continue;
-              e.patrolX = tx;
-              e.patrolY = ty;
-              break;
+            if (e.patrolPath.length > 0) {
+              e.patrolIndex = (e.patrolIndex + 1) % e.patrolPath.length;
+              e.patrolX = e.patrolPath[e.patrolIndex].x;
+              e.patrolY = e.patrolPath[e.patrolIndex].y;
+            } else {
+              for (let i = 0; i < 5; i++) {
+                const a = this.rand() * Math.PI * 2;
+                const r = 36 + this.rand() * 92;
+                const tx = e.x + Math.cos(a) * r;
+                const ty = e.y + Math.sin(a) * r;
+                if (this.solidAt(tx, ty)) continue;
+                e.patrolX = tx;
+                e.patrolY = ty;
+                break;
+              }
             }
             e.patrolT = 2.2 + this.rand() * 2.6;
           }

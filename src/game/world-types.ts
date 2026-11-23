@@ -152,6 +152,8 @@ export interface Enemy {
   patrolX: number;
   patrolY: number;
   patrolT: number;
+  patrolPath: { x: number; y: number }[];
+  patrolIndex: number;
   baseAngle: number;
   targetAngle: number;
   scanT: number;

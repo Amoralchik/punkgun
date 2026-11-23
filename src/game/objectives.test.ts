@@ -250,6 +250,16 @@ describe('mission objectives', () => {
     expect(events).toContain('networkUnlock');
   });
 
+  it('gives patrols fixed route points', () => {
+    const world = makeWorld({ objective: 'purge', requiredLoot: 0 }, new Set(), 'sector07');
+    expect(world.enemies.length).toBeGreaterThan(0);
+    expect(world.enemies.every((enemy) => enemy.patrolPath.length >= 1)).toBe(true);
+    expect(world.enemies[0].patrolPath[0]).toMatchObject({
+      x: expect.any(Number),
+      y: expect.any(Number),
+    });
+  });
+
   it('locks an extra cache as a breachable safe', () => {
     const events: string[] = [];
     const world = new World(
