@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~408 kB | 450 kB |
+| App JS | ~409 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~949 kB | 1120 kB |
+| Total JS | ~950 kB | 1120 kB |
 | CSS | ~65 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~277 kB | 340 kB |
-| Largest single chunk | ~408 kB | 480 kB |
+| Initial gzip (JS + CSS + HTML) | ~278 kB | 340 kB |
+| Largest single chunk | ~409 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 168 unit tests + build + budget)
+- `npm run verify` (typecheck + 169 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -85,6 +85,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Boss missions and boss-rush waves present the encounter intro card without blocking input.
 - Plate breaks fire a brief full-screen phase pulse; reduced motion keeps it static.
 - Boss plate breaks add two telegraphed arena lasers, disabled for 1.4s on spawn.
+- Missions with spare caches lock one as a breachable safe.
 - The final contract applies a magenta color grade and heavier vignette.
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.

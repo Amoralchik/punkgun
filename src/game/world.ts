@@ -378,6 +378,11 @@ export class World {
         collected: false,
       });
     }
+    if (mission.objective !== 'boss' && this.loot.length > mission.requiredLoot) {
+      const safe = this.loot[this.loot.length - 1];
+      safe.locked = true;
+      safe.value = Math.round(safe.value * 1.25);
+    }
     this.applyModifiers(mission.modifiers ?? []);
     this.applyBoons();
     this.setupObjectives();
@@ -745,10 +750,22 @@ export class World {
   }
 
   resolveHazardBreach(
-    hazard: 'camera' | 'turret',
+    hazard: 'camera' | 'turret' | 'safe',
     hazardId: number,
     success: boolean,
   ): void {
+    if (hazard === 'safe') {
+      const item = this.loot.find((entry) => entry.id === hazardId && entry.locked);
+      if (!item) return;
+      if (!success) {
+        this.addHeat(10);
+        this.emit({ type: 'breachFail', x: item.x, y: item.y, angle: 0 });
+        return;
+      }
+      item.locked = false;
+      this.emit({ type: 'breachSuccess', x: item.x, y: item.y, angle: 0 });
+      return;
+    }
     const target =
       hazard === 'camera'
         ? this.cameras.find((camera) => camera.id === hazardId)
@@ -1090,7 +1107,7 @@ export class World {
     let best: LootItem | null = null;
     let bestD = 54;
     for (const item of this.loot) {
-      if (item.collected) continue;
+      if (item.collected || item.locked) continue;
       const d = dist(this.player.x, this.player.y, item.x, item.y);
       if (d < bestD) {
         bestD = d;
@@ -1101,12 +1118,12 @@ export class World {
   }
 
   private nearestBreachable(): {
-    kind: 'camera' | 'turret';
+    kind: 'camera' | 'turret' | 'safe';
     id: number;
     x: number;
     y: number;
   } | null {
-    let best: { kind: 'camera' | 'turret'; id: number; x: number; y: number } | null = null;
+    let best: { kind: 'camera' | 'turret' | 'safe'; id: number; x: number; y: number } | null = null;
     let bestD = 72;
     for (const camera of this.cameras) {
       if (!camera.alive || camera.disabledT > 0) continue;
@@ -1122,6 +1139,14 @@ export class World {
       if (d < bestD) {
         bestD = d;
         best = { kind: 'turret', id: turret.id, x: turret.x, y: turret.y };
+      }
+    }
+    for (const item of this.loot) {
+      if (!item.locked || item.collected) continue;
+      const d = dist(this.player.x, this.player.y, item.x, item.y);
+      if (d < bestD) {
+        bestD = d;
+        best = { kind: 'safe', id: item.id, x: item.x, y: item.y };
       }
     }
     return best;
@@ -1154,7 +1179,7 @@ export class World {
     const p = this.nearestPickup();
     if (p) return `E — TAKE ${WEAPONS[p.weapon].name}`;
     const breachable = this.nearestBreachable();
-    if (breachable) return `E — BREACH ${breachable.kind.toUpperCase()}`;
+    if (breachable) return `E — BREACH ${breachable.kind === 'safe' ? 'SAFE' : breachable.kind.toUpperCase()}`;
     const d = this.nearestDoor();
     if (d) return 'E — SLAM DOOR';
     if (this.exitOpen) {

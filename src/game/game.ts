@@ -548,7 +548,7 @@ export class Game {
   private finishBreach(
     success: boolean,
     nodeId: number,
-    hazard: 'camera' | 'turret' | null,
+    hazard: 'camera' | 'turret' | 'safe' | null,
     reward: number,
   ): void {
     this.state = 'playing';

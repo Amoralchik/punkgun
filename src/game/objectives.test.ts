@@ -210,6 +210,28 @@ describe('mission objectives', () => {
     expect(plus.objectiveText()).toContain('NG+3');
   });
 
+  it('locks an extra cache as a breachable safe', () => {
+    const events: string[] = [];
+    const world = new World(
+      loadLevel('sector07'),
+      fakeInput(new Set(['KeyE'])),
+      (event) => events.push(event.type),
+      null,
+      { objective: 'recover', requiredLoot: 1 },
+      baseMods(),
+      42,
+    );
+    const safe = world.loot.find((item) => item.locked);
+    expect(safe).toBeDefined();
+    world.player.x = safe!.x;
+    world.player.y = safe!.y;
+    expect(world.promptText()).toBe('E — BREACH SAFE');
+    world.update(1 / 120, { x: safe!.x + 50, y: safe!.y }, true);
+    expect(events).toContain('breachStart');
+    world.resolveHazardBreach('safe', safe!.id, true);
+    expect(safe!.locked).toBe(false);
+  });
+
   it('adds arena lasers when a boss plate breaks', () => {
     const world = makeWorld(
       { objective: 'boss', requiredLoot: 0, bossId: 'psycho' },

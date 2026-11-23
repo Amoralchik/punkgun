@@ -227,6 +227,8 @@ export interface LootItem {
   kind: LootKind;
   value: number;
   collected: boolean;
+  /** Locked safes require a breach before they can be grabbed. */
+  locked?: boolean;
 }
 
 export interface SmokeCloud {
@@ -350,7 +352,7 @@ export interface WorldEvent {
   y: number;
   angle: number;
   nodeId?: number;
-  hazard?: 'camera' | 'turret';
+  hazard?: 'camera' | 'turret' | 'safe';
   wave?: number;
   total?: number;
 }

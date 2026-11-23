@@ -7,7 +7,7 @@ import {
   type BreachState,
 } from '../game/breach';
 
-type Hazard = 'camera' | 'turret' | null;
+type Hazard = 'camera' | 'turret' | 'safe' | null;
 
 export interface BreachHooks {
   onFinish: (success: boolean, nodeId: number, hazard: Hazard, reward: number) => void;
