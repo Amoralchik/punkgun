@@ -459,23 +459,23 @@ export class Renderer {
       specs.push({ x, y, size, color, intensity, pulse });
     if (level.id !== 'safehouse') {
       for (const pos of this.holoPositions(level)) {
-        push(pos.x, pos.y, 360 * pos.scale, pos.scale > 0.9 ? 0x5ef1ff : 0xff2f8e, 0.15, 0.25);
+        push(pos.x, pos.y, 250 * pos.scale, pos.scale > 0.9 ? 0x5ef1ff : 0xff2f8e, 0.1, 0.25);
       }
     }
-    push(level.exit.x, level.exit.y, 300, this.palette.cyan, 0.22, 0.4);
-    for (const s of level.stations) push(s.x, s.y, 180, this.palette.cyan, 0.2, 0.2);
-    for (const l of level.lasers) push(l.x, l.y, 210, this.palette.red, 0.26, 0.2);
-    for (const t of level.turrets) push(t.x, t.y, 150, this.palette.amber, 0.3, 0.15);
-    for (const c of level.cameras) push(c.x, c.y, 120, this.palette.red, 0.24, 0.3);
-    for (const b of level.barrels) push(b.x, b.y, 130, this.palette.amber, 0.2, 0.1);
-    for (const s of level.steam) push(s.x, s.y, 200, 0x9ffcff, 0.1, 0.3);
-    for (const l of world.loot) push(l.x, l.y, 130, new THREE.Color(LOOT_DEFS[l.kind].color).getHex(), 0.3, 0.35);
-    for (const p of world.pickups) push(p.x, p.y, 120, this.palette.magenta, 0.24, 0.3);
+    push(level.exit.x, level.exit.y, 210, this.palette.cyan, 0.16, 0.4);
+    for (const s of level.stations) push(s.x, s.y, 95, this.palette.cyan, 0.13, 0.15);
+    for (const l of level.lasers) push(l.x, l.y, 150, this.palette.red, 0.18, 0.2);
+    for (const t of level.turrets) push(t.x, t.y, 105, this.palette.amber, 0.2, 0.15);
+    for (const c of level.cameras) push(c.x, c.y, 85, this.palette.red, 0.16, 0.3);
+    for (const b of level.barrels) push(b.x, b.y, 95, this.palette.amber, 0.14, 0.1);
+    for (const s of level.steam) push(s.x, s.y, 140, 0x9ffcff, 0.07, 0.3);
+    for (const l of world.loot) push(l.x, l.y, 95, new THREE.Color(LOOT_DEFS[l.kind].color).getHex(), 0.22, 0.35);
+    for (const p of world.pickups) push(p.x, p.y, 85, this.palette.magenta, 0.16, 0.3);
     for (const n of world.objectives) {
       const color = n.kind === 'zone' ? 0x7dffcf : n.kind === 'case' ? this.palette.amber : this.palette.cyan;
-      push(n.x, n.y, n.kind === 'zone' ? n.radius * 2 : 180, color, 0.28, 0.3);
+      push(n.x, n.y, n.kind === 'zone' ? n.radius * 1.5 : 130, color, 0.2, 0.3);
     }
-    if (level.boss) push(level.boss.x, level.boss.y, 400, this.palette.amber, 0.35, 0.3);
+    if (level.boss) push(level.boss.x, level.boss.y, 290, this.palette.amber, 0.25, 0.3);
     return specs;
   }
 
