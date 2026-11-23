@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~396 kB | 450 kB |
+| App JS | ~402 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~937 kB | 1120 kB |
+| Total JS | ~943 kB | 1120 kB |
 | CSS | ~64 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~273 kB | 340 kB |
-| Largest single chunk | ~396 kB | 480 kB |
+| Initial gzip (JS + CSS + HTML) | ~275 kB | 340 kB |
+| Largest single chunk | ~402 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 149 unit tests + build + budget)
+- `npm run verify` (typecheck + 150 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -96,8 +96,8 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
   HUD events, the full manual, the safehouse tour, authored dialogue, boss briefings
   and dialogue choices.
 - Contract taglines, generated board taglines, daily taglines, handler lines, venture cards,
-  street events, event replies, station notes, augment descriptions, attributes, lifepaths and
-  role blurbs are localized. Archive prose remains inline.
+  street events, event replies, station notes, augment descriptions, attributes, lifepaths,
+  role blurbs and archive prose are localized.
 
 ## Credits
 

@@ -701,7 +701,7 @@ export class Safehouse {
               dossier
                 ? `<div class="archive-kicker">${dossier.kicker}</div>
                    <div class="archive-title">${dossier.title}</div>
-                   <div class="archive-body">${dossier.body.map((p) => `<p>${p}</p>`).join('')}</div>
+                   <div class="archive-body">${(es ? dossier.bodyEs : dossier.body).map((p) => `<p>${p}</p>`).join('')}</div>
                    ${
                      faction
                        ? `<div class="archive-faction" style="border-color:${faction.color}">

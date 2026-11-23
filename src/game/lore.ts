@@ -92,6 +92,7 @@ export interface Dossier {
   faction: FactionId;
   unlock: DossierUnlock;
   body: string[];
+  bodyEs: string[];
 }
 
 export const DOSSIERS: Dossier[] = [
@@ -108,6 +109,12 @@ export const DOSSIERS: Dossier[] = [
       'You woke up in a rented room with a borrowed face and a voice in your ear. MOTH says the debt is real. MOTH says the jobs are simple. MOTH says not to ask what happened to the person you used to be.',
       'You have a gun. That is usually enough.',
     ],
+    bodyEs: [
+      "Vanta-7 nunca duerme. Solo cambia de turno.",
+      "La lluvia cae entre los hologramas y aterriza sobre gente que no puede pagar paraguas. Los trenes llegan puntuales porque la ciudad vendió los horarios a Helix Dynamics. El resto vivimos de crédito, cafeína y una rabia que sobrevive al turno de noche.",
+      "Despertaste en una habitación alquilada con una cara prestada y una voz en el oído. MOTH dice que la deuda es real. MOTH dice que los trabajos son simples. MOTH dice que no preguntes qué pasó con la persona que eras.",
+      "Tienes un arma. Normalmente eso basta.",
+    ],
   },
   {
     id: 'sector07',
@@ -120,6 +127,11 @@ export const DOSSIERS: Dossier[] = [
       'Sector 07 is a stack of hab blocks bolted to a transit spine. Every corridor smells of wet concrete and somebody else\'s cooking. Helix calls it affordable housing. The tenants call it a waiting room.',
       'Helix security walks these halls with smartlink optics and a quota. They are not here to protect anyone. They are here to make sure the rent clears and the cameras stay clean.',
       'The first job was a server room. The second was a witness. By the third, you stopped counting the bodies and started counting the exits.',
+    ],
+    bodyEs: [
+      "El Sector 07 es una pila de bloques de vivienda atornillada a una columna de tránsito. Todos los pasillos huelen a hormigón mojado y a la comida de otro. Helix lo llama vivienda asequible. Los inquilinos lo llaman sala de espera.",
+      "La seguridad de Helix recorre estos pasillos con óptica smartlink y una cuota. No están aquí para proteger a nadie. Están para asegurarse de que el alquiler se pague y las cámaras sigan limpias.",
+      "El primer trabajo fue una sala de servidores. El segundo fue un testigo. Para el tercero, dejaste de contar cuerpos y empezaste a contar salidas.",
     ],
   },
   {
@@ -134,6 +146,11 @@ export const DOSSIERS: Dossier[] = [
       'Their boss calls himself GRIN. He runs the floors like a landlord with a body count. If you want anything in the block — a room, a doctor, a way out — you pay him first.',
       'Tonight the payment is overdue.',
     ],
+    bodyEs: [
+      "Los Dientes de Cromo poseen los inquilinatos piso a piso. Llevan carillas de porcelana porque una sonrisa es más barata que una máscara, y bates porque las balas llaman la atención.",
+      "Su jefe se hace llamar GRIN. Gobierna los pisos como un casero con un recuento de cuerpos. Si quieres algo en el bloque —una habitación, un médico, una salida— le pagas primero.",
+      "Esta noche el pago está vencido.",
+    ],
   },
   {
     id: 'orbit',
@@ -147,6 +164,11 @@ export const DOSSIERS: Dossier[] = [
       'Low Orbit runs the docks through a web of foremen, crane operators, and kids who know which containers are warm. They move weapons, organs, and server racks for anyone with credits and no questions.',
       'The caches are tagged with Helix serials. Someone upstairs is buying their own hardware back through the back door. MOTH says that is an opportunity. MOTH says a lot of things.',
     ],
+    bodyEs: [
+      "Los cargueros llegan a las cuatro. Los manifiestos dicen piezas de máquina. Los manifiestos son ficción.",
+      "Low Orbit controla los muelles mediante una red de capataces, operadores de grúa y críos que saben qué contenedores están calientes. Mueven armas, órganos y racks de servidores para cualquiera con créditos y ninguna pregunta.",
+      "Las cachés llevan seriales de Helix. Alguien arriba está comprando su propio hardware por la puerta trasera. MOTH dice que es una oportunidad. MOTH dice muchas cosas.",
+    ],
   },
   {
     id: 'sublevel',
@@ -159,6 +181,11 @@ export const DOSSIERS: Dossier[] = [
       'Below the transit lines is a floor that does not appear on any public plan. The elevators require a key that requires a dead man\'s thumb. The air is recycled. The lights are always on.',
       'Helix called it a rehabilitation wing. The paperwork calls it a containment. The thing in the arena calls itself nothing at all.',
       'It has three armor plates, a stolen voice, and a hook where a hand should be. The last crew lasted eleven minutes. Their audio is still on the server.',
+    ],
+    bodyEs: [
+      "Bajo las líneas de tránsito hay un piso que no aparece en ningún plano público. Los ascensores piden una llave que pide el pulgar de un muerto. El aire es reciclado. Las luces siempre están encendidas.",
+      "Helix lo llamó ala de rehabilitación. El papeleo lo llama contención. La cosa de la arena no se llama nada.",
+      "Tiene tres placas, una voz robada y un gancho donde debería haber una mano. La última cuadrilla duró once minutos. Su audio sigue en el servidor.",
     ],
   },
   {
@@ -174,6 +201,12 @@ export const DOSSIERS: Dossier[] = [
       'MOTH\'s voice is in the file too. Its real name is a 40-character string and its last maintenance ticket is six years old. It has been running the same handler protocol on you since the day you opened your eyes.',
       'The debt is real. So is the leash.',
     ],
+    bodyEs: [
+      "El Sujeto 07 no debía despertar.",
+      "El archivo lista catorce aumentos, tres borrados de memoria y una cláusula de terminación. El proyecto se llamaba PUNKGUN: un operador desechable con reflejos militares y ninguna identidad legal. Un arma con cara.",
+      "La voz de MOTH también está en el archivo. Su nombre real es una cadena de 40 caracteres y su último ticket de mantenimiento tiene seis años. Ha estado ejecutando el mismo protocolo de manejador contigo desde que abriste los ojos.",
+      "La deuda es real. La correa también.",
+    ],
   },
   {
     id: 'spire',
@@ -187,6 +220,12 @@ export const DOSSIERS: Dossier[] = [
       'The board signed off on Project PUNKGUN. They signed off on the Sublevel. They signed off on you.',
       'MOTH says the final contract is simple: go up, find the last light, put it out. No extraction. No payout. No leash.',
       'For the first time, MOTH sounds like it is telling the truth.',
+    ],
+    bodyEs: [
+      "La Aguja Helix es lo más alto de Vanta-7. El consejo se reúne en el piso 88, tras un cristal que cuesta más que los inquilinatos. Llaman a la vista \"compromiso con los accionistas\".",
+      "El consejo aprobó el Proyecto PUNKGUN. Aprobó el Subnivel. Te aprobó a ti.",
+      "MOTH dice que el contrato final es simple: sube, encuentra la última luz, apágala. Sin extracción. Sin pago. Sin correa.",
+      "Por primera vez, MOTH suena como si dijera la verdad.",
     ],
   },
   {
@@ -202,6 +241,12 @@ export const DOSSIERS: Dossier[] = [
       'The city does not remember. The city is busy.',
       'You have a gun. That is usually enough.',
     ],
+    bodyEs: [
+      "La torre está oscura. La lluvia sigue cayendo. En algún lugar abajo, un mercado abre para la noche y las grúas empiezan otro turno.",
+      "Sigues respirando. La voz en tu oído está callada. La deuda se fue porque quienes la tenían se fueron.",
+      "La ciudad no recuerda. La ciudad está ocupada.",
+      "Tienes un arma. Normalmente eso basta.",
+    ],
   },
   {
     id: 'ending-burn',
@@ -214,6 +259,11 @@ export const DOSSIERS: Dossier[] = [
       'The PUNKGUN archive does not survive the tower. Neither does the room that held it.',
       'Helix files the loss as a thermal event. Three executives resign. Two are promoted. The city keeps paying rent.',
       'MOTH is quiet for the first time since you woke up. You do not know whether that is grief or relief.',
+    ],
+    bodyEs: [
+      "El archivo PUNKGUN no sobrevive a la torre. Tampoco la sala que lo contenía.",
+      "Helix archiva la pérdida como un evento térmico. Tres ejecutivos dimiten. Dos ascienden. La ciudad sigue pagando alquiler.",
+      "MOTH calla por primera vez desde que despertaste. No sabes si es duelo o alivio.",
     ],
   },
   {
@@ -228,6 +278,11 @@ export const DOSSIERS: Dossier[] = [
       'The board calls it a data incident. The street calls it a confession.',
       'MOTH stays in your ear. It sounds lighter. It sounds almost free.',
     ],
+    bodyEs: [
+      "Todas las pantallas de Vanta-7 llevan el mismo nombre, el mismo número de proyecto, la misma lista de firmantes.",
+      "El consejo lo llama incidente de datos. La calle lo llama confesión.",
+      "MOTH se queda en tu oído. Suena más ligero. Suena casi libre.",
+    ],
   },
   {
     id: 'ending-vanish',
@@ -241,6 +296,11 @@ export const DOSSIERS: Dossier[] = [
       'The debt is still real. It belongs to a person who no longer exists.',
       'The rain keeps falling. Somewhere the market opens for the night. You have a gun. That is usually enough.',
     ],
+    bodyEs: [
+      "Dejas la Aguja en pie y el archivo intacto. Te llevas una copia y pones tu nombre donde no pueda indexarse.",
+      "La deuda sigue siendo real. Pertenece a una persona que ya no existe.",
+      "La lluvia sigue cayendo. En algún lugar el mercado abre para la noche. Tienes un arma. Normalmente eso basta.",
+    ],
   },
   {
     id: 'story-helix',
@@ -252,6 +312,10 @@ export const DOSSIERS: Dossier[] = [
     body: [
       'You chose a method in front of a Helix handler. The choice is filed with your name attached.',
       'KESTREL keeps the receipt. That is either a favor or a leash.',
+    ],
+    bodyEs: [
+      "Elegiste un método delante de un manejador de Helix. La elección se archiva con tu nombre.",
+      "KESTREL guarda el recibo. Eso es un favor o una correa.",
     ],
   },
   {
@@ -265,6 +329,10 @@ export const DOSSIERS: Dossier[] = [
       'GRIN remembers how you handled the tenements. He does not remember it fondly.',
       'The Teeth spread the story before you leave the block. By morning it has a body count you did not earn.',
     ],
+    bodyEs: [
+      "GRIN recuerda cómo manejaste los inquilinatos. No lo recuerda con cariño.",
+      "Los Dientes difunden la historia antes de que salgas del bloque. Por la mañana tiene un recuento de cuerpos que no te ganaste.",
+    ],
   },
   {
     id: 'story-orbit',
@@ -276,6 +344,10 @@ export const DOSSIERS: Dossier[] = [
     body: [
       'CUTTER marks the manifest with your choice. The syndicate pays its debts in cargo and silence.',
       'The freighter leaves on time. The container does not.',
+    ],
+    bodyEs: [
+      "CUTTER marca el manifiesto con tu elección. El sindicato paga sus deudas en carga y silencio.",
+      "El carguero sale a tiempo. El contenedor no.",
     ],
   },
   {
@@ -289,6 +361,10 @@ export const DOSSIERS: Dossier[] = [
       'VESPER does not write anything down. That is how you know the favor is real.',
       'The market opens at dusk. Your name is already in the queue, just not the one you can see.',
     ],
+    bodyEs: [
+      "VESPER no escribe nada. Así sabes que el favor es real.",
+      "El mercado abre al anochecer. Tu nombre ya está en la cola, solo que no en la que puedes ver.",
+    ],
   },
   {
     id: 'story-sublevel',
@@ -300,6 +376,10 @@ export const DOSSIERS: Dossier[] = [
     body: [
       'MOTH logs your choice in a file that predates you.',
       'The Sublevel does not care which method you pick. It only cares that you keep coming back.',
+    ],
+    bodyEs: [
+      "MOTH registra tu elección en un archivo anterior a ti.",
+      "Al Subnivel no le importa qué método elijas. Solo le importa que sigas volviendo.",
     ],
   },
   {
@@ -313,6 +393,11 @@ export const DOSSIERS: Dossier[] = [
       'The Spire keeps its lights on. The Sublevel keeps its files. You keep the face.',
       'Helix calls the copy a continuity error. The street calls it a ghost with a gun.',
       'MOTH is quiet for a long time. Then it asks where you want to go.',
+    ],
+    bodyEs: [
+      "La Aguja mantiene sus luces. El Subnivel mantiene sus archivos. Tú mantienes la cara.",
+      "Helix llama a la copia un error de continuidad. La calle la llama un fantasma con un arma.",
+      "MOTH calla mucho tiempo. Luego pregunta adónde quieres ir.",
     ],
   },
 ];
