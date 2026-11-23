@@ -44,7 +44,7 @@ working checklist.
 | Performance budgets | manual | **enforced budget + smoke heap + soak + `soak:long` + scheduled CI long soak** | observed 30-minute pass |
 | Accessibility | done for this tranche | **reduced motion, palettes, subtitles, log, presets, remap, gamepad + menu navigation** | text-entry gamepad keyboard |
 | Localization readiness | done for this tranche | **English/Spanish catalog for gameplay copy, dialogue, manual, tour, stations, ventures, augments and archive prose** | keep new copy in the catalog |
-| Deep module splits | partial | **world player/bullets/objectives/AI/doors/geometry/gym; all Safehouse station views; hub; client boot; settings; breach; dialogue; endings** | Game flow split |
+| Deep module splits | partial | **world player/bullets/objectives/AI/doors/geometry/gym; all Safehouse station views; hub; client boot; settings; breach; dialogue; endings; pause/manual/tour** | run flow split |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |

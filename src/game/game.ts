@@ -14,6 +14,7 @@ import { SettingsPanel } from '../ui/settings-panel';
 import { BreachController } from '../ui/breach-controller';
 import { DialogueController } from '../ui/dialogue-controller';
 import { EndingController } from '../ui/ending-controller';
+import { PauseController } from '../ui/pause-controller';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -49,10 +50,6 @@ export class Game {
   private readonly audio = new AudioEngine();
   private readonly renderer: Renderer;
   private readonly hud = new Hud();
-  private readonly pauseRoot = document.getElementById('overlay-pause')!;
-  private readonly pauseSettingsEl = document.getElementById('pause-settings')!;
-  private readonly manualRoot = document.getElementById('overlay-manual')!;
-  private readonly tourRoot = document.getElementById('overlay-tour')!;
   private readonly briefRoot = document.getElementById('overlay-brief')!;
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
@@ -61,9 +58,6 @@ export class Game {
   private readonly briefFaction = document.getElementById('brief-faction')!;
   private readonly briefObjective = document.getElementById('brief-objective')!;
   private readonly briefHandler = document.getElementById('brief-handler')!;
-  private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
-    '#overlay-pause [data-act="abandon"]',
-  )!;
   private readonly hub = new Hub();
   private readonly bossIntro = new BossIntro();
   private readonly bossPhase = new BossPhaseOverlay();
@@ -77,6 +71,7 @@ export class Game {
   private readonly profile: Profile;
   private readonly dialogue: DialogueController;
   private readonly ending: EndingController;
+  private readonly pause: PauseController;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
   private contracts: Contract[] = [];
@@ -102,16 +97,23 @@ export class Game {
   private lastDeathInsured = false;
   private lastDeathInsuredWeapon: string | null = null;
   private deathRecorded = false;
-  private manualOpen = false;
-  private tourOpen = false;
   private panelOpen = false;
   private recoveryNote: string | null = null;
-  private abandonArmed = false;
-  private abandonTimer: number | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
+    this.pause = new PauseController({
+      onResume: () => this.resumeGame(),
+      onSettingsSync: () => this.settingsPanel.sync(),
+      onManual: () => this.showManual(),
+      onAbandon: () => this.handleAbandon(),
+      onManualClosed: () => {
+        if (!this.settings.data.tutorialSeen) this.settings.set('tutorialSeen', true);
+        if (!this.settings.data.tourSeen && this.state === 'safehouse') this.showTour();
+      },
+      onTourClosed: () => this.settings.set('tourSeen', true),
+    });
     this.ending = new EndingController(this.profile, {
       hideResults: () => this.hud.hideResults(),
       onWin: () => this.audio.win(),
@@ -310,22 +312,12 @@ export class Game {
         this.ending.finish();
       }
     });
-    this.tourRoot.addEventListener('click', (ev) => {
-      if ((ev.target as HTMLElement).closest('[data-act="tour-close"]')) {
-        this.closeTour();
-      }
-    });
-    this.pauseRoot.addEventListener('click', (ev) => this.handlePauseClick(ev));
-    this.manualRoot.addEventListener('click', (ev) => {
-      if ((ev.target as HTMLElement).closest('[data-act="close-manual"]')) this.closeManual();
-    });
-
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') {
         this.audio.toggleMute();
         return;
       }
-      if (this.tourOpen) {
+      if (this.pause.isTourOpen) {
         if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
           e.preventDefault();
           this.closeTour();
@@ -382,7 +374,7 @@ export class Game {
         }
         return;
       }
-      if (this.manualOpen) {
+      if (this.pause.isManualOpen) {
         if (e.code === 'Escape') this.closeManual();
         return;
       }
@@ -436,8 +428,8 @@ export class Game {
       this.state === 'win' ||
       this.state === 'breach' ||
       this.dialogueOpen ||
-      this.manualOpen ||
-      this.tourOpen ||
+      this.pause.isManualOpen ||
+      this.pause.isTourOpen ||
       this.ending.isOpen ||
       this.ending.isEpilogue ||
       (this.state === 'safehouse' && this.panelOpen)
@@ -511,14 +503,7 @@ export class Game {
     if (this.state !== 'playing') return;
     this.state = 'paused';
     this.world.shake = 0;
-    this.pauseRoot.classList.remove('hidden');
-    this.pauseSettingsEl.classList.add('hidden');
-    this.abandonArmed = false;
-    this.abandonBtn.textContent = 'ABANDON RUN';
-    if (this.abandonTimer !== null) {
-      window.clearTimeout(this.abandonTimer);
-      this.abandonTimer = null;
-    }
+    this.pause.openPause();
     this.settingsPanel.sync();
     this.hud.crosshairAt(this.input.mouseX, this.input.mouseY, false);
     this.input.endFrame();
@@ -526,76 +511,31 @@ export class Game {
 
   private resumeGame(): void {
     if (this.state !== 'paused') return;
-    this.pauseRoot.classList.add('hidden');
+    this.pause.closePause();
     this.state = 'playing';
     this.hud.crosshairAt(this.input.mouseX, this.input.mouseY, true);
     this.input.endFrame();
   }
 
-  private handlePauseClick(ev: MouseEvent): void {
-    const target = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]');
-    if (!target) return;
-    switch (target.dataset.act) {
-      case 'resume':
-        this.resumeGame();
-        break;
-      case 'settings':
-        this.pauseSettingsEl.classList.toggle('hidden');
-        this.settingsPanel.sync();
-        break;
-      case 'manual':
-        this.showManual();
-        break;
-      case 'abandon':
-        this.handleAbandon();
-        break;
-      default:
-        break;
-    }
-  }
-
   private handleAbandon(): void {
-    if (!this.abandonArmed) {
-      this.abandonArmed = true;
-      this.abandonBtn.textContent = 'CONFIRM ABANDON';
-      if (this.abandonTimer !== null) window.clearTimeout(this.abandonTimer);
-      this.abandonTimer = window.setTimeout(() => {
-        this.abandonArmed = false;
-        this.abandonBtn.textContent = 'ABANDON RUN';
-      }, 5000);
-      return;
-    }
-    if (this.abandonTimer !== null) {
-      window.clearTimeout(this.abandonTimer);
-      this.abandonTimer = null;
-    }
-    this.abandonArmed = false;
-    this.pauseRoot.classList.add('hidden');
+    this.pause.closePause();
     this.returnToSafehouse();
   }
 
   private showManual(): void {
-    this.manualOpen = true;
-    this.manualRoot.classList.remove('hidden');
-    (document.getElementById('manual-close') as HTMLButtonElement | null)?.focus();
+    this.pause.showManual();
   }
 
   private closeManual(): void {
-    this.manualOpen = false;
-    this.manualRoot.classList.add('hidden');
-    if (!this.settings.data.tutorialSeen) this.settings.set('tutorialSeen', true);
-    if (!this.settings.data.tourSeen && this.state === 'safehouse') this.showTour();
+    this.pause.closeManual();
   }
 
   private showTour(): void {
-    this.tourOpen = true;
-    this.tourRoot.classList.remove('hidden');
+    this.pause.showTour();
   }
 
   private closeTour(): void {
-    this.tourOpen = false;
-    this.tourRoot.classList.add('hidden');
-    this.settings.set('tourSeen', true);
+    this.pause.closeTour();
   }
 
   private startRun(
@@ -765,10 +705,7 @@ export class Game {
     this.currentContract = contract;
     this.currentApproach = approach;
     this.currentChallenge = contract.challenge ?? 'standard';
-    this.manualOpen = false;
-    this.manualRoot.classList.add('hidden');
-    this.tourOpen = false;
-    this.tourRoot.classList.add('hidden');
+    this.pause.closeAll();
     this.ending.close();
     this.world = this.createWorld(config);
     this.renderer.bind(this.world);
@@ -849,9 +786,7 @@ export class Game {
     this.bossIntro.hide();
     this.bossPhase.hide();
     this.state = 'safehouse';
-    this.pauseRoot.classList.add('hidden');
-    this.manualRoot.classList.add('hidden');
-    this.manualOpen = false;
+    this.pause.closeAll();
     this.ending.close();
     this.hud.hideResults();
     this.hud.setVisible(false);
@@ -1274,7 +1209,7 @@ export class Game {
     }
 
     let edgesConsumed = false;
-    if (this.state === 'safehouse' && !this.panelOpen && !this.manualOpen) {
+    if (this.state === 'safehouse' && !this.panelOpen && !this.pause.isManualOpen) {
       this.acc = Math.min(this.acc + dt, 0.2);
       let edge = true;
       let guard = 0;
