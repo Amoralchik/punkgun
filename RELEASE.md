@@ -65,7 +65,8 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 ## QA Checklist
 
 - `npm run verify` (typecheck + 81 unit tests + build + budget)
-- `npm run smoke` (production preview boot/deploy/pause/new game)
+- `npm run smoke` (Chrome production preview boot/deploy/pause/new game)
+- `npm run smoke:edge` (same flow in Edge)
 - `npm run test:gym` (14 archetypes vs a committed target)
 - `npm run package`
 - Full matrix and manual checklist: [QA.md](./QA.md)

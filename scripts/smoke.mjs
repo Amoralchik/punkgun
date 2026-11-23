@@ -7,6 +7,7 @@ const PREVIEW_PORT = 5199;
 const CDP_PORT = 9231;
 const BASE = `http://localhost:${PREVIEW_PORT}/?debug=1`;
 const OUT = 'tmp-smoke';
+const BROWSER = process.argv.includes('--browser=edge') || process.env.PUNKGUN_BROWSER === 'edge' ? 'edge' : 'chrome';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -25,13 +26,17 @@ async function waitHttp(url, timeout = 20_000) {
 }
 
 function chromePath() {
+  const chrome = [
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  ];
+  const edge = [
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  ];
   const candidates =
     platform() === 'win32'
-      ? [
-          'C:/Program Files/Google/Chrome/Application/chrome.exe',
-          'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-          'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-        ]
+      ? [...(BROWSER === 'edge' ? edge : chrome), ...(BROWSER === 'edge' ? chrome : edge)]
       : platform() === 'darwin'
         ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
         : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
@@ -296,6 +301,7 @@ async function main() {
     console.log(
       JSON.stringify(
         {
+          browser: BROWSER,
           boot: true,
           contracts: boot.contracts.length,
           started,

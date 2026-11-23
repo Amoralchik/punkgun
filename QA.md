@@ -14,7 +14,8 @@ Smoke output is `tmp-smoke/smoke.png`; it is disposable and gitignored.
 
 | Browser | Target | Status |
 |---|---|---|
-| Chrome / Edge (evergreen, Windows) | primary | Smoke-tested headless (Chrome 157) + manual |
+| Chrome (evergreen, Windows) | primary | Smoke-tested headless (Chrome 157) + manual |
+| Edge (evergreen, Windows) | primary Chromium | Smoke-tested headless (`npm run smoke:edge`) |
 | Firefox (evergreen) | supported | Not certified in this environment |
 | Safari (macOS/iOS) | QA target, not a claim | Not certified |
 | WebGL unavailable | fail closed | `SIGNAL LOST` boot screen |
@@ -29,6 +30,7 @@ changes.
 `npm run smoke` boots the **production build** in headless Chrome, then verifies:
 
 - no fatal overlay, canvas present, hub visible;
+- browser selector: Chrome default, Edge with `--browser=edge`;
 - board has at least three contracts and save export is v2;
 - every combat layout has a reachable exit and every cache/weapon spawn is reachable (unit test);
 - deploy a non-boss contract, authored dialogue choice, simulation advance, HUD objective render;
