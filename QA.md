@@ -34,6 +34,7 @@ changes.
 - deploy a non-boss contract, authored dialogue choice, simulation advance, HUD objective render;
 - Escape opens the pause overlay and resume returns to play;
 - return to safehouse restores the hub;
+- NEW GAME arms, confirms, resets money/level and rebuilds the board;
 - no page exceptions or console errors along the path;
 - screenshot captured for visual review.
 
@@ -57,6 +58,8 @@ types.
 - [ ] Clinic shows neural load, risk %, capacity block, and rejection message.
 - [ ] Presets save/equip/clear without duplicating stash items.
 - [ ] Archive unlocks dossiers and ending files.
+- [ ] NEW GAME arms, confirms, wipes the slot, rerolls the campaign board and returns to the hub.
+- [ ] NEW GAME does not change settings, keybinds, palette or volume.
 
 ### Contract / combat
 - [ ] Authored contracts open faction dialogue; attribute/reputation choices show READY/LOCKED and apply boons.

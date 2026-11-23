@@ -127,6 +127,7 @@ export class Game {
         this.audio.uiError();
       },
       onReroll: () => this.rerollBoard(),
+      onNewGame: () => this.startNewGame(),
       onManual: () => this.showManual(),
       onClose: () => this.closePanel(),
     });
@@ -145,6 +146,12 @@ export class Game {
 
   private rollBoard(): Contract[] {
     return buildBoard(this.profile, randomSeed());
+  }
+
+  private startNewGame(): void {
+    this.profile.reset();
+    this.returnToSafehouse();
+    if (!this.settings.data.tutorialSeen) this.showManual();
   }
 
   private rerollBoard(): Contract[] | null {

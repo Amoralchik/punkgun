@@ -29,6 +29,7 @@ working checklist.
 | Dialogue | linear boss briefing | **faction beats + choices + attribute/reputation checks + run boons** | branching consequences and more checks |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
 | Endings | 1 | **3** (burn, broadcast, vanish) | branch epilogue scenes |
+| New game flow | reset only | **confirmed new-game reset + campaign reroll** | ending-screen shortcut |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |

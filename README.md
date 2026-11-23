@@ -36,7 +36,7 @@ The production build is an installable PWA with a service-worker app shell and o
 
 - One-hit combat, armor plates, Second Heart, 22 cyberware implants, 15 perks, neural-load/cyberpsychosis risk
 - 12 firearm families, 8 named variants, attachments, crafting, loadout presets
-- Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, deploy
+- Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, deploy; confirmed NEW GAME reset and campaign reroll
 - 12 contract modifiers, 8 objectives (purge, target, recover, sabotage, extraction, hunt, defense, boss), faction storylines with attribute/reputation dialogue checks and run boons, insertion approaches, faction reputation, seeded market stock and price drift
 - 10 combat layouts, 14 enemy archetypes, 4 bosses across three campaign chapters plus a branching three-ending finale
 - Stealth takedowns, body discovery, enemy vision cones, alert propagation

@@ -267,6 +267,30 @@ async function main() {
     );
     if (hub.state !== 'safehouse' || !hub.hub) throw new Error('Return to safehouse failed.');
 
+    const armed = await cdp.evaluate(`(() => {
+      const g = window.__game;
+      g.profile.data.money = 999;
+      g.profile.save();
+      g.openPanel();
+      document.getElementById('sh-new-game').click();
+      return document.getElementById('sh-new-game').textContent;
+    })()`);
+    if (!armed.includes('CONFIRM')) throw new Error(`New game did not arm: ${armed}`);
+    await cdp.evaluate(`document.getElementById('sh-new-game').click()`);
+    await sleep(250);
+    const fresh = await cdp.evaluate(`(() => {
+      document.querySelector('[data-act="close-manual"]')?.click();
+      return {
+        money: window.__game.profile.data.money,
+        level: window.__game.profile.data.level,
+        contracts: window.__game.contracts.length,
+        hub: !document.getElementById('hub').classList.contains('hidden'),
+      };
+    })()`);
+    if (fresh.money !== 120 || fresh.level !== 1 || fresh.contracts < 3 || !fresh.hub) {
+      throw new Error(`New game reset failed: ${JSON.stringify(fresh)}`);
+    }
+
     if (errors.length > 0) throw new Error(`Console errors:\n${errors.join('\n')}`);
 
     console.log(
@@ -279,6 +303,7 @@ async function main() {
           memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
           paused: true,
           returned: hub.state,
+          newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
         },
         null,

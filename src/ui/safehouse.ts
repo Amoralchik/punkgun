@@ -40,6 +40,7 @@ import { CaseView } from './case-view';
 export interface SafehouseHooks {
   onDeploy: (contractId: string, approachId: ApproachId) => void;
   onReroll: () => Contract[] | null;
+  onNewGame: () => void;
   onClick: () => void;
   onError: () => void;
   onManual: () => void;
@@ -100,6 +101,7 @@ export class Safehouse {
   private readonly summaryEl = document.getElementById('sh-summary')!;
   private readonly msgEl = document.getElementById('sh-msg')!;
   private readonly resetEl = document.getElementById('sh-reset')!;
+  private readonly newGameEl = document.getElementById('sh-new-game')!;
   private readonly saveImportEl = document.getElementById('save-import') as HTMLInputElement;
   private readonly stationRoot = document.getElementById('overlay-station')!;
   private readonly stationPanel = document.querySelector<HTMLElement>('.station-panel')!;
@@ -123,6 +125,8 @@ export class Safehouse {
   private wbSelectedId: string | null = null;
   private resetArmed = false;
   private resetTimer: number | null = null;
+  private newGameArmed = false;
+  private newGameTimer: number | null = null;
   private stationMode = false;
   private stationView:
     | 'contracts'
@@ -287,6 +291,11 @@ export class Safehouse {
     if (this.resetTimer !== null) {
       window.clearTimeout(this.resetTimer);
       this.resetTimer = null;
+    }
+    this.newGameArmed = false;
+    if (this.newGameTimer !== null) {
+      window.clearTimeout(this.newGameTimer);
+      this.newGameTimer = null;
     }
   }
 
@@ -497,6 +506,7 @@ export class Safehouse {
     this.msgEl.textContent = this.message;
     this.msgEl.classList.toggle('err', this.messageError);
     this.resetEl.textContent = this.resetArmed ? 'CONFIRM WIPE' : 'RESET SAVE';
+    this.newGameEl.textContent = this.newGameArmed ? 'CONFIRM NEW GAME' : 'NEW GAME';
     if (this.stationMode) this.renderStation();
     if (this.caseView.isOpen) this.caseView.render();
   }
@@ -1073,6 +1083,10 @@ export class Safehouse {
         success = `PRESET 0${index + 1} CLEARED`;
         break;
       }
+      case 'new-game': {
+        this.handleNewGame();
+        return;
+      }
       case 'reset': {
         this.handleReset();
         return;
@@ -1378,9 +1392,37 @@ export class Safehouse {
     this.render();
   }
 
+  private handleNewGame(): void {
+    if (!this.newGameArmed) {
+      this.newGameArmed = true;
+      this.resetArmed = false;
+      this.message = 'PRESS CONFIRM NEW GAME TO WIPE PROGRESS AND REROLL THE CAMPAIGN';
+      this.messageError = true;
+      if (this.newGameTimer !== null) window.clearTimeout(this.newGameTimer);
+      this.newGameTimer = window.setTimeout(() => {
+        this.newGameArmed = false;
+        this.render();
+      }, 5000);
+      this.render();
+      return;
+    }
+    if (this.newGameTimer !== null) window.clearTimeout(this.newGameTimer);
+    this.newGameTimer = null;
+    this.newGameArmed = false;
+    this.message = '';
+    this.messageError = false;
+    this.hooks.onClick();
+    this.hooks.onNewGame();
+  }
+
   private handleReset(): void {
     if (!this.resetArmed) {
       this.resetArmed = true;
+      this.newGameArmed = false;
+      if (this.newGameTimer !== null) {
+        window.clearTimeout(this.newGameTimer);
+        this.newGameTimer = null;
+      }
       this.message = 'PRESS CONFIRM WIPE TO DELETE ALL PROGRESS';
       this.messageError = true;
       if (this.resetTimer !== null) window.clearTimeout(this.resetTimer);
