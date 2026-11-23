@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~355 kB | 450 kB |
+| App JS | ~356 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~896 kB | 1120 kB |
+| Total JS | ~898 kB | 1120 kB |
 | CSS | ~63 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~257 kB | 340 kB |
-| Largest single chunk | ~344 kB | 480 kB |
+| Initial gzip (JS + CSS + HTML) | ~258 kB | 340 kB |
+| Largest single chunk | ~357 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -64,8 +64,8 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 134 unit tests + build + budget)
-- `npm run smoke` (Chrome production preview boot/deploy/pause/new game)
+- `npm run verify` (typecheck + 135 unit tests + build + budget)
+- `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
   (both engines smoke-tested in this environment)
@@ -74,7 +74,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - `npm run soak` (60s headless heap/error soak; `SOAK_MS` overrides)
 - `npm run package`
 - Full matrix and manual checklist: [QA.md](./QA.md)
-- Production preview: boot, deploy, reload, pause, operator import/export, NEW GAME reset.
+- Production preview: boot, deploy, reload, pause, operator import/export, boss rush, NEW GAME reset.
 - Offline preview: service worker controlled (cache `punkgun-v2`), network disabled, cached shell loads.
 - Save migration: v1 → v2 money/level/stash/equipped preserved; corrupt primary recovers from `.bak`.
 - Console clean on boot, run, death, win, safehouse.

@@ -34,7 +34,7 @@ import { GunId, WEAPONS, WeaponId, isGun, NamedWeaponId, NAMED_MAP } from './wea
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { ModifierId } from './modifiers';
 import { ENEMY_TRAITS, pickEnemyKind, rollEnemyLoadout } from './enemy-data';
-import { BOSSES, BossId } from './bosses';
+import { BOSSES, BOSS_ORDER, BossId } from './bosses';
 import { createObjectiveNodes, nearestObjectiveNode, objectiveNodeText } from './world-objectives';
 import type { RunBoon } from './boons';
 import {
@@ -120,6 +120,9 @@ export class World {
   hackMultiplier = 1;
   readonly mission: MissionSpec;
   readonly bossId: BossId | null;
+  private currentBossId: BossId | null;
+  private readonly bossRushQueue: BossId[];
+  private bossRushIndex = -1;
   readonly boons: RunBoon[];
   private readonly mods: RunMods;
   private approachVision = 1;
@@ -151,6 +154,8 @@ export class World {
     this.mission = mission;
     this.mods = mods;
     this.bossId = mission.bossId ?? null;
+    this.currentBossId = mission.bossId ?? null;
+    this.bossRushQueue = mission.bossRush ? [...BOSS_ORDER] : [];
     this.boons = mission.boons ?? [];
     this.rand = mulberry32(seed);
     this.pathfinder = new Pathfinder(level.w, level.h);
@@ -292,14 +297,12 @@ export class World {
     );
 
     if (mission.objective === 'boss') {
-      const bossDef = BOSSES[mission.bossId ?? 'psycho'];
-      const spawn = this.findBossSpawn(level);
-      const boss = this.addEnemy(spawn.x, spawn.y, 1, 'idle', 'boss');
-      boss.armor = bossDef.armor;
-      boss.maxArmor = bossDef.armor;
-      boss.speedMult = bossDef.speedMult;
-      boss.isTarget = true;
-      this.targetId = boss.id;
+      if (mission.bossRush) {
+        this.bossRushIndex = 0;
+        this.spawnBoss(this.bossRushQueue[0]);
+      } else {
+        this.spawnBoss(mission.bossId ?? 'psycho');
+      }
     }
 
     // Give the player the briefing window before any enemy can act.
@@ -472,15 +475,37 @@ export class World {
   }
 
   get boss(): Enemy | null {
-    return this.enemies.find((e) => e.kind === 'boss') ?? null;
+    return (
+      this.enemies.find((e) => e.kind === 'boss' && e.alive) ??
+      this.enemies.find((e) => e.kind === 'boss') ??
+      null
+    );
   }
 
   get bossName(): string {
-    return BOSSES[this.bossId ?? 'psycho'].name;
+    return BOSSES[this.currentBossId ?? this.bossId ?? 'psycho'].name;
+  }
+
+  get bossRushProgress(): string {
+    return this.mission.bossRush
+      ? `${this.bossRushIndex + 1}/${this.bossRushQueue.length}`
+      : '';
   }
 
   private get bossDef() {
-    return BOSSES[this.bossId ?? 'psycho'];
+    return BOSSES[this.currentBossId ?? this.bossId ?? 'psycho'];
+  }
+
+  private spawnBoss(id: BossId): void {
+    const bossDef = BOSSES[id];
+    const spawn = this.findBossSpawn(this.level);
+    const boss = this.addEnemy(spawn.x, spawn.y, 1, 'idle', 'boss');
+    boss.armor = bossDef.armor;
+    boss.maxArmor = bossDef.armor;
+    boss.speedMult = bossDef.speedMult;
+    boss.isTarget = true;
+    this.currentBossId = id;
+    this.targetId = boss.id;
   }
 
   get collectedLoot(): number {
@@ -610,7 +635,8 @@ export class World {
     }
     if (this.mission.objective === 'boss') {
       const boss = this.boss;
-      return boss ? `${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
+      const wave = this.mission.bossRush ? `WAVE ${this.bossRushProgress} · ` : '';
+      return boss ? `${wave}${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
     }
     const nodeText = objectiveNodeText(this.mission, this.objectives);
     if (nodeText) return nodeText;
@@ -628,6 +654,21 @@ export class World {
     } else if (this.mission.objective === 'boss') {
       const boss = this.boss;
       done = !!boss && !boss.alive;
+      if (done && this.mission.bossRush && this.bossRushIndex < this.bossRushQueue.length - 1) {
+        this.bossRushIndex++;
+        this.spawnBoss(this.bossRushQueue[this.bossRushIndex]);
+        this.player.invulnT = Math.max(this.player.invulnT, 1);
+        const current = this.boss;
+        this.emit({
+          type: 'bossRushWave',
+          x: current?.x ?? this.player.x,
+          y: current?.y ?? this.player.y,
+          angle: 0,
+          wave: this.bossRushIndex + 1,
+          total: this.bossRushQueue.length,
+        });
+        return;
+      }
     } else if (this.mission.objective === 'sabotage') {
       done = this.objectives.length > 0 && this.objectives.every((n) => n.completed);
     } else if (this.mission.objective === 'extraction') {

@@ -8,6 +8,7 @@ import {
   createBossContract,
   createFinalContract,
   rollContracts,
+  createBossRushContract,
 } from './missions';
 import { ModifierId } from './modifiers';
 import type { Profile } from './profile';
@@ -324,6 +325,7 @@ export function buildBoard(profile: Profile, seed: number): Contract[] {
         createBossContract(profile.data.level, seed ^ 0x6ac690c5, 'seraph'),
         createBossContract(profile.data.level, seed ^ 0x27d4eb2f, 'archivist'),
       );
+      board.push(createBossRushContract(seed ^ 0x3c6ef372, profile.data.level));
     }
     return board;
   }

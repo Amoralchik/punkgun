@@ -265,7 +265,7 @@ export function createBossContract(
   };
 }
 
-/** Four bosses, one arena, no extraction between them. */
+/** All bosses, one arena, no extraction between them. */
 export function createBossRushContract(seed = randomSeed(), playerLevel = 1): Contract {
   const base = createBossContract(playerLevel, seed, 'psycho');
   return {
@@ -274,7 +274,7 @@ export function createBossRushContract(seed = randomSeed(), playerLevel = 1): Co
     title: 'BOSS RUSH',
     layoutName: 'THE SUBLEVEL',
     reward: 1400 + Math.max(0, playerLevel - 1) * 20,
-    tagline: 'Four doors. Four monsters. No extraction until the last one stops moving.',
+    tagline: 'Six doors. Six monsters. No extraction until the last one stops moving.',
     bossRush: true,
     modifiers: ['elite'],
   };

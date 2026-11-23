@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32, seedLabel } from '../core/math';
-import { createBossContract, createFinalContract, rollContracts } from './missions';
+import { createBossContract, createBossRushContract, createFinalContract, rollContracts } from './missions';
 import { LAYOUTS, layoutCacheCount, loadLevel } from './map';
 import { rollModifiers } from './modifiers';
 
@@ -53,6 +53,10 @@ describe('seeded mission generation', () => {
     expect(createFinalContract(888)).toEqual(createFinalContract(888));
     expect(createFinalContract(888).seed).toBe(888);
     expect(createFinalContract(888).modifiers).toEqual(['elite']);
+    const rush = createBossRushContract(999, 5);
+    expect(rush.bossRush).toBe(true);
+    expect(rush.objective).toBe('boss');
+    expect(rush.reward).toBeGreaterThan(createBossContract(5, 999).reward);
   });
 
   it('seeds modifier rolls', () => {

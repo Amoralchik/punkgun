@@ -407,6 +407,34 @@ async function main() {
       `document.querySelector('[data-act="lifepath"][data-id="street"]').click()`,
     );
     await sleep(250);
+    const bossRush = await cdp.evaluate(`(() => {
+      const game = window.__game;
+      game.profile.data.finalCleared = true;
+      game.returnToSafehouse();
+      const contract = game.contracts.find((entry) => entry.bossRush);
+      if (!contract) return { found: false };
+      game.startRun(contract.id, 'standard');
+      for (let i = 0; i < 12 && game.dialogueOpen; i++) {
+        if (game.dialogueSession?.hasChoices) game.chooseDialogue('sublevel-remember');
+        else game.advanceDialogue();
+      }
+      return {
+        found: true,
+        locked: contract.locked,
+        dialogue: game.dialogueOpen,
+        pending: Boolean(game.pendingRun),
+        current: game.currentContract?.title,
+        state: game.state,
+        wave: game.world.bossRushProgress,
+        mission: game.world.mission.bossRush,
+        title: contract.title,
+      };
+    })()`);
+    if (!bossRush.found || bossRush.state !== 'playing' || !bossRush.mission) {
+      throw new Error(`Boss rush failed: ${JSON.stringify(bossRush)}`);
+    }
+    await cdp.evaluate(`window.__game.returnToSafehouse()`);
+
     const fresh = await cdp.evaluate(`(() => {
       document.querySelector('[data-act="close-manual"]')?.click();
       document.querySelector('[data-act="tour-close"]')?.click();
@@ -449,6 +477,7 @@ async function main() {
           workbench: true,
           ventures: true,
           role,
+          bossRush,
           newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
         },

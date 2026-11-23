@@ -315,6 +315,7 @@ export class Game {
         approach,
         modifiers: contract.modifiers,
         bossId: contract.bossId,
+        bossRush: contract.bossRush,
         boons: config.boons,
       },
       this.profile.runMods(),
@@ -1403,6 +1404,12 @@ export class Game {
         break;
       case 'operatorDeploy':
         this.audio.alert();
+        break;
+      case 'bossRushWave':
+        this.audio.alert();
+        this.audio.setBossMode(true);
+        this.hud.subtitle(`BOSS RUSH ${e.wave}/${e.total} — ${this.world.bossName}`, 4000);
+        this.hud.logLine(`BOSS RUSH: wave ${e.wave}/${e.total} — ${this.world.bossName}`);
         break;
       case 'exitOpen':
         this.audio.exitOpen();

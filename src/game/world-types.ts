@@ -347,4 +347,6 @@ export interface WorldEvent {
   angle: number;
   nodeId?: number;
   hazard?: 'camera' | 'turret';
+  wave?: number;
+  total?: number;
 }

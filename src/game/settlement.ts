@@ -11,6 +11,7 @@ import {
 } from './ventures';
 import { repPayBonus } from './reputation';
 import { challengePayBonus } from './challenges';
+import { BOSS_ORDER } from './bosses';
 import { xpForNext } from './progression';
 import type { Contract } from './missions';
 import type { Profile } from './profile';
@@ -99,7 +100,11 @@ export function settleRun(
   }
   if (contract?.objective === 'boss') {
     profile.data.bossCleared = true;
-    if (contract.bossId) profile.data.bossesCleared[contract.bossId] = true;
+    if (contract.bossRush) {
+      for (const id of BOSS_ORDER) profile.data.bossesCleared[id] = true;
+    } else if (contract.bossId) {
+      profile.data.bossesCleared[contract.bossId] = true;
+    }
   }
   if (contract?.authored && !profile.data.completedContracts.includes(contract.id)) {
     profile.data.completedContracts.push(contract.id);

@@ -163,6 +163,27 @@ describe('mission objectives', () => {
     expect(world.modifierVision).toBeCloseTo(0.85);
   });
 
+  it('advances boss rush waves without opening the exit', () => {
+    const world = makeWorld(
+      { objective: 'boss', requiredLoot: 0, bossId: 'psycho', bossRush: true },
+      new Set<string>(),
+      'sublevel',
+    );
+    expect(world.bossRushProgress).toBe('1/6');
+    expect(world.objectiveText()).toContain('WAVE 1/6');
+
+    for (let i = 0; i < BOSSES.psycho.armor; i++) {
+      const boss = world.boss!;
+      boss.invulnT = 0;
+      world.damageBoss(boss, 0);
+    }
+
+    expect(world.exitOpen).toBe(false);
+    expect(world.bossRushProgress).toBe('2/6');
+    expect(world.bossName).toBe(BOSSES[BOSS_ORDER[1]].name);
+    expect(world.boss?.alive).toBe(true);
+  });
+
   it('spawns each boss archetype in a reachable arena tile', () => {
     for (const id of BOSS_ORDER) {
       const layoutId = BOSSES[id].layoutId;

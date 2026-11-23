@@ -51,6 +51,7 @@ describe('campaign structure', () => {
     const afterFinal = buildBoard(profile, 99);
     expect(afterFinal.some((c) => c.bossId === 'seraph')).toBe(true);
     expect(afterFinal.some((c) => c.bossId === 'archivist')).toBe(true);
+    expect(afterFinal.some((c) => c.bossRush)).toBe(true);
   });
 
   it('removes completed authored beats from the board', () => {
