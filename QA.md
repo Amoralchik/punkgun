@@ -102,6 +102,7 @@ types.
 - [ ] No console errors on boot, run, death, win, safehouse.
 - [ ] 30-minute session without save loss or softlock.
 - [ ] `npm run soak` stays under the heap/growth limits with zero console errors.
+- [ ] `npm run soak:long` completes 30 minutes without unbounded heap growth.
 
 ## Save recovery policy
 

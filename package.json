@@ -18,7 +18,8 @@
     "test:balance": "vitest run src/game/balance-matrix.test.ts --reporter=verbose",
     "smoke:firefox": "node scripts/smoke-playwright.mjs --browser=firefox",
     "smoke:webkit": "node scripts/smoke-playwright.mjs --browser=webkit",
-    "soak": "node scripts/soak.mjs"
+    "soak": "node scripts/soak.mjs",
+    "soak:long": "node scripts/soak.mjs --minutes=30"
   },
   "dependencies": {
     "three": "^0.187.0"

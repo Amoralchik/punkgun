@@ -4,7 +4,13 @@ import { platform } from 'node:os';
 import { chromium } from 'playwright';
 
 const PREVIEW_PORT = 5202;
-const DURATION = Number(process.env.SOAK_MS ?? 60_000);
+const MINUTES = Number(
+  process.argv.find((value) => value.startsWith('--minutes='))?.split('=')[1] ?? 0,
+);
+const DURATION =
+  Number.isFinite(MINUTES) && MINUTES > 0
+    ? Math.round(MINUTES * 60_000)
+    : Number(process.env.SOAK_MS ?? 60_000);
 const HEAP_LIMIT_MB = 160;
 const GROWTH_LIMIT_MB = 64;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -121,6 +127,7 @@ async function main() {
     console.log(
       JSON.stringify(
         {
+          durationSeconds: Math.round(DURATION / 1000),
           cycles,
           samples: samples.map((value) => Number(value.toFixed(1))),
           heapMb: { min: Number(min.toFixed(1)), max: Number(max.toFixed(1)), growth: Number(growth.toFixed(1)) },

@@ -73,7 +73,8 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
   (both engines smoke-tested in this environment)
 - `npm run test:gym` (16 archetypes vs a committed target)
 - `npm run test:balance` (three-build clear-rate matrix)
-- `npm run soak` (60s headless heap/error soak; `SOAK_MS` overrides)
+- `npm run soak` (60s headless heap/error soak; `SOAK_MS` / `--minutes` override)
+- `npm run soak:long` (30-minute profile; not run in this environment)
 - `npm run package`
 - Full matrix and manual checklist: [QA.md](./QA.md)
 - Production preview: boot, deploy, reload, pause, operator import/export, boss rush, NEW GAME reset.
