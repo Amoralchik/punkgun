@@ -62,6 +62,8 @@ export const FACTION_BY_LAYOUT: Record<LayoutId, FactionId> = {
   sublevel: 'sublevel',
   transit: 'orbit',
   arcology: 'helix',
+  freighter: 'orbit',
+  nightclub: 'market',
 };
 
 export function factionForLayout(id: LayoutId): FactionId {

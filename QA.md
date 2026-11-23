@@ -30,6 +30,7 @@ changes.
 
 - no fatal overlay, canvas present, hub visible;
 - board has at least three contracts and save export is v2;
+- every combat layout has a reachable exit and every cache/weapon spawn is reachable (unit test);
 - deploy a non-boss contract, authored dialogue choice, simulation advance, HUD objective render;
 - Escape opens the pause overlay and resume returns to play;
 - return to safehouse restores the hub;

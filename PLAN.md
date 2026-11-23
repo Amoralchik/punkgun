@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 72 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 75 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -17,13 +17,13 @@ working checklist.
 
 | Backlog item | Before | Now | Remaining |
 |---|---:|---:|---|
-| Combat layouts | 6 | **8** | 1–2 more for target 9–10 |
+| Combat layouts | 6 | **10** | target met; add combat gym variation |
 | Enemy archetypes | 11 | **14** | Hit target; add combat-gym coverage |
 | Bosses | 1 | **4** | optional boss-rush/NG+ variants |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Cyberware | 10 | **22** | active-ability VFX polish |
 | Perks | 4 | **15** | mutually exclusive capstones |
-| Attributes + checks | 4 | 4 + derived checks | dialogue/skill checks |
+| Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 4 bosses** | more faction-specific voice |
 | Dialogue | linear boss briefing | **faction beats + choices + attribute/reputation checks + run boons** | branching consequences and more checks |
@@ -61,14 +61,14 @@ working checklist.
 
 ## Next sequence
 
-1. Add 1–2 more layouts (dockside freighter, nightclub) with distinct hazard grammar.
-2. Build a combat gym for the 14 archetypes and tune threat tells/clear rates.
-3. Add branching dialogue consequences, more checks, and archive entries per path.
-4. Split `World` into player/AI/bullets/doors/objectives modules behind the
+1. Build a combat gym for the 14 archetypes, including freighter/nightclub hazards,
+   and tune threat tells/clear rates.
+2. Add branching dialogue consequences, more checks, and archive entries per path.
+3. Split `World` into player/AI/bullets/doors/objectives modules behind the
    existing `World` facade, then repeat for `Safehouse` and `Game`.
-5. Extract remaining user-visible strings to the typed catalog and add a second
+4. Extract remaining user-visible strings to the typed catalog and add a second
    locale fixture.
-6. Add Firefox/Safari smoke certification and long-session memory sampling.
+5. Add Firefox/Safari smoke certification and long-session memory sampling.
 
 ## Non-goals (unchanged)
 

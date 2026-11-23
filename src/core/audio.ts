@@ -3,7 +3,14 @@ export type AmbienceKind = 'none' | 'rain' | 'wind' | 'embers';
 export type MusicFaction = 'helix' | 'teeth' | 'orbit' | 'sublevel' | 'market';
 
 export function ambienceForLevel(id: string): AmbienceKind {
-  if (id === 'sector07' || id === 'nightmarket' || id === 'docks' || id === 'transit') {
+  if (
+    id === 'sector07' ||
+    id === 'nightmarket' ||
+    id === 'docks' ||
+    id === 'transit' ||
+    id === 'freighter' ||
+    id === 'nightclub'
+  ) {
     return 'rain';
   }
   if (id === 'tenements' || id === 'spire' || id === 'arcology') return 'wind';
