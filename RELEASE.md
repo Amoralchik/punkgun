@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~390 kB | 450 kB |
+| App JS | ~392 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~931 kB | 1120 kB |
+| Total JS | ~933 kB | 1120 kB |
 | CSS | ~64 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~270 kB | 340 kB |
-| Largest single chunk | ~390 kB | 480 kB |
+| Largest single chunk | ~392 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -94,8 +94,8 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
   HUD events, the full manual, the safehouse tour, authored dialogue, boss briefings
   and dialogue choices.
 - Contract taglines, generated board taglines, daily taglines, handler lines, venture cards,
-  street events and event replies are localized. Long-form station prose remains inline.
-  Route it through the catalog before claiming full locale coverage.
+  street events, event replies and station notes are localized. Augment/archive prose remains
+  inline. Route it through the catalog before claiming full locale coverage.
 
 ## Credits
 

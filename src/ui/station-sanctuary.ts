@@ -1,5 +1,6 @@
 import type { Profile } from '../game/profile';
 import { ROOM_UPGRADES, roomCost } from '../game/rooms';
+import { t } from '../core/i18n';
 
 function roomDiorama(profile: Profile): string {
   const ranks = profile.data.room;
@@ -50,7 +51,7 @@ export function renderSanctuary(profile: Profile): string {
       <div class="kicker">// THE ROOM</div>
       <h2>YOUR CORNER OF THE CITY</h2>
       ${roomDiorama(profile)}
-      <p class="sh-note">The room remembers what you invest in it. Upgrade a station to change the view and the run.</p>
+      <p class="sh-note">${t('station.note.sanctuary')}</p>
     </section>
     <section class="station-col">
       <div class="kicker">// FIXTURES</div>

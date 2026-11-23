@@ -1,6 +1,6 @@
 import type { Contract } from '../game/missions';
 import { FACTIONS, handlerLine } from '../game/lore';
-import { getLocale } from '../core/i18n';
+import { getLocale, t } from '../core/i18n';
 
 export interface ContractsParts {
   contractBlock: string;
@@ -74,8 +74,8 @@ export function renderDeploy(parts: DeployParts): string {
         </button>
         <p class="sh-note">${
           selected?.locked
-            ? `BOSS ACCESS LOCKED — ${parts.regularClears}/${selected.requiredClears ?? 3} regular clears required.`
-            : 'The packed kit is consumed on launch. Die in the sector and the carried weapon and loot are lost.'
+            ? t('station.note.contractLocked', { clears: parts.regularClears, required: selected.requiredClears ?? 3 })
+            : t('station.note.contractKit')
         }</p>
       </section>
     </div>`;

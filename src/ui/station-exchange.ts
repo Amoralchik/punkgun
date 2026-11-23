@@ -1,5 +1,6 @@
 import type { Profile } from '../game/profile';
 import { TICKERS } from '../game/exchange';
+import { t } from '../core/i18n';
 
 function sparkline(points: number[], color: string): string {
   if (points.length < 2) return '';
@@ -56,7 +57,7 @@ export function renderExchange(profile: Profile): string {
     <section class="station-col exchange-main">
       <div class="kicker">// BLACK EXCHANGE</div>
       <h2>THE EXCHANGE</h2>
-      <p class="sh-note">Five names. One city. Prices move after every clean extraction. Dividends pay on the same tick.</p>
+      <p class="sh-note">${t('station.note.exchange1')}</p>
       <div class="exchange-list">${rows}</div>
       <button class="sh-augments" data-act="open-market">BACK TO MARKET</button>
     </section>
@@ -68,7 +69,7 @@ export function renderExchange(profile: Profile): string {
         <span>CASH <b>$${profile.data.money.toLocaleString('en-US')}</b></span>
         <span>HOLDINGS <b>${TICKERS.reduce((sum, ticker) => sum + profile.exchangeHoldings(ticker.id), 0)}</b></span>
       </div>
-      <p class="sh-note">Buy low, sell high, or hold for dividends. A crash is a buying opportunity if you survive it.</p>
+      <p class="sh-note">${t('station.note.exchange2')}</p>
     </section>
   </div>`;
 }

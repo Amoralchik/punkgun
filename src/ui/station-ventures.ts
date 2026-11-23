@@ -1,5 +1,5 @@
 import type { Profile } from '../game/profile';
-import { getLocale } from '../core/i18n';
+import { getLocale, t } from '../core/i18n';
 import {
   VENTURES,
   VENTURE_MAP,
@@ -62,8 +62,8 @@ export function renderVentures(profile: Profile): string {
           <span>PASSIVE PER CLEAR <b>$${income}</b></span>
           <span>CONTRACT BONUS <b>+${pay}%</b></span>
         </div>
-        <p class="sh-note">Businesses pay after every clean extraction. Upgrades compound through three ranks.</p>
-        <p class="sh-note">Bars move faction standing. Clinics cut prices. Chop shops feed the fabricator.</p>
+        <p class="sh-note">${t('station.note.ventures1')}</p>
+        <p class="sh-note">${t('station.note.ventures2')}</p>
         <button class="sh-augments" data-act="open-exchange">OPEN THE EXCHANGE</button>
       </section>
     </div>`;

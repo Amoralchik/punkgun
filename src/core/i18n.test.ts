@@ -8,9 +8,12 @@ describe('message catalog', () => {
     expect(t('objective.recover', { count: 2, plural: 'S' })).toBe('RECOVER 2 CACHES');
     expect(t('station.operator')).toBe('OPERATOR');
     expect(t('boon.pay.desc')).toContain('12%');
+    expect(t('station.note.ventures1')).toContain('clean extraction');
     setLocale('es');
     expect(t('station.contracts')).toBe('CONTRATOS');
     expect(t('objective.recover', { count: 1, plural: '' })).toBe('RECUPERA 1 CACHÉ');
+    expect(t('station.note.ventures1')).toContain('negocios');
+    expect(t('station.note.contractLocked', { clears: 1, required: 3 })).toContain('1/3');
     setLocale('en');
   });
 });

@@ -60,7 +60,19 @@ export type MessageKey =
   | 'hud.case'
   | 'hud.caseSecured'
   | 'hud.holdZone'
-  | 'hud.zoneHeld';
+  | 'hud.zoneHeld'
+  | 'station.note.exchange1'
+  | 'station.note.exchange2'
+  | 'station.note.market'
+  | 'station.note.operatorAttr'
+  | 'station.note.operatorHistory'
+  | 'station.note.operatorPresets'
+  | 'station.note.operatorSave'
+  | 'station.note.sanctuary'
+  | 'station.note.ventures1'
+  | 'station.note.ventures2'
+  | 'station.note.contractLocked'
+  | 'station.note.contractKit';
 
 const EN: Record<MessageKey, string> = {
   'event.bossPhase': 'ARMOR PLATE SHATTERED — BOSS PHASE SHIFT',
@@ -120,6 +132,18 @@ const EN: Record<MessageKey, string> = {
   'hud.caseSecured': 'CASE SECURED — EXIT',
   'hud.holdZone': 'HOLD THE ZONE {seconds}S',
   'hud.zoneHeld': 'ZONE HELD — EXIT',
+  'station.note.exchange1': 'Five names. One city. Prices move after every clean extraction. Dividends pay on the same tick.',
+  'station.note.exchange2': 'Buy low, sell high, or hold for dividends. A crash is a buying opportunity if you survive it.',
+  'station.note.market': 'Buy ammo from storage. Sell guns and contraband here; pack consumables at the supply depot.',
+  'station.note.operatorAttr': '{count} attribute points available. Spend them at the clinic.',
+  'station.note.operatorHistory': 'NO RUNS RECORDED. DEPLOY AND COME BACK.',
+  'station.note.operatorPresets': 'Save the currently equipped fit, then re-equip it from storage. Presets never duplicate gear.',
+  'station.note.operatorSave': 'Export a validated v2 JSON snapshot, or import a v1/v2 save. Import replaces current progress.',
+  'station.note.sanctuary': 'The room remembers what you invest in it. Upgrade a station to change the view and the run.',
+  'station.note.ventures1': 'Businesses pay after every clean extraction. Upgrades compound through three ranks.',
+  'station.note.ventures2': 'Bars move faction standing. Clinics cut prices. Chop shops feed the fabricator.',
+  'station.note.contractLocked': 'BOSS ACCESS LOCKED — {clears}/{required} regular clears required.',
+  'station.note.contractKit': 'The packed kit is consumed on launch. Die in the sector and the carried weapon and loot are lost.',
 };
 
 const ES: Record<MessageKey, string> = {
@@ -180,6 +204,18 @@ const ES: Record<MessageKey, string> = {
   'hud.caseSecured': 'MALETÍN ASEGURADO — SALIDA',
   'hud.holdZone': 'MANTÉN LA ZONA {seconds}S',
   'hud.zoneHeld': 'ZONA MANTENIDA — SALIDA',
+  'station.note.exchange1': 'Cinco nombres. Una ciudad. Los precios se mueven tras cada extracción limpia. Los dividendos pagan en el mismo tick.',
+  'station.note.exchange2': 'Compra barato, vende caro o mantén por dividendos. Una caída es una oportunidad si sobrevives.',
+  'station.note.market': 'Compra munición del almacén. Vende armas y contrabando aquí; prepara consumibles en suministros.',
+  'station.note.operatorAttr': '{count} puntos de atributo disponibles. Gástalos en la clínica.',
+  'station.note.operatorHistory': 'SIN PARTIDAS REGISTRADAS. DESPLIÉGATE Y VUELVE.',
+  'station.note.operatorPresets': 'Guarda el equipo actual y vuelve a equiparlo desde el almacén. Los presets no duplican equipo.',
+  'station.note.operatorSave': 'Exporta una instantánea JSON v2 validada o importa una partida v1/v2. Importar reemplaza el progreso.',
+  'station.note.sanctuary': 'La sala recuerda lo que inviertes. Mejora una estación para cambiar la vista y la partida.',
+  'station.note.ventures1': 'Los negocios pagan tras cada extracción limpia. Las mejoras se acumulan en tres rangos.',
+  'station.note.ventures2': 'Los bares mueven la reputación. Las clínicas bajan precios. Los desguaces alimentan la fabricadora.',
+  'station.note.contractLocked': 'ACCESO AL JEFE BLOQUEADO — {clears}/{required} limpiezas regulares requeridas.',
+  'station.note.contractKit': 'El kit se consume al lanzar. Si mueres en el sector, pierdes el arma y el botín que llevas.',
 };
 
 const CATALOGS: Record<Locale, Record<MessageKey, string>> = { en: EN, es: ES };

@@ -1,4 +1,5 @@
 import { fmtTime } from '../core/math';
+import { t } from '../core/i18n';
 import type { Profile } from '../game/profile';
 import { ATTRIBUTE_DEFS, APPROACHES, approachRequirement, approachUnlocked } from '../game/attributes';
 import { CYBERWARE_DEFS, PERK_DEFS } from '../game/progression';
@@ -112,7 +113,7 @@ export function renderOperator(profile: Profile): string {
             <div class="kicker">// BUILD</div>
             <h2>ATTRIBUTES</h2>
             <div class="op-attrs">${attrRows}</div>
-            <p class="sh-note">${data.attributePoints} attribute point${data.attributePoints === 1 ? '' : 's'} available. Spend them at the clinic.</p>
+            <p class="sh-note">${t('station.note.operatorAttr', { count: data.attributePoints })}</p>
             <h2>DERIVED</h2>
             <div class="op-stats">
               <span>ARMOR <b>${mods.armor}</b></span>
@@ -144,7 +145,7 @@ export function renderOperator(profile: Profile): string {
             </div>
             <h2>RUN HISTORY</h2>
             <div class="op-history">${
-              historyRows || '<span class="sh-note">NO RUNS RECORDED. DEPLOY AND COME BACK.</span>'
+              historyRows || `<span class="sh-note">${t('station.note.operatorHistory')}</span>`
             }</div>
             <h2>INSTALLED</h2>
             <div class="op-installed">${
@@ -154,13 +155,13 @@ export function renderOperator(profile: Profile): string {
             }</div>
             <h2>LOADOUT PRESETS</h2>
             <div class="op-presets">${presetRows}</div>
-            <p class="sh-note">Save the currently equipped fit, then re-equip it from storage. Presets never duplicate gear.</p>
+            <p class="sh-note">${t('station.note.operatorPresets')}</p>
             <h2>SAVE DATA</h2>
             <div class="op-save">
               <button type="button" data-act="export-save">EXPORT SAVE</button>
               <button type="button" data-act="import-save">IMPORT SAVE</button>
             </div>
-            <p class="sh-note">Export a validated v2 JSON snapshot, or import a v1/v2 save. Import replaces current progress.</p>
+            <p class="sh-note">${t('station.note.operatorSave')}</p>
           </section>
         </div>`;
 }

@@ -2,6 +2,7 @@ import type { Profile } from '../game/profile';
 import { FACTION_OFFERS } from '../game/faction-stock';
 import { FACTIONS } from '../game/lore';
 import { NAMED_MAP, WEAPONS } from '../game/weapons';
+import { t } from '../core/i18n';
 
 export interface MarketParts {
   shop: string;
@@ -64,7 +65,7 @@ export function renderMarket(profile: Profile, parts: MarketParts): string {
         <div class="sh-list">${factionStock}</div>
         <button class="sh-augments" data-act="open-exchange">OPEN THE EXCHANGE</button>
         <p class="sh-note">${parts.intel}</p>
-        <p class="sh-note">Buy ammo from storage. Sell guns and contraband here; pack consumables at the supply depot.</p>
+        <p class="sh-note">${t('station.note.market')}</p>
       </section>
     </div>`;
 }
