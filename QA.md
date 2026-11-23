@@ -101,6 +101,7 @@ types.
 - [ ] `npm run smoke` samples JS heap under 160 MB (currently ~9 MB headless).
 - [ ] No console errors on boot, run, death, win, safehouse.
 - [ ] 30-minute session without save loss or softlock.
+- [ ] `npm run soak` stays under the heap/growth limits with zero console errors.
 
 ## Save recovery policy
 

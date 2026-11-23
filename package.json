@@ -17,7 +17,8 @@
     "smoke:edge": "node scripts/smoke.mjs --browser=edge",
     "test:balance": "vitest run src/game/balance-matrix.test.ts --reporter=verbose",
     "smoke:firefox": "node scripts/smoke-playwright.mjs --browser=firefox",
-    "smoke:webkit": "node scripts/smoke-playwright.mjs --browser=webkit"
+    "smoke:webkit": "node scripts/smoke-playwright.mjs --browser=webkit",
+    "soak": "node scripts/soak.mjs"
   },
   "dependencies": {
     "three": "^0.187.0"

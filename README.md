@@ -22,6 +22,7 @@ npm run smoke         # headless Chrome production boot/deploy/pause smoke
 npm run smoke:edge    # same smoke in Edge
 npm run smoke:firefox # same smoke in Firefox (Playwright)
 npm run smoke:webkit  # WebKit/Safari-engine smoke (Playwright)
+npm run soak          # 60s headless heap/error soak (SOAK_MS=25000 for quick)
 # Playwright browsers: npx playwright install firefox webkit
 ```
 

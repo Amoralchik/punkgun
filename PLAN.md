@@ -40,7 +40,7 @@ working checklist.
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
-| Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
+| Performance budgets | manual | **enforced budget + smoke heap + `npm run soak`** | longer 30-minute soak |
 | Accessibility | partial | **reduced motion, palettes, subtitles, log, presets, arbitrary key remap** | gamepad
 | Localization readiness | none | **English/Spanish catalog for objectives, stations, boons and HUD** | station/manual/dialogue copy |
 | Deep module splits | not started | **world player/bullets/objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | Safehouse station views |
