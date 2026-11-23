@@ -19,7 +19,7 @@ working checklist.
 |---|---:|---:|---|
 | Combat layouts | 6 | **12** | target exceeded; add district-specific setpieces |
 | Enemy archetypes | 11 | **16** | target exceeded; tune squad compositions |
-| Bosses | 1 | **4** | optional boss-rush/NG+ variants |
+| Bosses | 1 | **6** | boss-rush/NG+ variants |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Cyberware | 10 | **22** | active-ability VFX polish |
 | Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
@@ -28,7 +28,7 @@ working checklist.
 | Perks | 4 | **17** | mutually exclusive capstones |
 | Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
-| Authored contracts | 3 random + boss/final | **12 authored + 3 random + 4 bosses** | more faction-specific voice |
+| Authored contracts | 3 random + boss/final | **12 authored + 3 random + 6 bosses** | more faction-specific voice |
 | Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
 | Endings | 1 | **4** (burn, broadcast, vanish, remember) | branch epilogue scenes |
@@ -56,7 +56,7 @@ working checklist.
    ripperdoc rejection risk, 12 weapon families / 8 named, loadout presets,
    stock rotation, price drift, faction discounts across stations.
 3. **Contract depth** — done: 8 objectives, 12 modifiers, 12 authored contracts,
-   three chapter gates, four bosses, four endings, ending archive entries.
+   three chapter gates, six bosses, four endings, ending archive entries.
 4. **Presentation** — done for this tranche: 4-frame walk, holo ads, contract
    palettes, fog/blackout, faction music layers, positional SFX, subtitles/log.
    Remaining: bespoke boss choreography and full localization extraction.

@@ -75,6 +75,7 @@ types.
 - [ ] PAY, ARMOR, QUIET and COMPONENTS boons show in the brief and affect settlement/vision/plates.
 - [ ] Purge, target, recover, sabotage, extraction, hunt, defense all complete.
 - [ ] Every archetype attacks and closes correctly: `npm run test:gym`.
+- [ ] Post-finale legendary bosses SERAPH and THE ARCHIVIST appear and their arenas are reachable.
 - [ ] Three-build matrix prints and stays within its band: `npm run test:balance`.
 - [ ] A committed enemy reacquires a close player instead of going idle behind its cone.
 - [ ] Sabotage terminals and extraction case are visible and interactable.

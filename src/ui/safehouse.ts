@@ -5,7 +5,7 @@ import { Contract, objectiveDetail, objectiveText } from '../game/missions';
 import { DOSSIERS, dossierUnlocked, FACTIONS, handlerLine, unlockText } from '../game/lore';
 import { nextRepRank, repDiscount, repPayBonus, repSellBonus } from '../game/reputation';
 import { MODIFIER_MAP } from '../game/modifiers';
-import { BOSSES } from '../game/bosses';
+import { BOSSES, BOSS_ORDER } from '../game/bosses';
 import { chapterProgress } from '../game/campaign';
 import { ENDINGS } from '../game/endings';
 import { ROLES, ROLE_MAP, type RoleId } from '../game/roles';
@@ -840,9 +840,9 @@ export class Safehouse {
       const progress = chapterProgress(this.profile);
       const chapterName = progress.def?.name ?? 'FINALE';
       const gateName = progress.def ? BOSSES[progress.def.gateBoss].name : 'THE BOARD';
-      const bossLine = (['psycho', 'grin', 'crane', 'board'] as const)
-        .map((id) => `${BOSSES[id].name.split(' ')[0]} ${data.bossesCleared[id] ? '✓' : '×'}`)
-        .join(' · ');
+      const bossLine = BOSS_ORDER.map(
+        (id) => `${BOSSES[id].name.split(' ')[0]} ${data.bossesCleared[id] ? '✓' : '×'}`,
+      ).join(' · ');
       const ending = data.ending ? ENDINGS[data.ending] : null;
       const roleRows = ROLES.map((role) => {
         const active = data.role === role.id;

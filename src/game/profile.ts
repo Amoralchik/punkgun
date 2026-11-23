@@ -374,12 +374,9 @@ export interface ProfileData {
   presets: Array<LoadoutPreset | null>;
 }
 
-const EMPTY_BOSSES: Record<BossId, boolean> = {
-  psycho: false,
-  grin: false,
-  crane: false,
-  board: false,
-};
+const EMPTY_BOSSES: Record<BossId, boolean> = Object.fromEntries(
+  BOSS_ORDER.map((id) => [id, false]),
+) as Record<BossId, boolean>;
 
 const EMPTY_COMPONENTS: Record<ComponentId, number> = {
   scrap: 0,

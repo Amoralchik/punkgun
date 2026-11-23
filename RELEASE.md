@@ -21,9 +21,9 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~350 kB | 450 kB |
+| App JS | ~351 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~891 kB | 1120 kB |
+| Total JS | ~892 kB | 1120 kB |
 | CSS | ~62 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~255 kB | 340 kB |
 | Largest single chunk | ~344 kB | 480 kB |

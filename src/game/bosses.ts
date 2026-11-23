@@ -2,7 +2,7 @@ import type { FactionId } from './lore';
 import type { EnemyKind } from './world-types';
 import type { LayoutId } from './map';
 
-export type BossId = 'psycho' | 'grin' | 'crane' | 'board';
+export type BossId = 'psycho' | 'grin' | 'crane' | 'board' | 'seraph' | 'archivist';
 
 export interface BossDef {
   id: BossId;
@@ -70,6 +70,38 @@ export const BOSSES: Record<BossId, BossDef> = {
     reward: 380,
     color: '#ffc46b',
   },
+  seraph: {
+    id: 'seraph',
+    name: 'SERAPH',
+    title: 'NEON ALLEY',
+    layoutId: 'neon_alley',
+    faction: 'market',
+    blurb: 'A rogue netrunner wearing a dead woman’s face. It has been inside the alley since before the district had a name.',
+    armor: 4,
+    speedMult: 1.18,
+    charge: false,
+    shock: true,
+    adds: 2,
+    addKind: 'netrunner',
+    reward: 600,
+    color: '#b38cff',
+  },
+  archivist: {
+    id: 'archivist',
+    name: 'THE ARCHIVIST',
+    title: 'ROOFTOP ARCHIVE',
+    layoutId: 'rooftops',
+    faction: 'helix',
+    blurb: 'A memory broker with a server for a heart. It remembers every version of you and calls them inventory.',
+    armor: 5,
+    speedMult: 0.86,
+    charge: true,
+    shock: true,
+    adds: 3,
+    addKind: 'drone',
+    reward: 650,
+    color: '#5ef1ff',
+  },
   board: {
     id: 'board',
     name: 'THE BOARD',
@@ -88,4 +120,11 @@ export const BOSSES: Record<BossId, BossDef> = {
   },
 };
 
-export const BOSS_ORDER: BossId[] = ['psycho', 'grin', 'crane', 'board'];
+export const BOSS_ORDER: BossId[] = [
+  'psycho',
+  'grin',
+  'crane',
+  'board',
+  'seraph',
+  'archivist',
+];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Input } from '../core/input';
-import { BOSSES } from './bosses';
+import { BOSSES, BOSS_ORDER } from './bosses';
 import { loadLevel, worldToTile, type LayoutId } from './map';
 import { Pathfinder } from './path';
 import { baseMods } from './progression';
@@ -133,7 +133,7 @@ describe('mission objectives', () => {
   });
 
   it('spawns each boss archetype in a reachable arena tile', () => {
-    for (const id of ['psycho', 'grin', 'crane', 'board'] as const) {
+    for (const id of BOSS_ORDER) {
       const layoutId = BOSSES[id].layoutId;
       const world = makeWorld(
         {

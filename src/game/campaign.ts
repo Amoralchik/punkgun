@@ -315,10 +315,17 @@ export function authoredFor(profile: Profile, limit = 2): Contract[] {
 export function buildBoard(profile: Profile, seed: number): Contract[] {
   const chapter = currentChapter(profile);
   if (chapter === 'final') {
-    return [
+    const board = [
       createFinalContract(seed),
       ...rollContracts(2, seed ^ 0x5f3759df),
     ];
+    if (profile.data.finalCleared) {
+      board.push(
+        createBossContract(profile.data.level, seed ^ 0x6ac690c5, 'seraph'),
+        createBossContract(profile.data.level, seed ^ 0x27d4eb2f, 'archivist'),
+      );
+    }
+    return board;
   }
 
   const board = authoredFor(profile, 2);
