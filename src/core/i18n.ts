@@ -15,6 +15,7 @@ export type MessageKey =
   | 'event.quickhack'
   | 'event.quickhackFail'
   | 'event.execution'
+  | 'event.caseHeavy'
   | 'objective.purge'
   | 'objective.target'
   | 'objective.recover'
@@ -99,6 +100,7 @@ const EN: Record<MessageKey, string> = {
   'event.quickhack': 'QUICKHACK — TARGET REBOOTED',
   'event.quickhackFail': 'NO VALID QUICKHACK TARGET',
   'event.execution': 'EXECUTION',
+  'event.caseHeavy': 'CASE IN HAND — TOO HEAVY TO DASH',
   'objective.purge': 'PURGE ALL HOSTILES',
   'objective.target': 'KILL THE MARKED TARGET',
   'objective.recover': 'RECOVER {count} CACHE{plural}',
@@ -184,6 +186,7 @@ const ES: Record<MessageKey, string> = {
   'event.quickhack': 'QUICKHACK — OBJETIVO REINICIADO',
   'event.quickhackFail': 'SIN OBJETIVO VÁLIDO',
   'event.execution': 'EJECUCIÓN',
+  'event.caseHeavy': 'MALETÍN EN MANO — DEMASIADO PESADO PARA ESQUIVAR',
   'objective.purge': 'ELIMINA A TODOS LOS HOSTILES',
   'objective.target': 'MATA AL OBJETIVO MARCADO',
   'objective.recover': 'RECUPERA {count} CACHÉ{plural}',

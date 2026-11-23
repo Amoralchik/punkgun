@@ -563,12 +563,69 @@ body.contract-blackout #vignette {
 }
 
 
+/* cyberspace dive backdrop: perspective grid floor flying toward the horizon */
+.overlay.breach {
+  background:
+    radial-gradient(circle at 50% 36%, rgba(10, 26, 44, 0.55) 0%, rgba(2, 3, 6, 0.95) 78%);
+  overflow: hidden;
+}
+.breach-space {
+  position: absolute;
+  inset: 0;
+  perspective: 420px;
+  pointer-events: none;
+}
+.breach-floor {
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  top: 48%;
+  bottom: -45%;
+  background:
+    repeating-linear-gradient(90deg, rgba(94, 241, 255, 0.20) 0 2px, transparent 2px 64px),
+    repeating-linear-gradient(0deg, rgba(94, 241, 255, 0.20) 0 2px, transparent 2px 64px);
+  transform: rotateX(62deg);
+  transform-origin: top center;
+  animation: cyberspace-fly 2.4s linear infinite;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 32%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 32%);
+}
+@keyframes cyberspace-fly {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 0, 0 64px; }
+}
+.breach-horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 48%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(94, 241, 255, 0.85), transparent);
+  box-shadow: 0 0 26px rgba(94, 241, 255, 0.8);
+}
+.breach-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 90px;
+  background: linear-gradient(to bottom, transparent, rgba(94, 241, 255, 0.07), transparent);
+  animation: breach-sweep 3.4s linear infinite;
+}
+@keyframes breach-sweep {
+  from { transform: translateY(-12vh); }
+  to { transform: translateY(118vh); }
+}
 .breach-panel {
+  position: relative;
   width: min(680px, 92vw);
   padding: 22px 26px;
-  border: 1px solid rgba(94, 241, 255, 0.3);
-  background: linear-gradient(160deg, rgba(8, 16, 24, 0.98), rgba(8, 4, 16, 0.99));
-  box-shadow: 0 0 80px rgba(94, 241, 255, 0.12);
+  border: 1px solid rgba(94, 241, 255, 0.45);
+  background: linear-gradient(160deg, rgba(4, 12, 22, 0.92), rgba(12, 2, 22, 0.94));
+  box-shadow:
+    0 0 80px rgba(94, 241, 255, 0.18),
+    inset 0 0 60px rgba(94, 241, 255, 0.05);
+  backdrop-filter: blur(3px);
 }
 .breach-head {
   display: flex;
@@ -580,11 +637,16 @@ body.contract-blackout #vignette {
   font-size: 34px;
   letter-spacing: 0.12em;
   color: var(--cyan);
+  text-shadow:
+    2px 0 rgba(255, 47, 142, 0.55),
+    -2px 0 rgba(94, 241, 255, 0.55),
+    0 0 18px rgba(94, 241, 255, 0.6);
 }
 .breach-timer {
   font-size: 20px;
   letter-spacing: 0.14em;
   color: var(--amber);
+  text-shadow: 0 0 12px rgba(255, 196, 107, 0.5);
 }
 .breach-target,
 .breach-buffer {
@@ -594,11 +656,16 @@ body.contract-blackout #vignette {
   min-height: 34px;
   align-items: center;
 }
+.breach-target .breach-token {
+  border-color: rgba(255, 47, 142, 0.45);
+  box-shadow: inset 0 0 10px rgba(255, 47, 142, 0.12);
+}
 .breach-token {
   min-width: 34px;
   padding: 6px;
   text-align: center;
   border: 1px solid rgba(94, 241, 255, 0.25);
+  background: rgba(94, 241, 255, 0.04);
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--paper);
@@ -606,6 +673,7 @@ body.contract-blackout #vignette {
 .breach-token.hit {
   border-color: var(--success);
   color: var(--success);
+  box-shadow: 0 0 10px rgba(125, 255, 207, 0.35);
 }
 .breach-buffer .breach-token {
   color: var(--amber);
@@ -619,21 +687,28 @@ body.contract-blackout #vignette {
 }
 .breach-cell {
   padding: 12px 6px;
-  background: rgba(94, 241, 255, 0.035);
-  border: 1px solid rgba(94, 241, 255, 0.2);
+  background: rgba(94, 241, 255, 0.05);
+  border: 1px solid rgba(94, 241, 255, 0.35);
+  box-shadow: inset 0 0 12px rgba(94, 241, 255, 0.08);
   color: var(--paper);
   font: inherit;
   font-size: 13px;
   letter-spacing: 0.12em;
   cursor: pointer;
+  transition: background 0.08s, box-shadow 0.08s, border-color 0.08s;
 }
 .breach-cell:hover:not(:disabled) {
-  background: rgba(94, 241, 255, 0.12);
+  background: rgba(94, 241, 255, 0.16);
   border-color: var(--cyan);
+  box-shadow:
+    0 0 14px rgba(94, 241, 255, 0.45),
+    inset 0 0 12px rgba(94, 241, 255, 0.22);
 }
 .breach-cell.used {
   color: rgba(223, 252, 255, 0.2);
-  border-color: rgba(94, 241, 255, 0.08);
+  border-color: rgba(255, 47, 142, 0.35);
+  background: rgba(255, 47, 142, 0.06);
+  box-shadow: none;
 }
 .breach-cell:disabled {
   cursor: not-allowed;

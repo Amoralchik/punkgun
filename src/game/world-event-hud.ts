@@ -66,6 +66,9 @@ export class WorldEventHud {
         this.hud.subtitle(t('event.caseSecured'));
         this.hud.logLine('EXTRACTION: case secured');
         return true;
+      case 'caseHeavy':
+        this.hud.subtitle(t('event.caseHeavy'), 1200);
+        return true;
       case 'objectiveComplete':
         this.hud.subtitle(t('event.objectiveComplete'));
         this.hud.logLine('OBJECTIVE: complete');

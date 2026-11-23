@@ -31,7 +31,7 @@ working checklist.
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 6 bosses** | more faction-specific voice |
 | Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
-| Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
+| Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense); the extraction case is now a physical burden — slower move, dash locked, HUD warning | objective-specific bespoke rooms |
 | Endings | 1 | **4** (burn, broadcast, vanish, remember) + consequence-aware epilogues | — |
 | New game flow | reset only | **confirmed reset, lifepath selection, NG+, ending-screen shortcut** | — |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
@@ -46,7 +46,7 @@ working checklist.
 | Localization readiness | done for this tranche | **English/Spanish catalog for gameplay copy, dialogue, manual, tour, stations, ventures, augments and archive prose** | keep new copy in the catalog |
 | Deep module splits | done for this tranche | **world, UI stations, hub flow, boot, settings, breach, dialogue, endings, pause, briefs, specs, results, launcher, menu, keyboard, events, HUD, timing and state machine split out** | future feature modules |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
-| Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
+| Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes + pooled neon light pools (statics per level, dynamic muzzle/explosion/dash flashes) + film post-pass (grain, vignette, chromatic aberration)** | fog volumes, dynamic shadow maps |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
 | Onboarding / manual / settings | partial | **localized tour/manual, controls, palettes, subtitles, log, arbitrary key remap** | dialogue localization |
 
@@ -94,10 +94,18 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 185 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 186 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
-  row/column turn rules, timer, security shutdown, failure heat and rewards.
+  row/column turn rules, timer, security shutdown, failure heat and rewards. The
+  overlay is styled as a cyberspace dive (perspective grid floor, ICE cells,
+  chromatic title) — presentation only, logic untouched.
+- Presentation tranche: `src/render/lightpool.ts` pooled additive light pools
+  (static neon/hazard/objective lights baked on bind; fading dynamic flashes for
+  muzzle, explosions, dash, quickhack and exit), `src/render/film-pass.ts` film
+  grade (grain/vignette/radial chromatic aberration, damped under reduced motion),
+  bloom retuned to threshold 0.55. Extraction case carry: `Player.caseCarried`
+  slows movement x0.78 and locks dash with a `caseHeavy` HUD warning (en+es).
 
 ## Non-goals (unchanged)
 

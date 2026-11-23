@@ -296,6 +296,7 @@ export class World {
       dashDirX: 0,
       dashDirY: 0,
       quickhackCd: 0,
+      caseCarried: false,
     };
 
     level.enemies.forEach((spawn, i) =>
@@ -859,6 +860,7 @@ export class World {
       this.emit({ type: 'sabotage', x: node.x, y: node.y, angle: 0 });
       this.alertAt(node.x, node.y, 220);
     } else {
+      this.player.caseCarried = true;
       this.addHeat(35);
       this.spawnReinforcements(3, 'rusher');
       this.extractionPressureT = 5;
@@ -1278,13 +1280,17 @@ export class World {
       if (this.input.wasPressed('KeyE') || this.input.wasPressed('KeyF')) this.playerInteract();
       if (this.input.wasPressed('KeyQ')) this.useSupply();
       if (p.dashT <= 0 && p.dashCd <= 0 && this.input.wasPressed('Space')) {
-        const dash = dashDirection(this.input, p);
-        p.dashT = 0.16;
-        p.dashCd = 1.1 * this.mods.dashCd;
-        p.dashDirX = dash.x;
-        p.dashDirY = dash.y;
-        p.invulnT = Math.max(p.invulnT, 0.06 + this.mods.dashInvuln);
-        this.emit({ type: 'dash', x: p.x, y: p.y, angle: p.angle });
+        if (p.caseCarried) {
+          this.emit({ type: 'caseHeavy', x: p.x, y: p.y, angle: p.angle });
+        } else {
+          const dash = dashDirection(this.input, p);
+          p.dashT = 0.16;
+          p.dashCd = 1.1 * this.mods.dashCd;
+          p.dashDirX = dash.x;
+          p.dashDirY = dash.y;
+          p.invulnT = Math.max(p.invulnT, 0.06 + this.mods.dashInvuln);
+          this.emit({ type: 'dash', x: p.x, y: p.y, angle: p.angle });
+        }
       }
       if (p.hackedT <= 0 && this.mods.deck > 0 && p.quickhackCd <= 0 && this.input.wasPressed('KeyZ')) {
         this.triggerQuickhack();

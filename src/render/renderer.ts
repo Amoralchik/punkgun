@@ -3,6 +3,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { LightPool, type LightSpec } from './lightpool';
+import { FilmPass } from './film-pass';
 import { TextureBank } from './textures';
 import { WeatherField, weatherForLevel } from './weather';
 import { Level, TILE, tileCenter } from '../game/map';
@@ -78,6 +80,8 @@ export class Renderer {
   private readonly bloom: UnrealBloomPass;
   private readonly textures = new TextureBank();
   private readonly weather = new WeatherField();
+  private readonly lights: LightPool;
+  private readonly film: FilmPass;
 
   private readonly dynamic = new THREE.Group();
   private readonly fx = new THREE.Group();
@@ -164,6 +168,8 @@ export class Renderer {
     this.scene.add(this.fx);
     this.scene.add(this.holoGroup);
     this.scene.add(this.weather.group);
+    this.lights = new LightPool(this.textures.dot);
+    this.scene.add(this.lights.group);
     this.buildPools();
     this.slashMat = new THREE.MeshBasicMaterial({
       map: this.textures.slash,
@@ -207,8 +213,10 @@ export class Renderer {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.35, 0.62);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.55);
     this.composer.addPass(this.bloom);
+    this.film = new FilmPass();
+    this.composer.addPass(this.film);
     this.composer.addPass(new OutputPass());
 
     this.resize();
@@ -432,6 +440,43 @@ export class Renderer {
     this.camX = world.player.x;
     this.camY = world.player.y;
     this.updateCamera(world, 1, true);
+    this.lights.clear();
+    this.lights.setStatics(this.buildLightSpecs(world));
+  }
+
+  private holoPositions(level: Level): { x: number; y: number; scale: number }[] {
+    return [
+      { x: level.w * TILE * 0.5, y: level.h * TILE * 0.82, scale: 1 },
+      { x: level.w * TILE * 0.22, y: level.h * TILE * 0.24, scale: 0.72 },
+    ];
+  }
+
+  /** Static neon/hazard light pools baked when a level binds. */
+  private buildLightSpecs(world: World): LightSpec[] {
+    const level = world.level;
+    const specs: LightSpec[] = [];
+    const push = (x: number, y: number, size: number, color: number, intensity: number, pulse = 0) =>
+      specs.push({ x, y, size, color, intensity, pulse });
+    if (level.id !== 'safehouse') {
+      for (const pos of this.holoPositions(level)) {
+        push(pos.x, pos.y, 360 * pos.scale, pos.scale > 0.9 ? 0x5ef1ff : 0xff2f8e, 0.15, 0.25);
+      }
+    }
+    push(level.exit.x, level.exit.y, 300, this.palette.cyan, 0.22, 0.4);
+    for (const s of level.stations) push(s.x, s.y, 180, this.palette.cyan, 0.2, 0.2);
+    for (const l of level.lasers) push(l.x, l.y, 210, this.palette.red, 0.26, 0.2);
+    for (const t of level.turrets) push(t.x, t.y, 150, this.palette.amber, 0.3, 0.15);
+    for (const c of level.cameras) push(c.x, c.y, 120, this.palette.red, 0.24, 0.3);
+    for (const b of level.barrels) push(b.x, b.y, 130, this.palette.amber, 0.2, 0.1);
+    for (const s of level.steam) push(s.x, s.y, 200, 0x9ffcff, 0.1, 0.3);
+    for (const l of world.loot) push(l.x, l.y, 130, new THREE.Color(LOOT_DEFS[l.kind].color).getHex(), 0.3, 0.35);
+    for (const p of world.pickups) push(p.x, p.y, 120, this.palette.magenta, 0.24, 0.3);
+    for (const n of world.objectives) {
+      const color = n.kind === 'zone' ? 0x7dffcf : n.kind === 'case' ? this.palette.amber : this.palette.cyan;
+      push(n.x, n.y, n.kind === 'zone' ? n.radius * 2 : 180, color, 0.28, 0.3);
+    }
+    if (level.boss) push(level.boss.x, level.boss.y, 400, this.palette.amber, 0.35, 0.3);
+    return specs;
   }
 
   private createUnitView(
@@ -646,10 +691,7 @@ export class Renderer {
     const order = ['sector07', 'tenements', 'nightmarket', 'docks', 'spire', 'sublevel'];
     const index = Math.max(0, order.indexOf(level.id)) % this.textures.holo.length;
     const texture = this.textures.holo[index];
-    const positions = [
-      { x: level.w * TILE * 0.5, y: level.h * TILE * 0.82, scale: 1 },
-      { x: level.w * TILE * 0.22, y: level.h * TILE * 0.24, scale: 0.72 },
-    ];
+    const positions = this.holoPositions(level);
     for (const [i, pos] of positions.entries()) {
       const material = new THREE.MeshBasicMaterial({
         map: texture,
@@ -746,6 +788,7 @@ export class Renderer {
     this.syncMelee(world);
     this.syncExit(world);
     this.syncCombatFx(world);
+    this.syncLights(world, dt);
     this.updateCamera(world, dt, false);
     this.weather.update(this.camX, this.camY, this.viewH * this.aspect, this.viewH, dt);
     const holoT = performance.now() * 0.0014;
@@ -754,8 +797,42 @@ export class Renderer {
     });
 
     this.bloom.strength =
-      (0.48 + Math.sin(performance.now() * 0.0016) * 0.04 + world.shake * 0.2) * this.bloomScale;
+      (0.52 + Math.sin(performance.now() * 0.0016) * 0.04 + world.shake * 0.2) * this.bloomScale;
     this.composer.render();
+  }
+
+  /** Dynamic light flashes: muzzle glows, explosions, dash, quickhack, exit. */
+  private syncLights(world: World, dt: number): void {
+    const t = performance.now() * 0.001;
+    const muzzle = (x: number, y: number, angle: number, weapon: WeaponId) => {
+      const rail = weapon === 'railgun';
+      this.lights.flash(
+        x + Math.cos(angle) * 62,
+        y + Math.sin(angle) * 62,
+        rail ? 190 : 120,
+        rail ? 0x9ffcff : 0xffd48a,
+        0.3,
+        0.06,
+      );
+    };
+    const p = world.player;
+    if (p.alive && p.flashT > 0) muzzle(p.x, p.y, p.angle, p.weapon);
+    for (const e of world.enemies) {
+      if (e.alive && e.flashT > 0) muzzle(e.x, e.y, e.angle, e.weapon);
+    }
+    for (const ex of world.explosions) {
+      const k = 1 - ex.life / ex.maxLife;
+      this.lights.flash(ex.x, ex.y, 200 + k * 240, 0xffb35c, 0.6, 0.09);
+    }
+    if (p.alive && p.dashT > 0) this.lights.flash(p.x, p.y, 110, this.palette.cyan, 0.22, 0.07);
+    if (world.quickhackFxT > 0) {
+      this.lights.flash(world.quickhackX, world.quickhackY, 160, this.palette.cyan, 0.35, 0.07);
+    }
+    if (world.exitOpen) {
+      this.lights.flash(world.level.exit.x, world.level.exit.y, 300, this.palette.cyan, 0.3, 0.12);
+    }
+    this.lights.sync(dt, t);
+    this.film.setTime(this.reducedMotion ? 0 : t);
   }
 
   private syncUnit(ent: Player | Enemy, variant: number, isPlayer: boolean, dt = 0): void {
@@ -1454,6 +1531,7 @@ export class Renderer {
 
   setReducedMotion(value: boolean): void {
     this.reducedMotion = value;
+    this.film.setReducedMotion(value);
   }
 
   setPalette(palette: Palette): void {

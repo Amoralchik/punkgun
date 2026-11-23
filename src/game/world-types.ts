@@ -118,6 +118,8 @@ export interface Player {
   dashDirX: number;
   dashDirY: number;
   quickhackCd: number;
+  /** True while carrying a secured extraction case: slower, no dash. */
+  caseCarried: boolean;
 }
 
 export interface Enemy {

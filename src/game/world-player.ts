@@ -55,7 +55,8 @@ export function playerMoveSpeed(mods: RunMods, player: Player): number {
     mods.speed *
     (player.berserkT > 0 ? 1.3 : 1) *
     (1 + (player.killSpeedT > 0 ? mods.killSpeed : 0)) *
-    (player.armor <= 0 ? 1 + mods.lowArmorSpeed : 1)
+    (player.armor <= 0 ? 1 + mods.lowArmorSpeed : 1) *
+    (player.caseCarried ? 0.78 : 1)
   );
 }
 
