@@ -3,6 +3,13 @@ import { angleDelta, clamp, dist, mulberry32, randomSeed, turnToward } from '../
 import { Level, TILE, isWall, tileCenter, worldToTile } from './map';
 import { Pathfinder } from './path';
 import { updateDoorAngles } from './world-doors';
+import {
+  aimPlayer,
+  dashDirection,
+  movementAxes,
+  playerMoveSpeed,
+  tickPlayerCooldowns,
+} from './world-player';
 import { segmentHitsCircle } from './world-geometry';
 import {
   assignSquads,
@@ -55,7 +62,6 @@ import type {
   WorldState,
 } from './world-types';
 
-const PLAYER_SPEED = 252;
 const ENEMY_SPEED = 148;
 const SWING_DURATION = 0.24;
 const SWING_HIT_AT = 0.065;
@@ -1034,34 +1040,13 @@ export class World {
 
   private updatePlayer(dt: number, edge: boolean): void {
     const p = this.player;
-    const dx = p.aimX - p.x;
-    const dy = p.aimY - p.y;
-    if (dx * dx + dy * dy > 16) p.angle = Math.atan2(dy, dx);
-
-    p.attackCd = Math.max(0, p.attackCd - dt);
+    aimPlayer(p, p.aimX, p.aimY);
+    tickPlayerCooldowns(p, dt);
     if (p.reloadT > 0) {
       const prev = p.reloadT;
       p.reloadT = Math.max(0, p.reloadT - dt);
       if (prev > 0 && p.reloadT === 0) this.finishReload();
     }
-    p.flashT = Math.max(0, p.flashT - dt);
-    p.invulnT = Math.max(0, p.invulnT - dt);
-    p.slowT = Math.max(0, p.slowT - dt);
-    p.slowCd = Math.max(0, p.slowCd - dt);
-    p.camoT = Math.max(0, p.camoT - dt);
-    p.camoCloakCd = Math.max(0, p.camoCloakCd - dt);
-    p.empCd = Math.max(0, p.empCd - dt);
-    p.berserkT = Math.max(0, p.berserkT - dt);
-    p.berserkCd = Math.max(0, p.berserkCd - dt);
-    p.overclockT = Math.max(0, p.overclockT - dt);
-    p.overclockCd = Math.max(0, p.overclockCd - dt);
-    p.deckCd = Math.max(0, p.deckCd - dt);
-    p.kerenCd = Math.max(0, p.kerenCd - dt);
-    p.killSpeedT = Math.max(0, p.killSpeedT - dt);
-    p.hackedT = Math.max(0, p.hackedT - dt);
-    p.dashT = Math.max(0, p.dashT - dt);
-    p.dashCd = Math.max(0, p.dashCd - dt);
-    p.quickhackCd = Math.max(0, p.quickhackCd - dt);
     p.regenT += dt;
     if (
       this.mods.biomonitor > 0 &&
@@ -1081,24 +1066,11 @@ export class World {
       if (this.input.wasPressed('KeyE') || this.input.wasPressed('KeyF')) this.playerInteract();
       if (this.input.wasPressed('KeyQ')) this.useSupply();
       if (p.dashT <= 0 && p.dashCd <= 0 && this.input.wasPressed('Space')) {
-        let dashX = 0;
-        let dashY = 0;
-        if (this.input.held('KeyA') || this.input.held('ArrowLeft')) dashX -= 1;
-        if (this.input.held('KeyD') || this.input.held('ArrowRight')) dashX += 1;
-        if (this.input.held('KeyS') || this.input.held('ArrowDown')) dashY -= 1;
-        if (this.input.held('KeyW') || this.input.held('ArrowUp')) dashY += 1;
-        const dashLen = Math.hypot(dashX, dashY);
-        if (dashLen > 0) {
-          dashX /= dashLen;
-          dashY /= dashLen;
-        } else {
-          dashX = Math.cos(p.angle);
-          dashY = Math.sin(p.angle);
-        }
+        const dash = dashDirection(this.input, p);
         p.dashT = 0.16;
         p.dashCd = 1.1 * this.mods.dashCd;
-        p.dashDirX = dashX;
-        p.dashDirY = dashY;
+        p.dashDirX = dash.x;
+        p.dashDirY = dash.y;
         p.invulnT = Math.max(p.invulnT, 0.06 + this.mods.dashInvuln);
         this.emit({ type: 'dash', x: p.x, y: p.y, angle: p.angle });
       }
@@ -1157,22 +1129,10 @@ export class World {
       }
     }
 
-    let ix = 0;
-    let iy = 0;
-    if (this.input.held('KeyA') || this.input.held('ArrowLeft')) ix -= 1;
-    if (this.input.held('KeyD') || this.input.held('ArrowRight')) ix += 1;
-    if (this.input.held('KeyS') || this.input.held('ArrowDown')) iy -= 1;
-    if (this.input.held('KeyW') || this.input.held('ArrowUp')) iy += 1;
-    const len = Math.hypot(ix, iy) || 1;
-    ix /= len;
-    iy /= len;
-
-    const speed =
-      PLAYER_SPEED *
-      this.mods.speed *
-      (p.berserkT > 0 ? 1.3 : 1) *
-      (1 + (p.killSpeedT > 0 ? this.mods.killSpeed : 0)) *
-      (p.armor <= 0 ? 1 + this.mods.lowArmorSpeed : 1);
+    const axes = movementAxes(this.input);
+    const ix = axes.x;
+    const iy = axes.y;
+    const speed = playerMoveSpeed(this.mods, p);
     if (p.dashT > 0) {
       p.vx = p.dashDirX * 880;
       p.vy = p.dashDirY * 880;

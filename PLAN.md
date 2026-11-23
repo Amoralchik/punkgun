@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 127 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 130 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -42,7 +42,7 @@ working checklist.
 | Performance budgets | manual | enforced `npm run budget` + smoke heap check | long-session sampling |
 | Accessibility | partial | reduced motion, palettes, subtitles, log, control presets | arbitrary key capture |
 | Localization readiness | none | **English/Spanish catalog for objectives, stations, boons and HUD** | station/manual/dialogue copy |
-| Deep module splits | not started | **world objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | player/bullets; station views |
+| Deep module splits | not started | **world player/objectives/AI/doors/geometry/gym; Safehouse workbench; Game dialogue** | bullets; station views |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
 | Music / ambience | one bed + boss mode | **faction patterns + intensity + boss layers** | positional SFX panning |
@@ -92,7 +92,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 127 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 130 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.
