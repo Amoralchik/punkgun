@@ -64,6 +64,7 @@ types.
 - [ ] Market stock counts decrease; refresh costs $50; rotation after two runs.
 - [ ] Clinic shows neural load, risk %, capacity block, and rejection message.
 - [ ] Presets save/equip/clear without duplicating stash items.
+- [ ] Attachment mods apply magazine, pellet, spread, cooldown, reload and pierce effects.
 - [ ] Role selection changes derived stats and survives save/reload.
 - [ ] Ventures buy/upgrade, show costs/income, and pay after a clear.
 - [ ] Archive unlocks dossiers and ending files.

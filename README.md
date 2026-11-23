@@ -39,7 +39,7 @@ The production build is an installable PWA with a service-worker app shell and o
 ## Current Systems
 
 - One-hit combat, armor plates, Second Heart, 22 cyberware implants, 17 perks, neural-load/cyberpsychosis risk, dash, execution, kill combos and targeted quickhacks
-- 12 firearm families, 8 named variants, attachments, crafting, loadout presets, case overflow and filters
+- 12 firearm families, 8 named variants, 11 attachment mods, crafting, loadout presets, case overflow and filters
 - Five operator roles, three lifepaths, six investable street businesses with street events, a five-ticker exchange and weapon insurance
 - Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, sanctuary, deploy; confirmed NEW GAME reset, campaign reroll, NG+ (build/gear retained) and seeded daily contracts
 - Four challenge stamps (Standard, Fists Only, Glass, Rush), faction broker hardware gated by standing, a daily clear bonus, local run history/leaderboard and a first-minute safehouse tour
@@ -54,7 +54,7 @@ The production build is an installable PWA with a service-worker app shell and o
 
 ## Tests
 
-`npm test` runs the Vitest suite (130 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
+`npm test` runs the Vitest suite (132 tests). Coverage includes save migration/recovery, market stock/drift, exchange, rooms, insurance, venture events, daily contracts, challenge modes, NG+, faction broker, lifepaths/endings, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, glass/steam and run settlement. `npm run test:gym` exercises all 16 archetypes against a committed target. `npm run test:balance` prints the three-build clear-rate matrix. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

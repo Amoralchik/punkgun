@@ -23,7 +23,12 @@ import {
 } from './world-ai';
 import { baseMods, RunMods } from './progression';
 import { CONSUMABLE_MAP, ConsumableId } from './consumables';
-import { ATTACHMENT_MAP, AttachmentId } from './attachments';
+import {
+  ATTACHMENT_MAP,
+  AttachmentId,
+  attachmentMag,
+  attachmentPellets,
+} from './attachments';
 import { LOOT_DEFS } from './economy';
 import { GunId, WEAPONS, WeaponId, isGun, NamedWeaponId, NAMED_MAP } from './weapons';
 import { APPROACH_MAP, ApproachId } from './attributes';
@@ -229,7 +234,9 @@ export class World {
         : 0;
     const totalAmmo = (loadout?.ammo ?? 0) + extraAmmo;
     const loadDef = WEAPONS[loadWeapon];
-    const clip = isGun(loadWeapon) ? Math.min(totalAmmo, loadDef.mag) : 0;
+    const clip = isGun(loadWeapon)
+      ? Math.min(totalAmmo, attachmentMag(loadWeapon, loadAttachment))
+      : 0;
 
     this.player = {
       id: this.nextId++,
@@ -1158,8 +1165,12 @@ export class World {
       return;
     }
     const def = WEAPONS[p.weapon];
-    if (p.clip >= def.mag || p.ammo <= 0) return;
-    p.reloadT = def.reload * this.mods.reload;
+    const mag = attachmentMag(p.weapon, p.attachment);
+    if (p.clip >= mag || p.ammo <= 0) return;
+    p.reloadT =
+      def.reload *
+      this.mods.reload *
+      (p.attachment ? (ATTACHMENT_MAP[p.attachment].reloadMult ?? 1) : 1);
     p.attackCd = Math.max(p.attackCd, 0.1);
     this.emit({ type: 'reloadStart', x: p.x, y: p.y, angle: p.angle });
   }
@@ -1167,8 +1178,8 @@ export class World {
   private finishReload(): void {
     const p = this.player;
     if (!p.alive || !isGun(p.weapon)) return;
-    const def = WEAPONS[p.weapon];
-    const take = Math.min(def.mag - p.clip, p.ammo);
+    const mag = attachmentMag(p.weapon, p.attachment);
+    const take = Math.min(mag - p.clip, p.ammo);
     if (take <= 0) return;
     p.clip += take;
     p.ammo -= take;
@@ -1288,25 +1299,25 @@ export class World {
     this.shotsFired++;
     const shotgun = p.weapon === 'shotgun';
     const suppressed = p.attachment === 'suppressor';
+    const attachment = p.attachment ? ATTACHMENT_MAP[p.attachment] : null;
     const shotHeat = def.sound === 'lmg' ? 11 : def.sound === 'rifle' ? 9 : def.sound === 'ak' ? 8 : shotgun ? 16 : def.sound === 'railgun' ? 13 : def.sound === 'plasma' ? 10 : 7;
     const alertRadius =
       def.sound === 'lmg' ? 1180 : def.sound === 'rifle' ? 980 : def.sound === 'ak' ? 860 : shotgun ? 900 : def.sound === 'railgun' ? 1250 : def.sound === 'plasma' ? 950 : 760;
-    this.addHeat(shotHeat * (suppressed ? 0.4 : 1));
-    const spring = p.attachment === 'spring' ? 0.8 : 1;
+    this.addHeat(shotHeat * (attachment?.heatMult ?? 1));
     p.attackCd =
       def.cooldown *
       this.mods.gunCooldown *
-      spring *
+      (attachment?.cooldownMult ?? 1) *
       (p.overclockT > 0 ? 0.65 : 1);
     p.flashT = 0.06;
     const variantSpread = p.variant ? NAMED_MAP[p.variant].spreadMult : 1;
-    const laser = p.attachment === 'laser' ? 0.65 : 1;
     const precision = def.family === 'RIFLE' || def.family === 'DMR' || def.family === 'RAILGUN';
     const overclockSpread = p.overclockT > 0 ? 0.8 : 1;
     const muzzleX = p.x + Math.cos(p.angle) * 26;
     const muzzleY = p.y + Math.sin(p.angle) * 26;
 
-    for (let i = 0; i < def.pellets; i++) {
+    const pellets = attachmentPellets(p.weapon as GunId, p.attachment);
+    for (let i = 0; i < pellets; i++) {
       const a =
         p.angle +
         (this.rand() * 2 - 1) *
@@ -1315,7 +1326,7 @@ export class World {
           (precision ? this.mods.precisionSpread : 1) *
           overclockSpread *
           variantSpread *
-          laser;
+          (attachment?.spreadMult ?? 1);
       this.bullets.push({
         x: muzzleX,
         y: muzzleY,
@@ -1326,7 +1337,7 @@ export class World {
         life: 1.1,
         ownerId: p.id,
         ownerKind: 'player',
-        pierce: def.pierce + this.mods.pierce,
+        pierce: def.pierce + this.mods.pierce + (attachment?.pierceBonus ?? 0),
       });
     }
 
@@ -1346,7 +1357,7 @@ export class World {
       y: muzzleY,
       angle: p.angle,
     });
-    this.alertAt(p.x, p.y, alertRadius * (suppressed ? 0.45 : 1));
+    this.alertAt(p.x, p.y, alertRadius * (attachment?.alertMult ?? 1));
   }
 
   private resolveMelee(): void {

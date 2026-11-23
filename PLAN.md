@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 130 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 132 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -21,6 +21,7 @@ working checklist.
 | Enemy archetypes | 11 | **16** | target exceeded; tune squad compositions |
 | Bosses | 1 | **6** | boss-rush/NG+ variants |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
+| Attachments | 4 | **11 with mag/pellet/spread/cooldown/reload/pierce effects** | balance pass |
 | Cyberware | 10 | **22** | active-ability VFX polish |
 | Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
 | Hacking/breach | none | **Breach Protocol grid minigame on sabotage terminals** | camera/turret/safe variants |
@@ -67,7 +68,7 @@ working checklist.
 
 ## Next sequence
 
-1. Extract Shared Safehouse station views (contracts, market, operator).
+1. Extract Safehouse station views (contracts, market, operator).
 2. Extract remaining station/manual/dialogue strings into the catalog.
 3. Extend breach interactions to cameras, safes and security networks.
 4. Tune encounter density and squad compositions from the 16-archetype gym.
@@ -92,7 +93,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 130 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 132 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.

@@ -49,6 +49,27 @@ export const RECIPES: Recipe[] = [
     output: { kind: 'attachment', attachment: 'suppressor' },
   },
   {
+    id: 'scope',
+    name: 'LONG SCOPE',
+    desc: 'Fabricate a long scope and install it on the equipped firearm.',
+    cost: { circuit: 4, polymer: 2 },
+    output: { kind: 'attachment', attachment: 'scope' },
+  },
+  {
+    id: 'drum',
+    name: 'DRUM FEED',
+    desc: 'Fabricate a drum feed and install it on the equipped firearm.',
+    cost: { scrap: 6, polymer: 4 },
+    output: { kind: 'attachment', attachment: 'drum' },
+  },
+  {
+    id: 'quickdraw',
+    name: 'QUICKDRAW',
+    desc: 'Fabricate a quickdraw kit and install it on the equipped firearm.',
+    cost: { scrap: 3, polymer: 3 },
+    output: { kind: 'attachment', attachment: 'quickdraw' },
+  },
+  {
     id: 'stim',
     name: 'STIM CHARGE',
     desc: 'Add one charge to the packed kit. Defaults to stim.',
