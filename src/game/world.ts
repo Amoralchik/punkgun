@@ -378,10 +378,11 @@ export class World {
         collected: false,
       });
     }
-    if (mission.objective !== 'boss' && this.loot.length > mission.requiredLoot) {
-      const safe = this.loot[this.loot.length - 1];
-      safe.locked = true;
-      safe.value = Math.round(safe.value * 1.25);
+    if (mission.objective !== 'boss') {
+      for (const safe of this.loot.slice(mission.requiredLoot)) {
+        safe.locked = true;
+        safe.value = Math.round(safe.value * 1.25);
+      }
     }
     this.applyModifiers(mission.modifiers ?? []);
     this.applyBoons();
@@ -808,7 +809,22 @@ export class World {
         laser.disabledT = 8;
       }
     }
+    let opened = 0;
+    for (const item of this.loot) {
+      if (!item.locked || dist(item.x, item.y, node.x, node.y) > 440) continue;
+      item.locked = false;
+      opened++;
+    }
     this.emit({ type: 'breachSuccess', x: node.x, y: node.y, angle: 0 });
+    if (opened > 0) {
+      this.emit({
+        type: 'networkUnlock',
+        x: node.x,
+        y: node.y,
+        angle: 0,
+        count: opened,
+      });
+    }
   }
 
   private completeObjectiveNode(node: ObjectiveNode): void {

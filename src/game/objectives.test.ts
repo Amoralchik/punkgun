@@ -210,6 +210,26 @@ describe('mission objectives', () => {
     expect(plus.objectiveText()).toContain('NG+3');
   });
 
+  it('unlocks nearby safes through a terminal network chain', () => {
+    const events: string[] = [];
+    const world = new World(
+      loadLevel('sector07'),
+      fakeInput(),
+      (event) => events.push(event.type),
+      null,
+      { objective: 'sabotage', requiredLoot: 1 },
+      baseMods(),
+      42,
+    );
+    const node = world.objectives[0];
+    const safe = world.loot.find((item) => item.locked)!;
+    safe.x = node.x + 20;
+    safe.y = node.y + 20;
+    world.resolveBreach(node.id, true);
+    expect(safe.locked).toBe(false);
+    expect(events).toContain('networkUnlock');
+  });
+
   it('locks an extra cache as a breachable safe', () => {
     const events: string[] = [];
     const world = new World(

@@ -49,6 +49,10 @@ export class WorldEventHud {
         this.hud.subtitle(t('event.objectiveComplete'));
         this.hud.logLine('OBJECTIVE: complete');
         return true;
+      case 'networkUnlock':
+        this.hud.subtitle(`NETWORK UNLOCKED — ${event.count ?? 0} SAFE${event.count === 1 ? '' : 'S'} OPEN`);
+        this.hud.logLine('BREACH: network safes opened');
+        return true;
       case 'exitOpen':
         this.audio.exitOpen();
         this.hud.subtitle(t('event.exitOpen'));

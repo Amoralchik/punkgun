@@ -355,4 +355,5 @@ export interface WorldEvent {
   hazard?: 'camera' | 'turret' | 'safe';
   wave?: number;
   total?: number;
+  count?: number;
 }
