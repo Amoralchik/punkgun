@@ -258,6 +258,23 @@ async function main() {
       throw new Error(`Mission did not advance: ${started.title}\n${JSON.stringify({ debug, errors })}`);
     }
     if (!playing.hud) throw new Error('HUD not visible during mission.');
+    const breach = await cdp.evaluate(`(() => {
+      const g = window.__game;
+      g.openBreach(4242);
+      const open = !document.getElementById('overlay-breach').classList.contains('hidden');
+      for (const step of g.breachState.solution) {
+        document.querySelector('[data-breach="' + step.row + ':' + step.column + '"]')?.click();
+      }
+      return {
+        open,
+        closed: document.getElementById('overlay-breach').classList.contains('hidden'),
+        state: g.state,
+      };
+    })()`);
+    if (!breach.open || !breach.closed || breach.state !== 'playing') {
+      throw new Error(`Breach UI failed: ${JSON.stringify(breach)}`);
+    }
+
     const performanceMetrics = await cdp.send('Performance.getMetrics');
     const metric = (name) =>
       performanceMetrics.metrics.find((entry) => entry.name === name)?.value ?? 0;
@@ -401,6 +418,7 @@ async function main() {
           started,
           playing: { time: Number(playing.time.toFixed(2)), objective: playing.objective, nodes: playing.nodes, boons: playing.boons },
           memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
+          breach: true,
           paused: true,
           returned: hub.state,
           workbench: true,

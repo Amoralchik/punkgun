@@ -53,11 +53,43 @@ describe('mission objectives', () => {
       pressed.add('KeyE');
       world.update(1 / 120, { x: node.x + 50, y: node.y }, true);
       pressed.clear();
+      world.resolveBreach(node.id, true);
     }
 
     expect(world.objectives.every((node) => node.completed)).toBe(true);
     expect(world.exitOpen).toBe(true);
     expect(world.objectiveText()).toBe('EXIT OPEN — GET OUT');
+  });
+
+  it('opens a breach before completing a sabotage terminal', () => {
+    const pressed = new Set<string>();
+    const events: string[] = [];
+    const world = new World(
+      loadLevel('safehouse'),
+      fakeInput(pressed),
+      (event) => events.push(event.type),
+      {
+        weapon: 'fists',
+        ammo: 0,
+        attachment: null,
+        variant: null,
+        supplyType: null,
+        supplyCharges: 0,
+      },
+      { objective: 'sabotage', requiredLoot: 1 },
+      baseMods(),
+      42,
+    );
+    const node = world.objectives[0];
+    world.player.x = node.x;
+    world.player.y = node.y;
+    pressed.add('KeyE');
+    world.update(1 / 120, { x: node.x + 50, y: node.y }, true);
+    expect(node.completed).toBe(false);
+    expect(events).toContain('breachStart');
+    world.resolveBreach(node.id, true);
+    expect(node.completed).toBe(true);
+    expect(world.exitOpen).toBe(true);
   });
 
   it('secures an extraction case and applies pressure', () => {

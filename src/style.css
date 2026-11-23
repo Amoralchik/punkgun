@@ -562,6 +562,102 @@ body.contract-blackout #vignette {
   background: radial-gradient(ellipse at center, transparent 26%, rgba(0, 0, 0, 0.62) 82%);
 }
 
+
+.breach-panel {
+  width: min(680px, 92vw);
+  padding: 22px 26px;
+  border: 1px solid rgba(94, 241, 255, 0.3);
+  background: linear-gradient(160deg, rgba(8, 16, 24, 0.98), rgba(8, 4, 16, 0.99));
+  box-shadow: 0 0 80px rgba(94, 241, 255, 0.12);
+}
+.breach-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.breach-title {
+  font-size: 34px;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+}
+.breach-timer {
+  font-size: 20px;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+}
+.breach-target,
+.breach-buffer {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  min-height: 34px;
+  align-items: center;
+}
+.breach-token {
+  min-width: 34px;
+  padding: 6px;
+  text-align: center;
+  border: 1px solid rgba(94, 241, 255, 0.25);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--paper);
+}
+.breach-token.hit {
+  border-color: var(--success);
+  color: var(--success);
+}
+.breach-buffer .breach-token {
+  color: var(--amber);
+  border-color: rgba(255, 196, 107, 0.3);
+}
+.breach-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  margin-top: 14px;
+}
+.breach-cell {
+  padding: 12px 6px;
+  background: rgba(94, 241, 255, 0.035);
+  border: 1px solid rgba(94, 241, 255, 0.2);
+  color: var(--paper);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+.breach-cell:hover:not(:disabled) {
+  background: rgba(94, 241, 255, 0.12);
+  border-color: var(--cyan);
+}
+.breach-cell.used {
+  color: rgba(223, 252, 255, 0.2);
+  border-color: rgba(94, 241, 255, 0.08);
+}
+.breach-cell:disabled {
+  cursor: not-allowed;
+}
+.breach-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(94, 241, 255, 0.12);
+}
+.breach-rule,
+.breach-msg {
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  color: rgba(223, 252, 255, 0.42);
+}
+.breach-msg {
+  min-height: 14px;
+  margin-top: 8px;
+  color: var(--amber);
+}
+
 /* ---------- overlays ---------- */
 .overlay {
   position: fixed;

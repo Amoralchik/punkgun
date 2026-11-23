@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 123 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 127 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -23,6 +23,7 @@ working checklist.
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Cyberware | 10 | **22** | active-ability VFX polish |
 | Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
+| Hacking/breach | none | **Breach Protocol grid minigame on sabotage terminals** | camera/turret/safe variants |
 | Ventures | 0 | **6 businesses × 3 ranks** | room visuals and event chains |
 | Perks | 4 | **17** | mutually exclusive capstones |
 | Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
@@ -68,7 +69,7 @@ working checklist.
 
 1. Continue the split: World player/bullets and Safehouse station views.
 2. Extract remaining station/manual/dialogue strings and add a second locale fixture.
-3. Add hacking/breach interactions and environmental counterplay.
+3. Extend breach interactions to cameras, safes and security networks.
 4. Tune encounter density and squad compositions from the 16-archetype gym.
 5. Add long-session memory sampling and an ending-screen new-game shortcut.
 
@@ -91,8 +92,10 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 123 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 127 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
+- Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
+  row/column turn rules, timer, security shutdown, failure heat and rewards.
 
 ## Non-goals (unchanged)
 

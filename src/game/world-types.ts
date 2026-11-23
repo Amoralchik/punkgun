@@ -345,4 +345,5 @@ export interface WorldEvent {
   x: number;
   y: number;
   angle: number;
+  nodeId?: number;
 }

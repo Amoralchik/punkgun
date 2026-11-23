@@ -662,6 +662,31 @@ export class World {
     }
   }
 
+  resolveBreach(nodeId: number, success: boolean): void {
+    const node = this.objectives.find((entry) => entry.id === nodeId);
+    if (!node || node.completed) return;
+    if (!success) {
+      this.addHeat(14);
+      this.emit({ type: 'breachFail', x: node.x, y: node.y, angle: 0 });
+      return;
+    }
+    this.completeObjectiveNode(node);
+    for (const cam of this.cameras) {
+      if (cam.alive && dist(cam.x, cam.y, node.x, node.y) <= 440) cam.disabledT = 8;
+    }
+    for (const turret of this.turrets) {
+      if (turret.alive && dist(turret.x, turret.y, node.x, node.y) <= 440) {
+        turret.disabledT = 8;
+      }
+    }
+    for (const laser of this.lasers) {
+      if (laser.alive && dist(laser.x, laser.y, node.x, node.y) <= 440) {
+        laser.disabledT = 8;
+      }
+    }
+    this.emit({ type: 'breachSuccess', x: node.x, y: node.y, angle: 0 });
+  }
+
   private completeObjectiveNode(node: ObjectiveNode): void {
     if (node.completed) return;
     node.completed = true;
@@ -988,7 +1013,7 @@ export class World {
     if (this.nearestBackstab()) return 'E — SILENT TAKEDOWN';
     const objective = nearestObjectiveNode(this.objectives, this.player);
     if (objective) {
-      return objective.kind === 'terminal' ? 'E — PLANT TAP' : 'E — SECURE CASE';
+      return objective.kind === 'terminal' ? 'E — BREACH TERMINAL' : 'E — SECURE CASE';
     }
     const loot = this.nearestLoot();
     if (loot) return `E — GRAB ${LOOT_DEFS[loot.kind].name} · $${loot.value}`;
@@ -1630,6 +1655,16 @@ export class World {
     }
     const objective = nearestObjectiveNode(this.objectives, this.player);
     if (objective) {
+      if (objective.kind === 'terminal') {
+        this.emit({
+          type: 'breachStart',
+          x: objective.x,
+          y: objective.y,
+          angle: 0,
+          nodeId: objective.id,
+        });
+        return;
+      }
       this.completeObjectiveNode(objective);
       return;
     }

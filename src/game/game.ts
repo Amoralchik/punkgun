@@ -18,6 +18,13 @@ import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogue
 import { DialogueSession } from './dialogue-session';
 import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
+import {
+  breachReward,
+  generateBreach,
+  selectBreachCell,
+  tickBreach,
+  type BreachState,
+} from './breach';
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
 import { xpForNext } from './progression';
@@ -33,7 +40,7 @@ const FIXED = 1 / 120;
 const deathDelay = 0.7;
 const winDelay = 0.35;
 
-type GameState = 'safehouse' | 'playing' | 'paused' | 'dead' | 'win';
+type GameState = 'safehouse' | 'playing' | 'paused' | 'breach' | 'dead' | 'win';
 
 export class Game {
   private readonly input = new Input();
@@ -66,6 +73,12 @@ export class Game {
   private readonly epilogueKicker = document.getElementById('epilogue-kicker')!;
   private readonly epilogueTitle = document.getElementById('epilogue-title')!;
   private readonly epilogueBody = document.getElementById('epilogue-body')!;
+  private readonly breachRoot = document.getElementById('overlay-breach')!;
+  private readonly breachGrid = document.getElementById('breach-grid')!;
+  private readonly breachTarget = document.getElementById('breach-target')!;
+  private readonly breachBuffer = document.getElementById('breach-buffer')!;
+  private readonly breachTimerEl = document.getElementById('breach-timer')!;
+  private readonly breachMsg = document.getElementById('breach-msg')!;
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
@@ -108,6 +121,8 @@ export class Game {
     challenge: ChallengeId;
   } | null = null;
   private currentBoons: RunBoon[] = [];
+  private breachState: BreachState | null = null;
+  private breachNodeId: number | null = null;
   private dialogueOpen = false;
   private dialogueSession: DialogueSession | null = null;
   private lastShotsHit = 0;
@@ -330,6 +345,7 @@ export class Game {
         .ending;
       if (id) this.chooseEnding(id as EndingId);
     });
+    this.breachRoot.addEventListener('click', (ev) => this.handleBreachClick(ev));
     this.epilogueRoot.addEventListener('click', (ev) => {
       if ((ev.target as HTMLElement).closest('[data-act="epilogue-next"]')) {
         this.finishEpilogue();
@@ -372,6 +388,13 @@ export class Game {
         if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
           e.preventDefault();
           this.closeTour();
+        }
+        return;
+      }
+      if (this.state === 'breach') {
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          this.finishBreach(false);
         }
         return;
       }
@@ -662,6 +685,81 @@ export class Game {
       return;
     }
     this.commitRun(contract, approachId, [], challenge);
+  }
+
+  private openBreach(nodeId: number): void {
+    const seed = (this.world.seed ^ Math.imul(nodeId, 0x9e3779b1)) >>> 0;
+    this.breachState = generateBreach(seed);
+    this.breachNodeId = nodeId;
+    this.state = 'breach';
+    this.breachRoot.classList.remove('hidden');
+    this.renderBreach();
+    this.input.endFrame();
+  }
+
+  private renderBreach(): void {
+    const state = this.breachState;
+    if (!state) return;
+    this.breachTimerEl.textContent = `${state.timeLeft.toFixed(1)}S`;
+    this.breachTarget.innerHTML = state.target
+      .map(
+        (token, index) =>
+          `<span class="breach-token${index < state.progress ? ' hit' : ''}">${token}</span>`,
+      )
+      .join('');
+    this.breachBuffer.innerHTML =
+      state.buffer.map((token) => `<span class="breach-token">${token}</span>`).join('') ||
+      '<span class="breach-token">EMPTY</span>';
+    this.breachGrid.innerHTML = state.grid
+      .flatMap((row, rowIndex) =>
+        row.map(
+          (token, columnIndex) =>
+            `<button class="breach-cell${state.used[rowIndex][columnIndex] ? ' used' : ''}"
+              data-breach="${rowIndex}:${columnIndex}"
+              ${state.used[rowIndex][columnIndex] || state.status !== 'ready' ? 'disabled' : ''}>${token}</button>`,
+        ),
+      )
+      .join('');
+    this.breachMsg.textContent = 'MATCH THE TARGET SEQUENCE. ROW → COLUMN → ROW.';
+  }
+
+  private handleBreachClick(event: MouseEvent): void {
+    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-act], [data-breach]');
+    if (!target) return;
+    if (target.dataset.act === 'breach-abort') {
+      this.finishBreach(false);
+      return;
+    }
+    const cell = target.dataset.breach;
+    if (!cell || !this.breachState) return;
+    const [row, column] = cell.split(':').map(Number);
+    const result = selectBreachCell(this.breachState, row, column);
+    if (!result.ok) {
+      this.breachMsg.textContent = result.reason ?? 'INVALID SELECTION';
+      this.audio.uiError();
+      return;
+    }
+    this.renderBreach();
+    if (result.won) this.finishBreach(true);
+    else if (result.lost) this.finishBreach(false);
+    else this.audio.uiClick();
+  }
+
+  private finishBreach(success: boolean): void {
+    const state = this.breachState;
+    const nodeId = this.breachNodeId;
+    if (!state || nodeId === null) return;
+    this.breachState = null;
+    this.breachNodeId = null;
+    this.breachRoot.classList.add('hidden');
+    this.state = 'playing';
+    this.world.resolveBreach(nodeId, success);
+    if (success) {
+      this.profile.data.money += breachReward(state);
+      this.profile.addComponent(1);
+      this.profile.save();
+    }
+    this.input.endFrame();
   }
 
   private commitRun(
@@ -1193,6 +1291,19 @@ export class Game {
       case 'laserHit':
         this.audio.shieldHit();
         break;
+      case 'breachStart':
+        if (this.state === 'playing' && e.nodeId !== undefined) this.openBreach(e.nodeId);
+        break;
+      case 'breachSuccess':
+        this.hud.subtitle('BREACH COMPLETE — SECURITY LOOPED');
+        this.hud.logLine('BREACH: security looped');
+        this.audio.win();
+        break;
+      case 'breachFail':
+        this.hud.subtitle('BREACH FAILED — SECTOR ALERTED');
+        this.hud.logLine('BREACH: failed');
+        this.audio.uiError();
+        break;
       case 'netrunnerHack':
         this.audio.uiError();
         this.hud.subtitle(t('event.netrunnerHack'), 3200);
@@ -1321,6 +1432,15 @@ export class Game {
   frame(dtRaw: number): void {
     const dt = Math.min(dtRaw, 0.05);
     const aim = this.renderer.screenToWorld(this.input.mouseX, this.input.mouseY);
+
+    if (this.state === 'breach' && this.breachState) {
+      tickBreach(this.breachState, dt);
+      this.breachTimerEl.textContent = `${this.breachState.timeLeft.toFixed(1)}S`;
+      if (this.breachState.status === 'lost') this.finishBreach(false);
+      this.renderer.sync(this.world, dt);
+      this.input.endFrame();
+      return;
+    }
 
     let edgesConsumed = false;
     if (this.state === 'safehouse' && !this.panelOpen && !this.manualOpen) {
