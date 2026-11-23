@@ -36,7 +36,7 @@ The production build is an installable PWA with a service-worker app shell and o
 - `Z` targeted quickhack (requires an Intrusion Deck), `Q` use packed supply
 - `SHIFT` Sandevistan, `C` Optical Camo, `X` EMP, `V` Berserk, `G` Overclock, `H` Intrusion Deck
 - `TAB` safehouse terminal, `M` mute
-- Gamepad: left stick move, right stick aim, RT fire, LT throw, A dash, B reload, X interact, Y quickhack, START pause
+- Gamepad: left stick move, right stick aim, RT fire, LT throw, A dash, B reload, X interact, Y quickhack, START pause; D-pad focuses menus, A selects, B backs out
 
 ## Current Systems
 

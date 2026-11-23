@@ -42,7 +42,7 @@ working checklist.
 | PWA / offline | shell | **shell + cache v2 + smoke + offline/update toast** | native install prompt |
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | **enforced budget + smoke heap + `npm run soak`** | longer 30-minute soak |
-| Accessibility | partial | **reduced motion, palettes, subtitles, log, presets, arbitrary key remap, gamepad** | gamepad menu navigation |
+| Accessibility | done for this tranche | **reduced motion, palettes, subtitles, log, presets, remap, gamepad + menu navigation** | text-entry gamepad keyboard |
 | Localization readiness | none | **English/Spanish catalog for objectives, stations, boons, HUD, manual, tour, dialogue, taglines and handler lines** | long-form station/venture prose |
 | Deep module splits | partial | **world player/bullets/objectives/AI/doors/geometry/gym; all Safehouse station views; hub; Game dialogue** | Game boot/flow split |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |

@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~382 kB | 450 kB |
+| App JS | ~383 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~923 kB | 1120 kB |
+| Total JS | ~924 kB | 1120 kB |
 | CSS | ~63 kB | 90 kB |
 | Initial gzip (JS + CSS + HTML) | ~267 kB | 340 kB |
-| Largest single chunk | ~382 kB | 480 kB |
+| Largest single chunk | ~383 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -62,7 +62,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Reduced motion disables shake, hit-stop, death slow-mo, death slides, flashes and CSS motion.
 - Colorblind palettes cover UI and world tells; subtitles/event log and control presets are in Settings.
 - Gameplay SFX pan left/right from their world position; music/ambience stay centered.
-- Standard-mapping gamepad: sticks, triggers, face buttons, D-pad abilities and Start pause; keyboard/mouse remain active.
+- Standard-mapping gamepad: sticks, triggers, face buttons, D-pad abilities and Start pause; D-pad focus/A select/B back in menus; keyboard/mouse remain active.
 
 ## QA Checklist
 

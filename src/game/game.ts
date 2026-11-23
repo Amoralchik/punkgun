@@ -496,6 +496,61 @@ export class Game {
     });
   }
 
+  private menuIsOpen(): boolean {
+    return (
+      this.state === 'paused' ||
+      this.state === 'dead' ||
+      this.state === 'win' ||
+      this.state === 'breach' ||
+      this.dialogueOpen ||
+      this.manualOpen ||
+      this.tourOpen ||
+      this.endingOpen ||
+      this.epilogueOpen ||
+      (this.state === 'safehouse' && this.panelOpen)
+    );
+  }
+
+  private pollMenuNavigation(): void {
+    if (!this.menuIsOpen()) return;
+    const overlays = Array.from(
+      document.querySelectorAll<HTMLElement>('.overlay:not(.hidden)'),
+    );
+    const root = overlays.at(-1);
+    if (!root) return;
+    const items = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled])',
+      ),
+    ).filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    if (items.length === 0) return;
+    const active = document.activeElement as HTMLElement | null;
+    let index = active ? items.indexOf(active) : -1;
+    if (index < 0) {
+      items[0].focus();
+      index = 0;
+    }
+    if (this.input.wasPressed('MenuDown') || this.input.wasPressed('MenuRight')) {
+      items[(index + 1) % items.length].focus();
+    } else if (this.input.wasPressed('MenuUp') || this.input.wasPressed('MenuLeft')) {
+      items[(index - 1 + items.length) % items.length].focus();
+    } else if (this.input.wasPressed('MenuAccept')) {
+      if (active && root.contains(active)) active.click();
+      else items[0].click();
+    } else if (this.input.wasPressed('MenuBack')) {
+      if (this.state === 'dead' || this.state === 'win') {
+        this.returnToSafehouse();
+      } else {
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }),
+        );
+      }
+    }
+  }
+
   private renderRemapButtons(): void {
     const labels: Array<[string, string]> = [
       ['KeyW', 'MOVE UP'],
@@ -1513,6 +1568,7 @@ export class Game {
   frame(dtRaw: number): void {
     const dt = Math.min(dtRaw, 0.05);
     this.input.pollGamepad(dt);
+    this.pollMenuNavigation();
     if (this.input.wasPressed('Pause')) {
       if (this.state === 'playing') this.pauseGame();
       else if (this.state === 'paused') this.resumeGame();

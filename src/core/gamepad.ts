@@ -19,6 +19,12 @@ export interface GamepadState {
   overclock: boolean;
   intrusion: boolean;
   pause: boolean;
+  menuUp: boolean;
+  menuDown: boolean;
+  menuLeft: boolean;
+  menuRight: boolean;
+  menuAccept: boolean;
+  menuBack: boolean;
 }
 
 const EMPTY: GamepadState = {
@@ -41,6 +47,12 @@ const EMPTY: GamepadState = {
   overclock: false,
   intrusion: false,
   pause: false,
+  menuUp: false,
+  menuDown: false,
+  menuLeft: false,
+  menuRight: false,
+  menuAccept: false,
+  menuBack: false,
 };
 
 function radial(x: number, y: number, deadzone: number): [number, number] {
@@ -78,5 +90,11 @@ export function readGamepad(pad: Gamepad | null | undefined, deadzone = 0.22): G
     overclock: down(pad, 12),
     intrusion: down(pad, 15),
     pause: down(pad, 9),
+    menuUp: down(pad, 12),
+    menuDown: down(pad, 13),
+    menuLeft: down(pad, 14),
+    menuRight: down(pad, 15),
+    menuAccept: down(pad, 0),
+    menuBack: down(pad, 1),
   };
 }

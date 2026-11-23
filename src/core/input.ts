@@ -114,6 +114,12 @@ export class Input {
         [state.overclock, 'KeyG'],
         [state.intrusion, 'KeyH'],
         [state.pause, 'Pause'],
+        [state.menuUp, 'MenuUp'],
+        [state.menuDown, 'MenuDown'],
+        [state.menuLeft, 'MenuLeft'],
+        [state.menuRight, 'MenuRight'],
+        [state.menuAccept, 'MenuAccept'],
+        [state.menuBack, 'MenuBack'],
       ];
       for (const [on, code] of bindings) if (on) active.add(code);
     }

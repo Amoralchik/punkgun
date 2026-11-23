@@ -26,12 +26,16 @@ describe('gamepad mapping', () => {
     buttons[0] = { pressed: true, value: 1, touched: true };
     buttons[2] = { pressed: true, value: 1, touched: true };
     buttons[14] = { pressed: true, value: 1, touched: true };
+    buttons[13] = { pressed: true, value: 1, touched: true };
     const state = readGamepad(pad({ buttons }));
     expect(state.fire).toBe(true);
     expect(state.dash).toBe(true);
     expect(state.interact).toBe(true);
     expect(state.emp).toBe(true);
     expect(state.camo).toBe(false);
+    expect(state.menuLeft).toBe(true);
+    expect(state.menuDown).toBe(true);
+    expect(state.menuAccept).toBe(true);
   });
 
   it('returns a disconnected state without a pad', () => {

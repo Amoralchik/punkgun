@@ -319,6 +319,33 @@ async function main() {
     if (remap.changed !== 'KeyT' || remap.restored !== 'KeyR') {
       throw new Error(`Key remap failed: ${JSON.stringify(remap)}`);
     }
+    const gamepadMenu = await cdp.evaluate(`(async () => {
+      const pad = {
+        connected: true,
+        axes: [0, 0, 0, 0],
+        buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0, touched: false })),
+      };
+      window.__fakePad = pad;
+      Object.defineProperty(navigator, 'getGamepads', {
+        configurable: true,
+        value: () => [pad],
+      });
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await wait(140);
+      const first = document.activeElement?.textContent ?? '';
+      pad.buttons[13] = { pressed: true, value: 1, touched: true };
+      await wait(140);
+      const second = document.activeElement?.textContent ?? '';
+      pad.buttons[13] = { pressed: false, value: 0, touched: false };
+      await wait(80);
+      delete navigator.getGamepads;
+      delete window.__fakePad;
+      return { first, second };
+    })()`);
+    if (!gamepadMenu.first || gamepadMenu.first === gamepadMenu.second) {
+      throw new Error(`Gamepad menu focus failed: ${JSON.stringify(gamepadMenu)}`);
+    }
+
     await cdp.evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }))");
     await sleep(200);
 
@@ -500,6 +527,7 @@ async function main() {
           role,
           bossRush,
           offline: true,
+          gamepadMenu: true,
           newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
         },

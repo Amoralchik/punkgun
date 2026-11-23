@@ -2513,6 +2513,14 @@ body.no-scanlines #scanlines {
   color: var(--amber);
 }
 
+button:focus-visible,
+[data-act]:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: 2px;
+}
+
 .system-toast {
   position: fixed;
   left: 50%;
