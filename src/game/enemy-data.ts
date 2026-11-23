@@ -21,6 +21,9 @@ export const ENEMY_TRAITS: Record<EnemyKind, EnemyTraits> = {
   blade: { speedMult: 1.28, visionMult: 0.92, radius: 15, armor: 0 },
   netrunner: { speedMult: 0.82, visionMult: 1.22, radius: 15, armor: 0 },
   operator: { speedMult: 0.9, visionMult: 1.15, radius: 15, armor: 0 },
+  stalker: { speedMult: 1.42, visionMult: 0.75, radius: 14, armor: 0 },
+  breacher: { speedMult: 1.02, visionMult: 1, radius: 17, armor: 1 },
+  drone: { speedMult: 0.74, visionMult: 1.35, radius: 12, armor: 0 },
   boss: { speedMult: 0.95, visionMult: 1.25, radius: 24, armor: 3 },
 };
 
@@ -36,6 +39,9 @@ export const ENEMY_KIND_ROLLS: ReadonlyArray<{ kind: EnemyKind; below: number }>
   { kind: 'blade', below: 0.56 },
   { kind: 'netrunner', below: 0.61 },
   { kind: 'operator', below: 0.65 },
+  { kind: 'stalker', below: 0.7 },
+  { kind: 'breacher', below: 0.74 },
+  { kind: 'drone', below: 0.77 },
 ];
 
 export function pickEnemyKind(roll: number): EnemyKind {
@@ -59,6 +65,9 @@ export function rollEnemyLoadout(kind: EnemyKind, rng: () => number): EnemyLoado
   if (kind === 'marksman') return { weapon: 'rifle', ammo: 8 };
   if (kind === 'heavy') return { weapon: 'lmg', ammo: 80 };
   if (kind === 'operator') return { weapon: 'pistol', ammo: 5 };
+  if (kind === 'stalker') return { weapon: 'fists', ammo: 0 };
+  if (kind === 'breacher') return { weapon: 'shotgun', ammo: 6 };
+  if (kind === 'drone') return { weapon: 'needler', ammo: 12 };
   if (kind === 'grenadier' || kind === 'blade' || kind === 'netrunner') {
     return { weapon: 'fists', ammo: 0 };
   }
@@ -68,13 +77,19 @@ export function rollEnemyLoadout(kind: EnemyKind, rng: () => number): EnemyLoado
 
   const roll = rng();
   let weapon: WeaponId;
-  if (roll < 0.16) weapon = 'fists';
-  else if (roll < 0.26) weapon = 'bat';
-  else if (roll < 0.38) weapon = 'pistol';
-  else if (roll < 0.5) weapon = 'shotgun';
-  else if (roll < 0.62) weapon = 'smg';
-  else if (roll < 0.74) weapon = 'ak';
-  else if (roll < 0.86) weapon = 'rifle';
-  else weapon = 'lmg';
+  if (roll < 0.12) weapon = 'fists';
+  else if (roll < 0.2) weapon = 'bat';
+  else if (roll < 0.31) weapon = 'pistol';
+  else if (roll < 0.36) weapon = 'revolver';
+  else if (roll < 0.44) weapon = 'shotgun';
+  else if (roll < 0.54) weapon = 'smg';
+  else if (roll < 0.62) weapon = 'carbine';
+  else if (roll < 0.67) weapon = 'needler';
+  else if (roll < 0.77) weapon = 'ak';
+  else if (roll < 0.84) weapon = 'rifle';
+  else if (roll < 0.89) weapon = 'dmr';
+  else if (roll < 0.95) weapon = 'lmg';
+  else if (roll < 0.99) weapon = 'plasma';
+  else weapon = 'railgun';
   return { weapon, ammo: isGun(weapon) ? 4 + Math.floor(rng() * 8) : 0 };
 }

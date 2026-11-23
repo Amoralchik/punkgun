@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Level, TILE, isWall } from '../game/map';
-import { WeaponId } from '../game/weapons';
+import { GUN_IDS, WeaponId } from '../game/weapons';
 import { LootKind } from '../game/economy';
 import { mulberry32 } from '../core/math';
 
@@ -35,7 +35,10 @@ function drawOperative(
   ctx.save();
   // Top-down walk sway: the frame shifts the whole silhouette so the
   // feet/coat appear to alternate without needing a second body rig.
-  ctx.translate(frame ? 2.6 : -2.6, frame ? -1 : 1);
+  const phase = ((frame % 4) + 4) % 4;
+  const sway = [0, 2.6, 0, -2.6][phase];
+  const lift = [0, -1, 0, 1][phase];
+  ctx.translate(sway, lift);
 
   // coat tail / back plate
   ctx.fillStyle = palette.coatDark;
@@ -381,6 +384,154 @@ function drawWeapon(ctx: CanvasRenderingContext2D, id: WeaponId): void {
     ctx.stroke();
     ctx.fillStyle = CYAN;
     ctx.fillRect(34, 20, 8, 2);
+  } else if (id === 'revolver') {
+    ctx.fillStyle = '#3b4257';
+    ctx.strokeStyle = 'rgba(255, 196, 107, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(22, 17, 62, 11, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#222938';
+    ctx.strokeStyle = AMBER;
+    ctx.beginPath();
+    ctx.arc(38, 23, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = AMBER;
+    ctx.fillRect(34, 21, 3, 4);
+    ctx.fillRect(40, 21, 3, 4);
+    ctx.fillStyle = '#4a3526';
+    ctx.beginPath();
+    ctx.roundRect(4, 25, 22, 13, 3);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 196, 107, 0.55)';
+    ctx.stroke();
+    ctx.fillStyle = CYAN;
+    ctx.fillRect(78, 19, 6, 3);
+  } else if (id === 'carbine' || id === 'needler') {
+    const accent = id === 'needler' ? VIOLET : CYAN;
+    ctx.fillStyle = '#2f4558';
+    ctx.strokeStyle = 'rgba(150, 240, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(14, 17, 66, 11, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#1a2533';
+    ctx.beginPath();
+    ctx.roundRect(2, 18, 16, 10, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#26343f';
+    ctx.beginPath();
+    ctx.roundRect(32, 27, 10, 15, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#26343f';
+    ctx.fillRect(78, 20, 14, 5);
+    ctx.fillStyle = accent;
+    ctx.fillRect(86, 21, 6, 3);
+    if (id === 'needler') {
+      ctx.fillStyle = accent;
+      for (let i = 0; i < 3; i++) ctx.fillRect(56 + i * 7, 14, 4, 4);
+    }
+    ctx.fillStyle = accent;
+    ctx.fillRect(20, 19, 12, 2);
+  } else if (id === 'dmr') {
+    ctx.fillStyle = '#2f4b55';
+    ctx.strokeStyle = 'rgba(150, 240, 255, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(4, 19, 84, 8, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#1a2b36';
+    ctx.beginPath();
+    ctx.roundRect(0, 17, 12, 12, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#26343f';
+    ctx.fillRect(88, 21, 8, 4);
+    ctx.fillStyle = CYAN;
+    ctx.fillRect(92, 22, 4, 2);
+    ctx.fillStyle = '#1a2b36';
+    ctx.strokeStyle = 'rgba(150, 240, 255, 0.75)';
+    ctx.beginPath();
+    ctx.roundRect(32, 6, 34, 9, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = CYAN;
+    ctx.fillRect(43, 9, 12, 3);
+    ctx.fillStyle = '#22303f';
+    ctx.beginPath();
+    ctx.roundRect(42, 27, 8, 13, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = MAGENTA;
+    ctx.fillRect(14, 21, 16, 2);
+  } else if (id === 'plasma') {
+    ctx.fillStyle = '#2b3152';
+    ctx.strokeStyle = 'rgba(179, 140, 255, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(12, 13, 68, 18, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#1a1d31';
+    ctx.beginPath();
+    ctx.roundRect(2, 18, 16, 12, 4);
+    ctx.fill();
+    ctx.stroke();
+    const glow = ctx.createRadialGradient(82, 22, 1, 82, 22, 13);
+    glow.addColorStop(0, '#ffffff');
+    glow.addColorStop(0.35, VIOLET);
+    glow.addColorStop(1, 'rgba(139, 107, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(82, 22, 13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(179, 140, 255, 0.8)';
+    ctx.beginPath();
+    ctx.arc(44, 22, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#26343f';
+    ctx.beginPath();
+    ctx.roundRect(34, 30, 11, 13, 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (id === 'railgun') {
+    ctx.fillStyle = '#26364a';
+    ctx.strokeStyle = 'rgba(94, 241, 255, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(6, 16, 82, 12, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#111823';
+    ctx.fillRect(20, 19, 64, 6);
+    ctx.strokeStyle = CYAN;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(24, 18);
+    ctx.lineTo(86, 18);
+    ctx.moveTo(24, 26);
+    ctx.lineTo(86, 26);
+    ctx.stroke();
+    ctx.fillStyle = CYAN;
+    ctx.fillRect(66, 20, 18, 4);
+    ctx.fillStyle = '#1a2533';
+    ctx.beginPath();
+    ctx.roundRect(2, 18, 14, 10, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#22303f';
+    ctx.beginPath();
+    ctx.roundRect(34, 27, 10, 14, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = MAGENTA;
+    ctx.fillRect(12, 21, 14, 2);
   } else {
     // lmg
     ctx.fillStyle = '#33475a';
@@ -448,19 +599,20 @@ export class TextureBank {
   readonly shield: THREE.Texture;
   readonly smoke: THREE.Texture;
   readonly barrel: THREE.Texture;
+  readonly holo: THREE.Texture[];
   private readonly mapCache = new Map<string, THREE.Texture>();
 
   constructor() {
-    this.playerWalk = [0, 1].map((f) => texture(this.buildBody('player', 0, f), true));
+    this.playerWalk = [0, 1, 2, 3].map((f) => texture(this.buildBody('player', 0, f), true));
     this.player = this.playerWalk[0];
     this.playerCorpse = this.buildCorpseTex('player');
     this.enemyWalk = [0, 1].map((v) =>
-      [0, 1].map((f) => texture(this.buildBody('enemy', v, f), true)),
+      [0, 1, 2, 3].map((f) => texture(this.buildBody('enemy', v, f), true)),
     );
     this.enemy = [this.enemyWalk[0][0], this.enemyWalk[1][0]];
     this.enemyCorpse = [this.buildCorpseTex('enemy', 0), this.buildCorpseTex('enemy', 1)];
 
-    for (const id of ['pistol', 'shotgun', 'bat', 'smg', 'rifle', 'ak', 'lmg'] as WeaponId[]) {
+    for (const id of [...GUN_IDS, 'bat' as const]) {
       const c = canvas(96, 48);
       const ctx = c.getContext('2d')!;
       drawWeapon(ctx, id);
@@ -484,6 +636,13 @@ export class TextureBank {
     this.shield = texture(this.buildShield());
     this.smoke = texture(this.buildSmoke());
     this.barrel = texture(this.buildBarrel());
+    this.holo = [
+      this.buildHolo('HELIX', CYAN),
+      this.buildHolo('NIGHT MARKET', '#7dffcf'),
+      this.buildHolo('CHROME TEETH', MAGENTA),
+      this.buildHolo('LOW ORBIT', AMBER),
+      this.buildHolo('SUBLEVEL', VIOLET),
+    ].map((canvas) => texture(canvas));
     this.blood = [0, 1, 2].map((i) => texture(this.buildBlood(i)));
   }
 
@@ -659,6 +818,31 @@ export class TextureBank {
     ctx.fillStyle = MAGENTA;
     ctx.globalAlpha = 0.6;
     ctx.fillText('!', 32, 34);
+    return c;
+  }
+
+  private buildHolo(label: string, color: string): HTMLCanvasElement {
+    const c = canvas(512, 128);
+    const ctx = c.getContext('2d')!;
+    ctx.clearRect(0, 0, 512, 128);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(4, 4, 504, 120);
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = color;
+    ctx.font = '700 58px Bahnschrift, "DIN Alternate", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 256, 60);
+    ctx.shadowBlur = 6;
+    ctx.globalAlpha = 0.55;
+    ctx.font = '16px monospace';
+    ctx.fillText('// NIGHT CITY AD NETWORK', 256, 102);
+    ctx.globalAlpha = 0.16;
+    for (let y = 8; y < 120; y += 5) ctx.fillRect(8, y, 496, 1);
     return c;
   }
 

@@ -10,6 +10,7 @@ import { GunId, WEAPONS, WeaponId, isGun, NamedWeaponId, NAMED_MAP } from './wea
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { ModifierId } from './modifiers';
 import { ENEMY_TRAITS, pickEnemyKind, rollEnemyLoadout } from './enemy-data';
+import { BOSSES, BossId } from './bosses';
 import {
   addBlood as emitBlood,
   addCasing as emitCasing,
@@ -31,6 +32,7 @@ import type {
   Grenade,
   LootItem,
   MissionSpec,
+  ObjectiveNode,
   Particle,
   Pickup,
   Player,
@@ -81,6 +83,7 @@ export class World {
   readonly smokes: SmokeCloud[] = [];
   readonly grenades: Grenade[] = [];
   readonly explosions: Explosion[] = [];
+  readonly objectives: ObjectiveNode[] = [];
 
   state: WorldState = 'playing';
   time = 0;
@@ -95,7 +98,15 @@ export class World {
   stealthKills = 0;
   deathCause = 'UNKNOWN';
   reinforcementWave = 0;
+  defenseT = 0;
+  defenseWaveT = 0;
+  extractionPressureT = 0;
+  modifierVision = 1;
+  modifierFire = 1;
+  modifierHeat = 1;
+  hackMultiplier = 1;
   readonly mission: MissionSpec;
+  readonly bossId: BossId | null;
   private readonly mods: RunMods;
   private approachVision = 1;
   hitstop = 0;
@@ -124,6 +135,7 @@ export class World {
   ) {
     this.mission = mission;
     this.mods = mods;
+    this.bossId = mission.bossId ?? null;
     this.rand = mulberry32(seed);
     this.pathfinder = new Pathfinder(level.w, level.h);
 
@@ -140,6 +152,7 @@ export class World {
         baseAngle: Math.atan2(center.y - c.y, center.x - c.x),
         alive: true,
         alertT: 0,
+        disabledT: 0,
       });
     }
     for (const t of level.turrets) {
@@ -153,6 +166,7 @@ export class World {
         fireCd: 0.8,
         aimT: 0,
         flashT: 0,
+        disabledT: 0,
       });
     }
     let laserPhase = 0;
@@ -164,6 +178,7 @@ export class World {
         axis: l.axis,
         phase: laserPhase,
         alive: true,
+        disabledT: 0,
       });
       laserPhase += 0.85;
     }
@@ -224,6 +239,14 @@ export class World {
       slowCd: 0,
       camoT: 0,
       camoCloakCd: 0,
+      empCd: 0,
+      berserkT: 0,
+      berserkCd: 0,
+      overclockT: 0,
+      overclockCd: 0,
+      deckCd: 0,
+      kerenCd: 0,
+      killSpeedT: 0,
       revived: false,
       regenT: 0,
       hackedT: 0,
@@ -233,8 +256,13 @@ export class World {
       this.addEnemy(spawn.x, spawn.y, i % 2 === 0 ? 1 : -1, 'idle', spawn.kind),
     );
 
-        if (mission.objective === 'boss' && level.boss) {
-      const boss = this.addEnemy(level.boss.x, level.boss.y, 1, 'idle', 'boss');
+    if (mission.objective === 'boss') {
+      const bossDef = BOSSES[mission.bossId ?? 'psycho'];
+      const spawn = this.findBossSpawn(level);
+      const boss = this.addEnemy(spawn.x, spawn.y, 1, 'idle', 'boss');
+      boss.armor = bossDef.armor;
+      boss.maxArmor = bossDef.armor;
+      boss.speedMult = bossDef.speedMult;
       boss.isTarget = true;
       this.targetId = boss.id;
     }
@@ -243,18 +271,24 @@ export class World {
     for (const enemy of this.enemies) enemy.stunT = 1.2;
     this.applyApproach(mission.approach ?? 'standard');
 
-    if (mission.objective === 'target' && this.enemies.length > 0) {
-      let best = this.enemies[0];
-      let bestD = Infinity;
-      for (const e of this.enemies) {
-        const d = dist(e.x, e.y, level.exit.x, level.exit.y);
-        if (d < bestD) {
-          bestD = d;
-          best = e;
+    if (mission.objective === 'target' || mission.objective === 'hunt') {
+      if (this.enemies.length > 0) {
+        let best = this.enemies[0];
+        let bestD = Infinity;
+        for (const e of this.enemies) {
+          const d = dist(e.x, e.y, level.exit.x, level.exit.y);
+          if (d < bestD) {
+            bestD = d;
+            best = e;
+          }
         }
+        best.isTarget = true;
+        if (mission.objective === 'hunt') {
+          best.speedMult = Math.max(1.4, best.speedMult * 1.45);
+          best.visionMult = Math.max(1.2, best.visionMult);
+        }
+        this.targetId = best.id;
       }
-      best.isTarget = true;
-      this.targetId = best.id;
     }
 
     for (const w of level.weapons) {
@@ -285,10 +319,123 @@ export class World {
       });
     }
     this.applyModifiers(mission.modifiers ?? []);
+    this.setupObjectives();
+  }
+
+  private findBossSpawn(level: Level): { x: number; y: number } {
+    const from = worldToTile(level.spawn.x, level.spawn.y, level.h);
+    const reachable = (x: number, y: number): boolean => {
+      const to = worldToTile(x, y, level.h);
+      if (isWall(level, to.cx, to.cy)) return false;
+      return this.pathfinder.find(level, from.cx, from.cy, to.cx, to.cy) !== null;
+    };
+
+    if (level.boss && reachable(level.boss.x, level.boss.y)) return level.boss;
+
+    const center = tileCenter(level.w >> 1, level.h >> 1, level.h);
+    if (reachable(center.x, center.y)) return center;
+
+    let best = level.spawn;
+    let bestScore = -Infinity;
+    for (let cy = 0; cy < level.h; cy++) {
+      for (let cx = 0; cx < level.w; cx++) {
+        if (isWall(level, cx, cy)) continue;
+        const pos = tileCenter(cx, cy, level.h);
+        if (dist(pos.x, pos.y, level.exit.x, level.exit.y) < 120) continue;
+        if (!reachable(pos.x, pos.y)) continue;
+        const score =
+          dist(pos.x, pos.y, level.spawn.x, level.spawn.y) -
+          dist(pos.x, pos.y, center.x, center.y) * 0.35;
+        if (score > bestScore) {
+          bestScore = score;
+          best = pos;
+        }
+      }
+    }
+    return best;
+  }
+
+  private objectivePositions(count: number): { x: number; y: number }[] {
+    const positions: { x: number; y: number }[] = [];
+    for (const loot of this.loot) {
+      if (positions.length >= count) break;
+      positions.push({ x: loot.x, y: loot.y });
+    }
+    for (const enemy of this.level.enemies) {
+      if (positions.length >= count) break;
+      if (positions.some((p) => dist(p.x, p.y, enemy.x, enemy.y) < 80)) continue;
+      positions.push({ x: enemy.x, y: enemy.y });
+    }
+    while (positions.length < count) {
+      const center = tileCenter(this.level.w >> 1, this.level.h >> 1, this.level.h);
+      positions.push({
+        x: center.x + (positions.length - 1) * 34,
+        y: center.y + (positions.length % 2 === 0 ? 34 : -34),
+      });
+    }
+    return positions;
+  }
+
+  private setupObjectives(): void {
+    if (this.mission.objective === 'sabotage') {
+      const count = Math.max(1, this.mission.requiredLoot);
+      for (const pos of this.objectivePositions(count)) {
+        this.objectives.push({
+          id: this.nextId++,
+          x: pos.x,
+          y: pos.y,
+          kind: 'terminal',
+          progress: 0,
+          required: 1,
+          completed: false,
+          radius: 58,
+        });
+      }
+    } else if (this.mission.objective === 'extraction') {
+      let best = this.level.loot[0] ?? { x: this.level.exit.x, y: this.level.exit.y };
+      let bestD = -1;
+      for (const loot of this.level.loot) {
+        const d = dist(loot.x, loot.y, this.level.spawn.x, this.level.spawn.y);
+        if (d > bestD) {
+          bestD = d;
+          best = loot;
+        }
+      }
+      this.objectives.push({
+        id: this.nextId++,
+        x: best.x,
+        y: best.y,
+        kind: 'case',
+        progress: 0,
+        required: 1,
+        completed: false,
+        radius: 58,
+      });
+    } else if (this.mission.objective === 'defense') {
+      this.objectives.push({
+        id: this.nextId++,
+        x: this.level.exit.x,
+        y: this.level.exit.y,
+        kind: 'zone',
+        progress: 0,
+        required: 45,
+        completed: false,
+        radius: 170,
+      });
+      this.defenseWaveT = 12;
+    }
   }
 
   private applyModifiers(ids: ModifierId[]): void {
     if (ids.length === 0) return;
+    if (ids.includes('fog')) this.modifierVision *= 0.7;
+    if (ids.includes('sirens')) this.modifierHeat *= 1.5;
+    if (ids.includes('overclocked')) this.modifierFire *= 0.8;
+    if (ids.includes('blackIce')) this.hackMultiplier = 2;
+    if (ids.includes('noArmor')) {
+      this.player.armor = 0;
+      this.player.maxArmor = 0;
+    }
     if (ids.includes('elite')) {
       for (const e of this.enemies) {
         e.armor++;
@@ -298,7 +445,26 @@ export class World {
     if (ids.includes('hotLoot')) {
       for (const item of this.loot) item.value = Math.round(item.value * 1.5);
     }
-    if (ids.includes('alarm')) {
+    if (ids.includes('cyberpsycho')) {
+      let converted = 0;
+      for (const e of this.enemies) {
+        if (converted >= 2) break;
+        if (e.kind === 'boss' || e.kind === 'blade') continue;
+        e.kind = 'blade';
+        e.weapon = 'fists';
+        e.ammo = 0;
+        e.speedMult = Math.max(e.speedMult, 1.28);
+        converted++;
+      }
+    }
+    if (ids.includes('swarm')) {
+      this.spawnReinforcements(3);
+    }
+    if (ids.includes('blackIce') && !this.enemies.some((e) => e.kind === 'netrunner')) {
+      const spawn = this.level.enemies[0];
+      if (spawn) this.addEnemy(spawn.x, spawn.y, 1, 'chase', 'netrunner');
+    }
+    if (ids.includes('alarm') || ids.includes('lockdown')) {
       for (const e of this.enemies) {
         e.state = 'chase';
         e.lastSeenX = this.player.x;
@@ -308,6 +474,10 @@ export class World {
         e.angle = Math.atan2(this.player.y - e.y, this.player.x - e.x);
         e.fireCd = 0.5 + this.rand() * 0.4;
       }
+    }
+    if (ids.includes('lockdown')) {
+      this.heat = Math.max(this.heat, 35);
+      this.peakHeat = Math.max(this.peakHeat, this.heat);
     }
   }
 
@@ -319,6 +489,14 @@ export class World {
 
   get boss(): Enemy | null {
     return this.enemies.find((e) => e.kind === 'boss') ?? null;
+  }
+
+  get bossName(): string {
+    return BOSSES[this.bossId ?? 'psycho'].name;
+  }
+
+  private get bossDef() {
+    return BOSSES[this.bossId ?? 'psycho'];
   }
 
   get collectedLoot(): number {
@@ -339,18 +517,108 @@ export class World {
     return { sandevistan: this.mods.sandevistan, camo: this.mods.camo };
   }
 
+  /** HUD-ready active cyberware state, filtered to installed abilities. */
+  abilitySlots(): Array<{
+    key: string;
+    label: string;
+    activeT: number;
+    cooldown: number;
+    maxCooldown: number;
+  }> {
+    const p = this.player;
+    const m = this.mods;
+    const slots: Array<{
+      key: string;
+      label: string;
+      activeT: number;
+      cooldown: number;
+      maxCooldown: number;
+    }> = [];
+    if (m.sandevistan > 0) {
+      slots.push({
+        key: 'SHIFT',
+        label: 'SANDEVISTAN',
+        activeT: p.slowT,
+        cooldown: p.slowCd,
+        maxCooldown: (14 - (m.sandevistan - 1) * 3) * m.abilityCd,
+      });
+    }
+    if (m.camo > 0) {
+      slots.push({
+        key: 'C',
+        label: 'OPTICAL CAMO',
+        activeT: p.camoT,
+        cooldown: p.camoCloakCd,
+        maxCooldown: (12 - (m.camo - 1) * 2) * m.abilityCd,
+      });
+    }
+    if (m.emp > 0) {
+      slots.push({
+        key: 'X',
+        label: 'EMP',
+        activeT: 0,
+        cooldown: p.empCd,
+        maxCooldown: (20 - (m.emp - 1) * 3) * m.abilityCd,
+      });
+    }
+    if (m.berserk > 0) {
+      slots.push({
+        key: 'V',
+        label: 'BERSERK',
+        activeT: p.berserkT,
+        cooldown: p.berserkCd,
+        maxCooldown: (20 - (m.berserk - 1) * 3) * m.abilityCd,
+      });
+    }
+    if (m.overclock > 0) {
+      slots.push({
+        key: 'G',
+        label: 'OVERCLOCK',
+        activeT: p.overclockT,
+        cooldown: p.overclockCd,
+        maxCooldown: (18 - (m.overclock - 1) * 3) * m.abilityCd,
+      });
+    }
+    if (m.deck > 0) {
+      slots.push({
+        key: 'H',
+        label: 'INTRUSION',
+        activeT: 0,
+        cooldown: p.deckCd,
+        maxCooldown: (22 - (m.deck - 1) * 3) * m.abilityCd,
+      });
+    }
+    return slots;
+  }
+
   objectiveText(): string {
     if (this.exitOpen) return 'EXIT OPEN — GET OUT';
     if (this.mission.objective === 'purge') {
       return `PURGE ${this.enemies.length - this.aliveEnemies}/${this.enemies.length}`;
     }
-    if (this.mission.objective === 'target') {
+    if (this.mission.objective === 'target' || this.mission.objective === 'hunt') {
       const target = this.enemies.find((e) => e.id === this.targetId);
-      return target && target.alive ? 'KILL THE MARKED TARGET' : 'TARGET DOWN — EXIT';
+      return target && target.alive
+        ? this.mission.objective === 'hunt'
+          ? 'HUNT THE MARKED TARGET'
+          : 'KILL THE MARKED TARGET'
+        : 'TARGET DOWN — EXIT';
     }
     if (this.mission.objective === 'boss') {
       const boss = this.boss;
-      return boss ? `BOSS ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
+      return boss ? `${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
+    }
+    if (this.mission.objective === 'sabotage') {
+      const done = this.objectives.filter((n) => n.completed).length;
+      return `SABOTAGE ${done}/${this.objectives.length}`;
+    }
+    if (this.mission.objective === 'extraction') {
+      return this.objectives[0]?.completed ? 'CASE SECURED — EXIT' : 'SECURE THE CASE';
+    }
+    if (this.mission.objective === 'defense') {
+      const zone = this.objectives[0];
+      const left = Math.max(0, Math.ceil((zone?.required ?? 45) - (zone?.progress ?? 0)));
+      return zone?.completed ? 'ZONE HELD — EXIT' : `HOLD THE ZONE ${left}S`;
     }
     return `CACHES ${this.collectedLoot}/${this.mission.requiredLoot}`;
   }
@@ -360,18 +628,89 @@ export class World {
     let done = false;
     if (this.mission.objective === 'purge') {
       done = this.aliveEnemies === 0;
-    } else if (this.mission.objective === 'target') {
+    } else if (this.mission.objective === 'target' || this.mission.objective === 'hunt') {
       const target = this.enemies.find((e) => e.id === this.targetId);
       done = !!target && !target.alive;
     } else if (this.mission.objective === 'boss') {
       const boss = this.boss;
       done = !!boss && !boss.alive;
+    } else if (this.mission.objective === 'sabotage') {
+      done = this.objectives.length > 0 && this.objectives.every((n) => n.completed);
+    } else if (this.mission.objective === 'extraction') {
+      done = this.objectives[0]?.completed === true;
+    } else if (this.mission.objective === 'defense') {
+      done = this.objectives[0]?.completed === true;
     } else {
       done = this.collectedLoot >= this.mission.requiredLoot;
     }
     if (!done) return;
     this.exitOpen = true;
     this.emit({ type: 'exitOpen', x: this.level.exit.x, y: this.level.exit.y, angle: 0 });
+  }
+
+  private updateObjectives(dt: number): void {
+    if (this.state !== 'playing') return;
+    const p = this.player;
+    if (this.mission.objective === 'defense') {
+      const zone = this.objectives[0];
+      if (!zone || zone.completed) return;
+      if (!p.alive || dist(p.x, p.y, zone.x, zone.y) > zone.radius) return;
+      zone.progress = Math.min(zone.required, zone.progress + dt);
+      this.defenseT = zone.progress;
+      this.defenseWaveT -= dt;
+      if (this.defenseWaveT <= 0) {
+        this.defenseWaveT = 12;
+        this.spawnReinforcements(2, 'grunt');
+        this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
+      }
+      if (zone.progress >= zone.required) {
+        zone.completed = true;
+        this.emit({ type: 'objectiveComplete', x: zone.x, y: zone.y, angle: 0 });
+        this.checkObjective();
+      }
+      return;
+    }
+    if (this.mission.objective === 'extraction') {
+      const node = this.objectives[0];
+      if (!node?.completed || this.exitOpen) return;
+      this.extractionPressureT -= dt;
+      if (this.extractionPressureT <= 0) {
+        this.extractionPressureT = 8;
+        this.spawnReinforcements(2, 'rusher');
+        this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
+      }
+    }
+  }
+
+  private nearestObjective(): ObjectiveNode | null {
+    let best: ObjectiveNode | null = null;
+    let bestD = Infinity;
+    for (const node of this.objectives) {
+      if (node.completed || node.kind === 'zone') continue;
+      const d = dist(this.player.x, this.player.y, node.x, node.y);
+      if (d <= node.radius && d < bestD) {
+        bestD = d;
+        best = node;
+      }
+    }
+    return best;
+  }
+
+  private completeObjectiveNode(node: ObjectiveNode): void {
+    if (node.completed) return;
+    node.completed = true;
+    node.progress = node.required;
+    if (node.kind === 'terminal') {
+      this.addHeat(7);
+      this.emit({ type: 'sabotage', x: node.x, y: node.y, angle: 0 });
+      this.alertAt(node.x, node.y, 220);
+    } else {
+      this.addHeat(35);
+      this.spawnReinforcements(3, 'rusher');
+      this.extractionPressureT = 5;
+      this.emit({ type: 'caseSecured', x: node.x, y: node.y, angle: 0 });
+    }
+    this.checkObjective();
   }
 
   update(dt: number, aim: { x: number; y: number }, edge: boolean): void {
@@ -384,7 +723,7 @@ export class World {
     if (this.player.alive) this.updatePlayer(dt, edge);
     this.updateCameras(dt);
     this.updateTurrets(dt);
-    this.updateLasers();
+    this.updateLasers(dt);
     this.updateEnemies(dt * slow);
     this.updateBullets(dt, slow);
     this.updatePickups(dt);
@@ -392,6 +731,7 @@ export class World {
     this.updateSmokes(dt);
     this.updateParticles(dt);
     this.updateDoors(dt);
+    this.updateObjectives(dt);
 
     if (this.player.alive && this.exitOpen && this.state === 'playing') {
       const d = dist(this.player.x, this.player.y, this.level.exit.x, this.level.exit.y);
@@ -530,20 +870,20 @@ export class World {
     this.emit({ type: 'loudBreach', x: this.player.x, y: this.player.y, angle: 0 });
   }
 
-  private spawnReinforcements(count: number): void {
+  private spawnReinforcements(count: number, forcedKind?: EnemyKind): void {
     const p = this.player;
     const points = [...this.level.enemies]
       .map((spawn) => ({ ...spawn, d: dist(spawn.x, spawn.y, p.x, p.y) }))
       .sort((a, b) => b.d - a.d)
       .slice(0, count);
     for (const point of points) {
-      this.addEnemy(point.x, point.y, 1, 'chase', point.kind);
+      this.addEnemy(point.x, point.y, 1, 'chase', forcedKind ?? point.kind);
     }
     this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
   }
 
   private addHeat(amount: number): void {
-    this.heat = Math.min(100, this.heat + amount);
+    this.heat = Math.min(100, this.heat + amount * this.mods.heatMult * this.modifierHeat);
     this.peakHeat = Math.max(this.peakHeat, this.heat);
     if (this.exitOpen) return;
     if (this.heat >= 55 && this.reinforcementWave < 1) {
@@ -559,7 +899,7 @@ export class World {
   private nearestBackstab(): Enemy | null {
     const p = this.player;
     let best: Enemy | null = null;
-    let bestD = 66;
+    let bestD = 66 * this.mods.takedownReach;
     for (const e of this.enemies) {
       if (!e.alive || e.kind === 'boss') continue;
       const d = dist(p.x, p.y, e.x, e.y);
@@ -618,6 +958,10 @@ export class World {
   promptText(): string | null {
     if (!this.player.alive || this.state !== 'playing') return null;
     if (this.nearestBackstab()) return 'E — SILENT TAKEDOWN';
+    const objective = this.nearestObjective();
+    if (objective) {
+      return objective.kind === 'terminal' ? 'E — PLANT TAP' : 'E — SECURE CASE';
+    }
     const loot = this.nearestLoot();
     if (loot) return `E — GRAB ${LOOT_DEFS[loot.kind].name} · $${loot.value}`;
     const p = this.nearestPickup();
@@ -653,12 +997,20 @@ export class World {
     p.slowCd = Math.max(0, p.slowCd - dt);
     p.camoT = Math.max(0, p.camoT - dt);
     p.camoCloakCd = Math.max(0, p.camoCloakCd - dt);
+    p.empCd = Math.max(0, p.empCd - dt);
+    p.berserkT = Math.max(0, p.berserkT - dt);
+    p.berserkCd = Math.max(0, p.berserkCd - dt);
+    p.overclockT = Math.max(0, p.overclockT - dt);
+    p.overclockCd = Math.max(0, p.overclockCd - dt);
+    p.deckCd = Math.max(0, p.deckCd - dt);
+    p.kerenCd = Math.max(0, p.kerenCd - dt);
+    p.killSpeedT = Math.max(0, p.killSpeedT - dt);
     p.hackedT = Math.max(0, p.hackedT - dt);
     p.regenT += dt;
     if (
       this.mods.biomonitor > 0 &&
       p.armor < p.maxArmor &&
-      p.regenT >= 6 - (this.mods.biomonitor - 1) * 1.5
+      p.regenT >= 6 - (this.mods.biomonitor - 1) * 1.5 - this.mods.regenBoost
     ) {
       p.armor = Math.min(p.maxArmor, p.armor + 1);
       p.regenT = 0;
@@ -679,13 +1031,39 @@ export class World {
         p.slowCd <= 0
       ) {
         p.slowT = 2.5 + (this.mods.sandevistan - 1) * 0.8;
-        p.slowCd = 14 - (this.mods.sandevistan - 1) * 3;
+        p.slowCd = (14 - (this.mods.sandevistan - 1) * 3) * this.mods.abilityCd;
         this.emit({ type: 'sandevistan', x: p.x, y: p.y, angle: p.angle });
       }
       if (this.input.wasPressed('KeyC') && p.hackedT <= 0 && this.mods.camo > 0 && p.camoCloakCd <= 0) {
         p.camoT = 2.5 + (this.mods.camo - 1) * 0.8;
-        p.camoCloakCd = 12 - (this.mods.camo - 1) * 2;
+        p.camoCloakCd = (12 - (this.mods.camo - 1) * 2) * this.mods.abilityCd;
         this.emit({ type: 'camo', x: p.x, y: p.y, angle: p.angle });
+      }
+      if (this.input.wasPressed('KeyX') && p.hackedT <= 0 && this.mods.emp > 0 && p.empCd <= 0) {
+        this.triggerEmp();
+      }
+      if (this.input.wasPressed('KeyV') && p.hackedT <= 0 && this.mods.berserk > 0 && p.berserkCd <= 0) {
+        p.berserkT = 4 + (this.mods.berserk - 1) * 0.8;
+        p.berserkCd = (20 - (this.mods.berserk - 1) * 3) * this.mods.abilityCd;
+        this.emit({ type: 'berserk', x: p.x, y: p.y, angle: p.angle });
+      }
+      if (
+        this.input.wasPressed('KeyG') &&
+        p.hackedT <= 0 &&
+        this.mods.overclock > 0 &&
+        p.overclockCd <= 0
+      ) {
+        p.overclockT = 3.5 + (this.mods.overclock - 1) * 0.7;
+        p.overclockCd = (18 - (this.mods.overclock - 1) * 3) * this.mods.abilityCd;
+        this.emit({ type: 'overclock', x: p.x, y: p.y, angle: p.angle });
+      }
+      if (
+        this.input.wasPressed('KeyH') &&
+        p.hackedT <= 0 &&
+        this.mods.deck > 0 &&
+        p.deckCd <= 0
+      ) {
+        this.triggerDeck();
       }
     }
 
@@ -708,7 +1086,12 @@ export class World {
     ix /= len;
     iy /= len;
 
-    const speed = PLAYER_SPEED * this.mods.speed;
+    const speed =
+      PLAYER_SPEED *
+      this.mods.speed *
+      (p.berserkT > 0 ? 1.3 : 1) *
+      (1 + (p.killSpeedT > 0 ? this.mods.killSpeed : 0)) *
+      (p.armor <= 0 ? 1 + this.mods.lowArmorSpeed : 1);
     const k = 1 - Math.exp(-24 * dt);
     p.vx += (ix * speed - p.vx) * k;
     p.vy += (iy * speed - p.vy) * k;
@@ -729,7 +1112,7 @@ export class World {
     }
     const def = WEAPONS[p.weapon];
     if (p.clip >= def.mag || p.ammo <= 0) return;
-    p.reloadT = def.reload;
+    p.reloadT = def.reload * this.mods.reload;
     p.attackCd = Math.max(p.attackCd, 0.1);
     this.emit({ type: 'reloadStart', x: p.x, y: p.y, angle: p.angle });
   }
@@ -743,6 +1126,50 @@ export class World {
     p.clip += take;
     p.ammo -= take;
     this.emit({ type: 'reloadEnd', x: p.x, y: p.y, angle: p.angle });
+  }
+
+  private triggerEmp(): void {
+    const p = this.player;
+    const rank = this.mods.emp;
+    if (rank <= 0) return;
+    const radius = 220 + rank * 40;
+    p.empCd = (20 - (rank - 1) * 3) * this.mods.abilityCd;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      if (dist(p.x, p.y, e.x, e.y) > radius) continue;
+      e.stunT = Math.max(e.stunT, 2.5 + rank * 0.5);
+      e.aiming = false;
+      e.hackT = 0;
+    }
+    for (const c of this.cameras) {
+      if (c.alive && dist(p.x, p.y, c.x, c.y) <= radius) c.disabledT = 7;
+    }
+    for (const t of this.turrets) {
+      if (t.alive && dist(p.x, p.y, t.x, t.y) <= radius) t.disabledT = 7;
+    }
+    for (const l of this.lasers) {
+      if (l.alive && dist(p.x, p.y, l.x, l.y) <= radius) l.disabledT = 7;
+    }
+    this.shake = Math.min(1, this.shake + 0.3);
+    this.emit({ type: 'emp', x: p.x, y: p.y, angle: p.angle });
+  }
+
+  private triggerDeck(): void {
+    const p = this.player;
+    const rank = this.mods.deck;
+    if (rank <= 0) return;
+    const radius = 360 + rank * 60;
+    p.deckCd = (22 - (rank - 1) * 3) * this.mods.abilityCd;
+    for (const c of this.cameras) {
+      if (c.alive && dist(p.x, p.y, c.x, c.y) <= radius) c.disabledT = 8 + rank;
+    }
+    for (const t of this.turrets) {
+      if (t.alive && dist(p.x, p.y, t.x, t.y) <= radius) t.disabledT = 8 + rank;
+    }
+    for (const l of this.lasers) {
+      if (l.alive && dist(p.x, p.y, l.x, l.y) <= radius) l.disabledT = 8 + rank;
+    }
+    this.emit({ type: 'deck', x: p.x, y: p.y, angle: p.angle });
   }
 
   private playerAttack(): void {
@@ -781,22 +1208,34 @@ export class World {
     this.shotsFired++;
     const shotgun = p.weapon === 'shotgun';
     const suppressed = p.attachment === 'suppressor';
-    const shotHeat = def.sound === 'lmg' ? 11 : def.sound === 'rifle' ? 9 : def.sound === 'ak' ? 8 : shotgun ? 16 : 7;
+    const shotHeat = def.sound === 'lmg' ? 11 : def.sound === 'rifle' ? 9 : def.sound === 'ak' ? 8 : shotgun ? 16 : def.sound === 'railgun' ? 13 : def.sound === 'plasma' ? 10 : 7;
     const alertRadius =
-      def.sound === 'lmg' ? 1180 : def.sound === 'rifle' ? 980 : def.sound === 'ak' ? 860 : shotgun ? 900 : 760;
+      def.sound === 'lmg' ? 1180 : def.sound === 'rifle' ? 980 : def.sound === 'ak' ? 860 : shotgun ? 900 : def.sound === 'railgun' ? 1250 : def.sound === 'plasma' ? 950 : 760;
     this.addHeat(shotHeat * (suppressed ? 0.4 : 1));
     const spring = p.attachment === 'spring' ? 0.8 : 1;
-    p.attackCd = def.cooldown * this.mods.gunCooldown * spring;
+    p.attackCd =
+      def.cooldown *
+      this.mods.gunCooldown *
+      spring *
+      (p.overclockT > 0 ? 0.65 : 1);
     p.flashT = 0.06;
     const variantSpread = p.variant ? NAMED_MAP[p.variant].spreadMult : 1;
     const laser = p.attachment === 'laser' ? 0.65 : 1;
+    const precision = def.family === 'RIFLE' || def.family === 'DMR' || def.family === 'RAILGUN';
+    const overclockSpread = p.overclockT > 0 ? 0.8 : 1;
     const muzzleX = p.x + Math.cos(p.angle) * 26;
     const muzzleY = p.y + Math.sin(p.angle) * 26;
 
     for (let i = 0; i < def.pellets; i++) {
       const a =
         p.angle +
-        (this.rand() * 2 - 1) * def.spread * this.mods.spread * variantSpread * laser;
+        (this.rand() * 2 - 1) *
+          def.spread *
+          this.mods.spread *
+          (precision ? this.mods.precisionSpread : 1) *
+          overclockSpread *
+          variantSpread *
+          laser;
       this.bullets.push({
         x: muzzleX,
         y: muzzleY,
@@ -807,7 +1246,7 @@ export class World {
         life: 1.1,
         ownerId: p.id,
         ownerKind: 'player',
-        pierce: def.pierce,
+        pierce: def.pierce + this.mods.pierce,
       });
     }
 
@@ -835,6 +1274,7 @@ export class World {
     const def = WEAPONS[p.weapon];
     const reach = def.range * this.mods.meleeReach + 16;
     let hitAny = false;
+    let killed = false;
     for (const e of this.enemies) {
       if (!e.alive) continue;
       const d = dist(p.x, p.y, e.x, e.y);
@@ -847,7 +1287,7 @@ export class World {
         hitAny = true;
         continue;
       }
-      if (e.kind === 'heavy' && e.armor > 0) {
+      if ((e.kind === 'heavy' || e.kind === 'breacher') && e.armor > 0) {
         this.damageHeavy(e, a);
         hitAny = true;
         continue;
@@ -870,6 +1310,12 @@ export class World {
       }
       this.killEnemy(e, 'player', this.mods.mantis > 0);
       hitAny = true;
+      killed = true;
+    }
+    if (killed && this.mods.meleeKillReset > 0) {
+      p.attackCd = 0;
+      p.swingT = 0;
+      p.swingHit = true;
     }
     if (hitAny) {
       this.shake = Math.min(1, this.shake + 0.18);
@@ -990,13 +1436,23 @@ export class World {
       }
       g.life -= dt;
       if (g.life <= 0) {
-        this.explode(g.x, g.y, g.owner);
+        this.explode(
+          g.x,
+          g.y,
+          g.owner,
+          g.owner === 'player' ? 115 * this.mods.grenadeRadius : 115,
+        );
         this.grenades.splice(i, 1);
       }
     }
   }
 
-  private explode(x: number, y: number, owner: 'player' | 'enemy' | 'barrel'): void {
+  private explode(
+    x: number,
+    y: number,
+    owner: 'player' | 'enemy' | 'barrel',
+    radius = 115,
+  ): void {
     this.explosions.push({ id: this.nextId++, x, y, life: 0.35, maxLife: 0.35 });
     this.addHeat(25);
     this.shake = 1;
@@ -1018,7 +1474,7 @@ export class World {
       });
     }
     if (owner !== 'player') {
-      if (this.player.alive && dist(x, y, this.player.x, this.player.y) <= 115) {
+      if (this.player.alive && dist(x, y, this.player.x, this.player.y) <= radius) {
         this.deathCause = 'EXPLOSION';
         this.killPlayer(Math.atan2(this.player.y - y, this.player.x - x));
       }
@@ -1026,22 +1482,22 @@ export class World {
     if (owner !== 'enemy') {
       for (const e of this.enemies) {
         if (!e.alive) continue;
-        if (dist(x, y, e.x, e.y) > 115) continue;
+        if (dist(x, y, e.x, e.y) > radius) continue;
         if (e.kind === 'boss') this.damageBoss(e, Math.atan2(e.y - y, e.x - x));
         else this.killEnemy(e, 'player');
       }
     }
     for (const b of this.barrels) {
-      if (!b.alive || dist(x, y, b.x, b.y) > 140) continue;
+      if (!b.alive || dist(x, y, b.x, b.y) > radius + 25) continue;
       this.blowBarrel(b);
     }
     for (const t of this.turrets) {
-      if (!t.alive || dist(x, y, t.x, t.y) > 130) continue;
+      if (!t.alive || dist(x, y, t.x, t.y) > radius + 15) continue;
       t.alive = false;
       this.emit({ type: 'turretBroken', x: t.x, y: t.y, angle: t.angle });
     }
     for (const l of this.lasers) {
-      if (!l.alive || dist(x, y, l.x, l.y) > 130) continue;
+      if (!l.alive || dist(x, y, l.x, l.y) > radius + 15) continue;
       l.alive = false;
       this.emit({ type: 'laserBroken', x: l.x, y: l.y, angle: 0 });
     }
@@ -1060,10 +1516,15 @@ export class World {
       this.killEnemy(backstab, 'player', true);
       return;
     }
+    const objective = this.nearestObjective();
+    if (objective) {
+      this.completeObjectiveNode(objective);
+      return;
+    }
     const loot = this.nearestLoot();
     if (loot) {
       loot.collected = true;
-      this.lootValue += loot.value;
+      this.lootValue += Math.round(loot.value * this.mods.lootMult);
       this.emit({ type: 'loot', x: loot.x, y: loot.y, angle: 0 });
       this.checkObjective();
       return;
@@ -1109,6 +1570,8 @@ export class World {
     const p = this.player;
     for (const cam of this.cameras) {
       if (!cam.alive) continue;
+      cam.disabledT = Math.max(0, cam.disabledT - dt);
+      if (cam.disabledT > 0) continue;
       cam.alertT = Math.max(0, cam.alertT - dt);
       cam.angle = cam.baseAngle + Math.sin(this.time * 0.8 + cam.id) * 0.65;
       if (!p.alive) continue;
@@ -1127,11 +1590,13 @@ export class World {
     }
   }
 
-  private updateLasers(): void {
+  private updateLasers(dt: number): void {
     const p = this.player;
     if (!p.alive || p.invulnT > 0) return;
     for (const l of this.lasers) {
       if (!l.alive) continue;
+      l.disabledT = Math.max(0, l.disabledT - dt);
+      if (l.disabledT > 0) continue;
       const cycle = (this.time + l.phase) % 2.6;
       if (cycle > 1.35) continue;
       const within =
@@ -1172,6 +1637,7 @@ export class World {
       fireCd: 0.6,
       aimT: 0,
       flashT: 0,
+      disabledT: 0,
     });
     this.emit({ type: 'operatorDeploy', x, y, angle: e.angle });
   }
@@ -1180,6 +1646,12 @@ export class World {
     const p = this.player;
     for (const t of this.turrets) {
       if (!t.alive) continue;
+      t.disabledT = Math.max(0, t.disabledT - dt);
+      if (t.disabledT > 0) {
+        t.aiming = false;
+        t.aimT = 0;
+        continue;
+      }
       t.fireCd = Math.max(0, t.fireCd - dt);
       t.flashT = Math.max(0, t.flashT - dt);
       if (!p.alive) continue;
@@ -1338,13 +1810,38 @@ export class World {
           }
           continue;
         }
-        if (e.bossChargeCd <= 0 && sees && phase >= 2 && dToPlayer > 90 && dToPlayer < 560) {
+        if (
+          e.bossChargeCd <= 0 &&
+          this.bossDef.charge &&
+          sees &&
+          phase >= 2 &&
+          dToPlayer > 90 &&
+          dToPlayer < 560
+        ) {
           e.bossChargeT = 0.7;
           e.bossChargeCd = 8;
           e.aiming = true;
           this.emit({ type: 'bossCharge', x: e.x, y: e.y, angle: e.angle });
           continue;
         }
+      }
+
+      if (this.mission.objective === 'hunt' && e.isTarget && sees) {
+        const away = Math.atan2(e.y - this.player.y, e.x - this.player.x);
+        const tx = e.x + Math.cos(away) * 240;
+        const ty = e.y + Math.sin(away) * 240;
+        this.steer(e, tx, ty, ENEMY_SPEED * e.speedMult * 1.25, dt);
+        e.angle = turnToward(
+          e.angle,
+          Math.atan2(this.player.y - e.y, this.player.x - e.x),
+          dt * 6,
+        );
+        if (isGun(e.weapon) && e.ammo > 0) {
+          e.aiming = true;
+          e.fireCd -= dt;
+          if (e.fireCd <= 0) this.enemyShoot(e);
+        }
+        continue;
       }
 
       if (e.kind === 'operator') {
@@ -1365,7 +1862,10 @@ export class World {
           e.aiming = true;
           e.hackT += dt;
           if (e.hackT >= 1.2) {
-            this.player.hackedT = Math.max(this.player.hackedT, 4);
+            this.player.hackedT = Math.max(
+              this.player.hackedT,
+              4 * (1 - this.mods.hackResist) * this.hackMultiplier,
+            );
             e.hackT = 0;
             e.hackCd = 6;
             e.aiming = false;
@@ -1484,8 +1984,8 @@ export class World {
             dt,
           );
         }
-      } else if (e.kind === 'blade' && sees) {
-        this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * 1.5, dt);
+      } else if ((e.kind === 'blade' || e.kind === 'stalker') && sees) {
+        this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * (e.kind === 'stalker' ? 1.7 : 1.5), dt);
         if (dToPlayer < 62 && e.meleeCd <= 0) this.enemyPunch(e);
       } else {
         // Close the distance, through doors if needed.
@@ -1522,6 +2022,7 @@ export class World {
       e.kind === 'rusher' ||
       e.kind === 'grenadier' ||
       e.kind === 'blade' ||
+      e.kind === 'stalker' ||
       e.kind === 'netrunner'
     ) {
       return;
@@ -1567,8 +2068,10 @@ export class World {
     const p = this.player;
     if (p.camoT > 0) return false;
     const d = dist(e.x, e.y, p.x, p.y);
-    if (d > 500 * this.mods.vision * e.visionMult * this.approachVision) return false;
-    if (d > 110 * this.mods.vision * e.visionMult * this.approachVision) {
+    if (d > 500 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision) {
+      return false;
+    }
+    if (d > 110 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision) {
       const a = Math.atan2(p.y - e.y, p.x - e.x);
       if (Math.abs(angleDelta(e.angle, a)) > 1.1) return false;
     }
@@ -1686,10 +2189,10 @@ export class World {
     this.emit({ type: weak ? 'bossWeakHit' : 'bossHit', x: e.x, y: e.y, angle });
     if (e.armor > 0) {
       e.speedMult = Math.min(1.5, e.speedMult + 0.12);
-      this.spawnReinforcements(2);
-      this.bossShock(e);
+      this.spawnReinforcements(this.bossDef.adds, this.bossDef.addKind);
+      if (this.bossDef.shock) this.bossShock(e);
       e.bossWeakT = 1.4;
-      this.emit({ type: 'bossPhase', x: e.x, y: e.y, angle });
+      this.emit({ type: 'bossPhase', x: e.x, y: e.y, angle: e.angle });
     } else {
       this.killEnemy(e, 'player');
     }
@@ -1745,9 +2248,10 @@ export class World {
         pierce: 0,
       });
     }
-    e.fireCd = precision
-      ? 1.7 + this.rand() * 0.9
-      : Math.max(0.55, def.cooldown * (2.4 + this.rand() * 1.8));
+    e.fireCd =
+      (precision
+        ? 1.7 + this.rand() * 0.9
+        : Math.max(0.55, def.cooldown * (2.4 + this.rand() * 1.8))) * this.modifierFire;
     this.addCasing(e.x, e.y, e.angle);
     this.emit({
       type: precision ? 'sniperShot' : e.weapon === 'shotgun' ? 'enemyShotgun' : 'enemyShot',
@@ -1789,6 +2293,11 @@ export class World {
       p.armor--;
       p.invulnT = 0.9;
       p.regenT = 0;
+      if (this.mods.kerenzikov > 0 && p.kerenCd <= 0) {
+        p.slowT = Math.max(p.slowT, 0.9 + this.mods.kerenzikov * 0.3);
+        p.kerenCd = 9;
+        this.emit({ type: 'kerenzikov', x: p.x, y: p.y, angle });
+      }
       this.hitstop = Math.max(this.hitstop, 0.05);
       this.shake = 1;
       this.addSparks(p.x, p.y, angle);
@@ -1915,7 +2424,7 @@ export class World {
               hit = true;
               break;
             }
-            if (e.kind === 'heavy' && e.armor > 0) {
+            if ((e.kind === 'heavy' || e.kind === 'breacher') && e.armor > 0) {
               if (b.ownerKind === 'player') this.shotsHit++;
               this.damageHeavy(e, from);
               hit = true;
@@ -2046,6 +2555,9 @@ export class World {
     e.flashT = 0;
     e.markT = 0;
     this.kills++;
+    if (by === 'player' && this.mods.killSpeed > 0) {
+      this.player.killSpeedT = 4;
+    }
     this.addBlood(e.x, e.y, impact, 1);
     if (silent) {
       this.stealthKills++;
@@ -2064,6 +2576,10 @@ export class World {
       else if (e.weapon === 'shotgun' && this.rand() < 0.12) variant = 'widowmaker';
       else if (e.weapon === 'rifle' && this.rand() < 0.08) variant = 'kensei';
       else if (e.weapon === 'lmg' && this.rand() < 0.06) variant = 'brute';
+      else if (e.weapon === 'revolver' && this.rand() < 0.1) variant = 'hangman';
+      else if (e.weapon === 'dmr' && this.rand() < 0.08) variant = 'longshot';
+      else if (e.weapon === 'carbine' && this.rand() < 0.08) variant = 'vesper';
+      else if (e.weapon === 'plasma' && this.rand() < 0.06) variant = 'sunlance';
       this.pickups.push({
         id: this.nextId++,
         x: e.x + (this.rand() - 0.5) * 22,

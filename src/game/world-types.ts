@@ -4,6 +4,7 @@ import type { LootKind } from './economy';
 import type { AttachmentId } from './attachments';
 import type { ObjectiveKind } from './missions';
 import type { ModifierId } from './modifiers';
+import type { BossId } from './bosses';
 import type { PathPoint } from './path';
 import type { NamedWeaponId } from './weapons';
 import type { WeaponId } from './weapons';
@@ -15,6 +16,21 @@ export interface MissionSpec {
   requiredLoot: number;
   approach?: ApproachId;
   modifiers?: ModifierId[];
+  bossId?: BossId;
+}
+
+export type ObjectiveNodeKind = 'terminal' | 'case' | 'zone';
+
+export interface ObjectiveNode {
+  id: number;
+  x: number;
+  y: number;
+  kind: ObjectiveNodeKind;
+  progress: number;
+  required: number;
+  completed: boolean;
+  /** Radius for zones; interaction radius for terminals/cases. */
+  radius: number;
 }
 
 export type EnemyState = 'idle' | 'alert' | 'chase' | 'dead';
@@ -31,6 +47,9 @@ export type EnemyKind =
   | 'blade'
   | 'netrunner'
   | 'operator'
+  | 'stalker'
+  | 'breacher'
+  | 'drone'
   | 'boss';
 
 export interface Player {
@@ -67,6 +86,20 @@ export interface Player {
   slowCd: number;
   camoT: number;
   camoCloakCd: number;
+  /** Microgenerator EMP. */
+  empCd: number;
+  /** Berserk duration and cooldown. */
+  berserkT: number;
+  berserkCd: number;
+  /** Overclock duration and cooldown. */
+  overclockT: number;
+  overclockCd: number;
+  /** Intrusion deck cooldown. */
+  deckCd: number;
+  /** Automatic Kerenzikov trigger guard. */
+  kerenCd: number;
+  /** Post-kill speed window. */
+  killSpeedT: number;
   revived: boolean;
   regenT: number;
   hackedT: number;
@@ -224,6 +257,8 @@ export interface Camera {
   baseAngle: number;
   alive: boolean;
   alertT: number;
+  /** EMP / intrusion shutdown window. */
+  disabledT: number;
 }
 
 export interface Turret {
@@ -236,6 +271,8 @@ export interface Turret {
   fireCd: number;
   aimT: number;
   flashT: number;
+  /** EMP / intrusion shutdown window. */
+  disabledT: number;
 }
 
 export interface Laser {
@@ -245,6 +282,8 @@ export interface Laser {
   axis: 'h' | 'v';
   phase: number;
   alive: boolean;
+  /** EMP / intrusion shutdown window. */
+  disabledT: number;
 }
 
 export interface Decal {

@@ -1,4 +1,7 @@
-const KEY = 'punkgun.settings.v1';
+const KEY = 'punkgun.settings.v2';
+
+export type Palette = 'default' | 'deuteranopia' | 'protanopia' | 'tritanopia';
+export type ControlPreset = 'wasd' | 'esdf' | 'arrows';
 
 export interface SettingsData {
   volume: number;
@@ -10,6 +13,10 @@ export interface SettingsData {
   weather: boolean;
   reducedMotion: boolean;
   tutorialSeen: boolean;
+  palette: Palette;
+  subtitles: boolean;
+  dialogueLog: boolean;
+  controls: ControlPreset;
 }
 
 const DEFAULTS: SettingsData = {
@@ -22,7 +29,35 @@ const DEFAULTS: SettingsData = {
   weather: true,
   reducedMotion: false,
   tutorialSeen: false,
+  palette: 'default',
+  subtitles: true,
+  dialogueLog: true,
+  controls: 'wasd',
 };
+
+const PALETTES: Palette[] = ['default', 'deuteranopia', 'protanopia', 'tritanopia'];
+const CONTROLS: ControlPreset[] = ['wasd', 'esdf', 'arrows'];
+
+/** Canonical action code -> physical key for the chosen control preset. */
+export function controlKeymap(preset: ControlPreset): Record<string, string> {
+  if (preset === 'esdf') {
+    return {
+      KeyW: 'KeyE',
+      KeyS: 'KeyD',
+      KeyA: 'KeyS',
+      KeyD: 'KeyF',
+    };
+  }
+  if (preset === 'arrows') {
+    return {
+      KeyW: 'ArrowUp',
+      KeyS: 'ArrowDown',
+      KeyA: 'ArrowLeft',
+      KeyD: 'ArrowRight',
+    };
+  }
+  return {};
+}
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
@@ -35,7 +70,7 @@ export class Settings {
 
   private load(): SettingsData {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(KEY) ?? localStorage.getItem('punkgun.settings.v1');
       if (!raw) return { ...DEFAULTS };
       const p = JSON.parse(raw) as Partial<SettingsData>;
       return {
@@ -58,6 +93,15 @@ export class Settings {
         reducedMotion:
           typeof p.reducedMotion === 'boolean' ? p.reducedMotion : DEFAULTS.reducedMotion,
         tutorialSeen: typeof p.tutorialSeen === 'boolean' ? p.tutorialSeen : DEFAULTS.tutorialSeen,
+        palette: PALETTES.includes(p.palette as Palette)
+          ? (p.palette as Palette)
+          : DEFAULTS.palette,
+        subtitles: typeof p.subtitles === 'boolean' ? p.subtitles : DEFAULTS.subtitles,
+        dialogueLog:
+          typeof p.dialogueLog === 'boolean' ? p.dialogueLog : DEFAULTS.dialogueLog,
+        controls: CONTROLS.includes(p.controls as ControlPreset)
+          ? (p.controls as ControlPreset)
+          : DEFAULTS.controls,
       };
     } catch {
       return { ...DEFAULTS };

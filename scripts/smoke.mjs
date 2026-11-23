@@ -1,0 +1,293 @@
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { platform } from 'node:os';
+
+const PREVIEW_PORT = 5199;
+const CDP_PORT = 9231;
+const BASE = `http://localhost:${PREVIEW_PORT}/?debug=1`;
+const OUT = 'tmp-smoke';
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitHttp(url, timeout = 20_000) {
+  const started = Date.now();
+  while (Date.now() - started < timeout) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return response;
+    } catch {
+      // Not up yet.
+    }
+    await sleep(150);
+  }
+  throw new Error(`Timed out waiting for ${url}`);
+}
+
+function chromePath() {
+  const candidates =
+    platform() === 'win32'
+      ? [
+          'C:/Program Files/Google/Chrome/Application/chrome.exe',
+          'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+          'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+        ]
+      : platform() === 'darwin'
+        ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+        : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  return candidates.find((path) => existsSync(path)) ?? null;
+}
+
+function killTree(proc) {
+  if (!proc?.pid) return;
+  if (platform() === 'win32') {
+    spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    proc.kill('SIGKILL');
+  }
+}
+
+class Cdp {
+  constructor(socket) {
+    this.socket = socket;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.events = [];
+    this.listeners = new Map();
+    socket.addEventListener('message', (event) => {
+      const message = JSON.parse(String(event.data));
+      if (message.id && this.pending.has(message.id)) {
+        const { resolve, reject } = this.pending.get(message.id);
+        this.pending.delete(message.id);
+        if (message.error) reject(new Error(message.error.message));
+        else resolve(message.result);
+        return;
+      }
+      if (message.method) {
+        this.events.push(message);
+        for (const listener of this.listeners.get(message.method) ?? []) listener(message.params);
+      }
+    });
+  }
+
+  send(method, params = {}) {
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  on(method, listener) {
+    this.listeners.set(method, [...(this.listeners.get(method) ?? []), listener]);
+  }
+
+  async evaluate(expression) {
+    const result = await this.send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (result.exceptionDetails) {
+      const details = result.exceptionDetails;
+      throw new Error(
+        `${details.text ?? 'page evaluation failed'}: ${
+          details.exception?.description ?? details.exception?.value ?? 'no exception detail'
+        }`,
+      );
+    }
+    return result.result?.value;
+  }
+}
+
+async function main() {
+  if (!existsSync('dist/index.html')) {
+    throw new Error('dist missing. Run `npm run build` first.');
+  }
+  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
+
+  const server = spawn(
+    process.execPath,
+    ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'],
+    { stdio: 'ignore' },
+  );
+  const chrome = chromePath();
+  if (!chrome) {
+    server.kill();
+    throw new Error('No Chrome/Edge binary found for smoke test.');
+  }
+  const browserProcess = spawn(
+    chrome,
+    [
+      '--headless=new',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-dev-shm-usage',
+      '--enable-unsafe-swiftshader',
+      '--use-gl=angle',
+      '--use-angle=swiftshader',
+      '--window-size=1365,768',
+      `--remote-debugging-port=${CDP_PORT}`,
+      '--remote-debugging-address=127.0.0.1',
+      `--user-data-dir=${join(process.cwd(), OUT, 'profile')}`,
+      'about:blank',
+    ],
+    { stdio: ['ignore', 'ignore', 'pipe'] },
+  );
+  let chromeLog = '';
+  browserProcess.stderr.on('data', (chunk) => {
+    chromeLog += String(chunk);
+    if (chromeLog.length > 6000) chromeLog = chromeLog.slice(-6000);
+  });
+  let socket;
+  try {
+    await waitHttp(`http://localhost:${PREVIEW_PORT}/index.html`);
+    try {
+      await waitHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 30_000);
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nChrome: ${chromeLog}`,
+      );
+    }
+    const target = await fetch(
+      `http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(BASE)}`,
+      { method: 'PUT' },
+    ).then((response) => response.json());
+    socket = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      socket.addEventListener('open', resolve, { once: true });
+      socket.addEventListener('error', reject, { once: true });
+    });
+    const cdp = new Cdp(socket);
+    await cdp.send('Runtime.enable');
+    await cdp.send('Page.enable');
+    await cdp.send('Log.enable');
+    await cdp.send('Performance.enable');
+    await cdp.send('Page.bringToFront');
+    const errors = [];
+    cdp.on('Runtime.exceptionThrown', (event) =>
+      errors.push(event.exceptionDetails?.text ?? 'exception'),
+    );
+    cdp.on('Log.entryAdded', (event) => {
+      if (event.entry.level === 'error') errors.push(event.entry.text);
+    });
+    cdp.on('Runtime.consoleAPICalled', (event) => {
+      if (event.type === 'error') {
+        errors.push(event.args.map((arg) => arg.value ?? arg.description).join(' '));
+      }
+    });
+
+    const booted = await (async () => {
+      const started = Date.now();
+      while (Date.now() - started < 15_000) {
+        try {
+          if (await cdp.evaluate('window.__punkgunReady === true')) return true;
+        } catch {
+          // Navigation not committed yet.
+        }
+        await sleep(200);
+      }
+      return false;
+    })();
+    if (!booted) throw new Error('Game never exposed __punkgunReady.');
+
+    const boot = await cdp.evaluate(`(() => ({
+      fatal: !document.getElementById('fatal').classList.contains('hidden'),
+      hub: !document.getElementById('hub').classList.contains('hidden'),
+      canvas: !!document.getElementById('game'),
+      contracts: window.__game.contracts.map(c => ({ id: c.id, title: c.title, objective: c.objective, locked: c.locked, boss: c.bossId })),
+      saveVersion: JSON.parse(window.__game.profile.exportSave()).version
+    }))()`);
+    if (boot.fatal) throw new Error('Fatal overlay shown on boot.');
+    if (!boot.hub) throw new Error('Hub hidden on boot.');
+    if (!boot.canvas) throw new Error('Canvas missing.');
+    if (boot.contracts.length < 3) throw new Error('Board has fewer than 3 contracts.');
+    if (boot.saveVersion !== 2) throw new Error('Save export is not v2.');
+
+    const started = await cdp.evaluate(`(() => {
+      const g = window.__game;
+      const contract = g.contracts.find(c => !c.locked && c.objective !== 'boss') ?? g.contracts[0];
+      g.startRun(contract.id, 'standard');
+      return { title: contract.title, objective: contract.objective };
+    })()`);
+    const playing = await (async () => {
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < 30000) {
+        const state = await cdp.evaluate(
+          `(() => { const g = window.__game; return { state: g.state, time: g.world?.time ?? 0, objective: g.world?.objectiveText?.() ?? '', nodes: g.world?.objectives?.length ?? 0, hud: !document.getElementById('hud').classList.contains('off') }; })()`,
+        );
+        if (state.state === 'playing' && state.time > 0.05) return state;
+        await sleep(150);
+      }
+      return null;
+    })();
+    if (!playing) {
+      const debug = await cdp.evaluate(
+        `(() => { const g = window.__game; return { state: g.state, time: g.world?.time ?? 0, acc: g.acc, briefT: g.briefT, fatal: document.getElementById('fatal-message')?.textContent ?? '', paused: !document.getElementById('overlay-pause').classList.contains('hidden'), hidden: document.visibilityState }; })()`,
+      );
+      throw new Error(`Mission did not advance: ${started.title}\n${JSON.stringify({ debug, errors })}`);
+    }
+    if (!playing.hud) throw new Error('HUD not visible during mission.');
+    const performanceMetrics = await cdp.send('Performance.getMetrics');
+    const metric = (name) =>
+      performanceMetrics.metrics.find((entry) => entry.name === name)?.value ?? 0;
+    const heapMb = metric('JSHeapUsedSize') / (1024 * 1024);
+    if (heapMb > 160) throw new Error(`JS heap over budget: ${heapMb.toFixed(1)} MB`);
+
+    await cdp.evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }))");
+    await sleep(250);
+    const paused = await cdp.evaluate(
+      `(() => ({ state: window.__game.state, pauseVisible: !document.getElementById('overlay-pause').classList.contains('hidden') }))()`,
+    );
+    if (paused.state !== 'paused' || !paused.pauseVisible) throw new Error('Pause overlay failed: ' + JSON.stringify(paused));
+    await cdp.evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }))");
+    await sleep(200);
+
+    const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'smoke.png'), Buffer.from(screenshot.data, 'base64'));
+
+    await cdp.evaluate('window.__game.returnToSafehouse()');
+    await sleep(250);
+    const hub = await cdp.evaluate(
+      `(() => ({ state: window.__game.state, hub: !document.getElementById('hub').classList.contains('hidden') }))()`,
+    );
+    if (hub.state !== 'safehouse' || !hub.hub) throw new Error('Return to safehouse failed.');
+
+    if (errors.length > 0) throw new Error(`Console errors:\n${errors.join('\n')}`);
+
+    console.log(
+      JSON.stringify(
+        {
+          boot: true,
+          contracts: boot.contracts.length,
+          started,
+          playing: { time: Number(playing.time.toFixed(2)), objective: playing.objective, nodes: playing.nodes },
+          memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
+          paused: true,
+          returned: hub.state,
+          screenshot: join(OUT, 'smoke.png'),
+        },
+        null,
+        2,
+      ),
+    );
+    console.log('SMOKE: PASS');
+  } finally {
+    try {
+      socket?.close();
+    } catch {
+      // Already closed.
+    }
+    killTree(browserProcess);
+    killTree(server);
+    await sleep(200);
+  }
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(`SMOKE: FAIL — ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  });

@@ -5,6 +5,9 @@ import { Contract, objectiveDetail, objectiveText } from '../game/missions';
 import { DOSSIERS, dossierUnlocked, FACTIONS, handlerLine, unlockText } from '../game/lore';
 import { nextRepRank, repDiscount, repPayBonus } from '../game/reputation';
 import { MODIFIER_MAP } from '../game/modifiers';
+import { BOSSES } from '../game/bosses';
+import { chapterProgress } from '../game/campaign';
+import { ENDINGS } from '../game/endings';
 import {
   CYBERWARE_DEFS,
   CyberwareId,
@@ -12,7 +15,7 @@ import {
   PerkId,
   xpForNext,
 } from '../game/progression';
-import { Profile } from '../game/profile';
+import { Profile, stockKey } from '../game/profile';
 import { ATTACHMENTS, ATTACHMENT_MAP, AttachmentId } from '../game/attachments';
 
 import { COMPONENTS, COMPONENT_IDS, RECIPES, costText } from '../game/crafting';
@@ -46,11 +49,17 @@ export interface SafehouseHooks {
 const SHOP_ORDER: Exclude<WeaponId, 'fists'>[] = [
   'bat',
   'pistol',
+  'revolver',
   'shotgun',
   'smg',
+  'needler',
+  'carbine',
   'rifle',
+  'dmr',
   'ak',
   'lmg',
+  'plasma',
+  'railgun',
 ];
 
 export class Safehouse {
@@ -242,6 +251,12 @@ export class Safehouse {
     this.render();
   }
 
+  setNotice(text: string): void {
+    this.message = text;
+    this.messageError = false;
+    this.render();
+  }
+
   private get selectedContract(): Contract | null {
     return this.contracts.find((c) => c.id === this.selectedId) ?? null;
   }
@@ -296,10 +311,14 @@ export class Safehouse {
         return `<button class="sh-contract${c.id === this.selectedId ? ' selected' : ''}${
           c.objective === 'boss' ? ' boss' : ''
         }${locked ? ' locked' : ''}" data-act="select-contract" data-id="${c.id}">
-          <span class="cnum">0${i + 1} · <b class="risk-${c.risk.toLowerCase()}">${c.risk} RISK</b></span>
+          <span class="cnum">0${i + 1} · <b class="risk-${c.risk.toLowerCase()}">${c.risk} RISK</b>${
+            c.authored ? ' · STORY' : ''
+          }</span>
           <span class="ctitle">${c.title}${locked ? ' · LOCKED' : ''}</span>
           <span class="cmeta"><b style="color:${FACTIONS[c.faction].color}">${FACTIONS[c.faction].name}</b><br>${
-            c.objective === 'boss' ? objectiveText(c) : `${c.layoutName}<br>${objectiveText(c)}`
+            c.bossId
+              ? `${BOSSES[c.bossId].name}<br>${objectiveText(c)}`
+              : `${c.layoutName}<br>${objectiveText(c)}`
           }</span>
           ${mods ? `<span class="cmods">${mods}</span>` : ''}
           ${locked ? `<span class="clock">REQUIRES ${required} CLEARS · ${clears}/${required}</span>` : ''}
@@ -402,33 +421,43 @@ export class Safehouse {
         })
         .join('') || `<div class="sh-note">NO CONTRABAND. GRAB LOOT IN THE SECTOR.</div>`;
 
+    const runsToRotate = Math.max(
+      0,
+      2 - (this.profile.data.runs - this.profile.data.market.refreshedRun),
+    );
     this.intelEl.textContent = `3 CACHES PER SECTOR — ${(Object.keys(LOOT_DEFS) as LootKind[])
       .map((kind) => `${LOOT_DEFS[kind].name} $${LOOT_DEFS[kind].value}`)
-      .join(' · ')}`;
+      .join(' · ')} · STOCK ROTATES IN ${runsToRotate} RUN${runsToRotate === 1 ? '' : 'S'}`;
 
     const baseShop = SHOP_ORDER.map((weapon) => {
       const econ = WEAPON_ECONOMY[weapon];
       const price = this.profile.weaponPrice(weapon);
+      const stock = this.profile.stockFor(stockKey('weapon', weapon));
       const included = econ.ammo > 0 ? `${econ.ammo} RDS INCLUDED` : 'MELEE';
       return `<div class="sh-item">
         <div class="info">
           <span class="wname">${WEAPONS[weapon].name}</span>
-          <span class="wmeta">${included} · <b>$${price}</b></span>
+          <span class="wmeta">${included} · STOCK ${stock} · <b>$${price}</b></span>
         </div>
         <div class="sh-actions">
-          <button data-act="buy" data-weapon="${weapon}">BUY $${price}</button>
+          <button data-act="buy" data-weapon="${weapon}" ${stock <= 0 ? 'disabled' : ''}>${
+            stock <= 0 ? 'OUT OF STOCK' : `BUY $${price}`
+          }</button>
         </div>
       </div>`;
     }).join('');
     const namedShop = NAMED_WEAPONS.map((def) => {
       const price = this.profile.namedPrice(def.id);
+      const stock = this.profile.stockFor(stockKey('named', def.id));
       return `<div class="sh-item">
         <div class="info">
           <span class="wname">${def.name}</span>
-          <span class="wmeta">NAMED ${WEAPONS[def.base].name} · ${def.ammo} RDS · <b>$${price}</b></span>
+          <span class="wmeta">NAMED ${WEAPONS[def.base].name} · ${def.ammo} RDS · STOCK ${stock} · <b>$${price}</b></span>
         </div>
         <div class="sh-actions">
-          <button data-act="buy-named" data-id="${def.id}">BUY $${price}</button>
+          <button data-act="buy-named" data-id="${def.id}" ${stock <= 0 ? 'disabled' : ''}>${
+            stock <= 0 ? 'OUT OF STOCK' : `BUY $${price}`
+          }</button>
         </div>
       </div>`;
     }).join('');
@@ -438,14 +467,15 @@ export class Safehouse {
     this.suppliesEl.innerHTML = CONSUMABLES.map((def) => {
       const packed = supplyType === def.id;
       const full = packed && supplyCharges >= SUPPLY_MAX;
+      const stock = this.profile.stockFor(stockKey('supply', def.id));
       return `<div class="sh-item${packed ? ' armed' : ''}">
         <div class="info">
           <span class="wname">${def.name}</span>
-          <span class="wmeta">${def.desc}</span>
+          <span class="wmeta">${def.desc} · STOCK ${stock}</span>
         </div>
         <div class="sh-actions">
-          <button data-act="buy-supply" data-id="${def.id}" ${full ? 'disabled' : ''}>${
-            full ? 'KIT FULL' : `BUY · $${this.profile.supplyPrice(def.id)}`
+          <button data-act="buy-supply" data-id="${def.id}" ${full || stock <= 0 ? 'disabled' : ''}>${
+            stock <= 0 ? 'OUT OF STOCK' : full ? 'KIT FULL' : `BUY · $${this.profile.supplyPrice(def.id)}`
           }</button>
         </div>
       </div>`;
@@ -687,6 +717,32 @@ export class Safehouse {
           (d) => `${d.name} ${data.perks[d.id]}/${d.maxRank}`,
         ),
       ];
+      const progress = chapterProgress(this.profile);
+      const chapterName = progress.def?.name ?? 'FINALE';
+      const gateName = progress.def ? BOSSES[progress.def.gateBoss].name : 'THE BOARD';
+      const bossLine = (['psycho', 'grin', 'crane', 'board'] as const)
+        .map((id) => `${BOSSES[id].name.split(' ')[0]} ${data.bossesCleared[id] ? '✓' : '×'}`)
+        .join(' · ');
+      const ending = data.ending ? ENDINGS[data.ending] : null;
+      const presetRows = data.presets
+        .map((preset, index) => {
+          const label = preset
+            ? `${preset.name}${preset.attachment ? ` · ${ATTACHMENT_MAP[preset.attachment].name}` : ''}`
+            : 'EMPTY';
+          return `<div class="op-preset${preset ? '' : ' empty'}">
+            <span><b>0${index + 1}</b> ${label}</span>
+            <span class="op-preset-actions">
+              <button data-act="preset-load" data-index="${index}" ${preset ? '' : 'disabled'}>EQUIP</button>
+              <button data-act="preset-save" data-index="${index}">SAVE</button>
+              ${
+                preset
+                  ? `<button data-act="preset-clear" data-index="${index}">CLEAR</button>`
+                  : ''
+              }
+            </span>
+          </div>`;
+        })
+        .join('');
       this.stationBodyEl.innerHTML = `
         <div class="station-grid operator-grid">
           <section class="station-col">
@@ -712,9 +768,11 @@ export class Safehouse {
             <div class="op-reps">${repRows}</div>
             <h2>PROGRESS</h2>
             <div class="op-progress">
-              <span>REGULAR CLEARS <b>${data.regularClears}/3</b></span>
-              <span>BOSS <b>${data.bossCleared ? 'CLEARED' : 'LOCKED'}</b></span>
-              <span>FINALE <b>${data.finalCleared ? 'CLEARED' : data.bossCleared ? 'UNLOCKED' : 'LOCKED'}</b></span>
+              <span>CHAPTER <b>${chapterName}</b></span>
+              <span>GATE <b>${progress.bossDefeated ? 'CLEARED' : `${gateName} · ${data.regularClears}/${progress.requiredClears}`}</b></span>
+              <span>BOSSES <b>${bossLine}</b></span>
+              <span>FINALE <b>${data.finalCleared ? 'CLEARED' : data.bossesCleared.crane ? 'UNLOCKED' : 'LOCKED'}</b></span>
+              <span>ENDING <b>${ending ? ending.title : 'UNCHOSEN'}</b></span>
               <span>RUNS <b>${data.runs}</b></span>
               <span>CLEARS <b>${data.clears}</b></span>
               <span>BEST <b>${data.bestTime === null ? '—' : fmtTime(data.bestTime)}</b></span>
@@ -725,6 +783,9 @@ export class Safehouse {
                 ? installed.map((x) => `<span>${x}</span>`).join('')
                 : '<span>NO AUGMENTS INSTALLED</span>'
             }</div>
+            <h2>LOADOUT PRESETS</h2>
+            <div class="op-presets">${presetRows}</div>
+            <p class="sh-note">Save the currently equipped fit, then re-equip it from storage. Presets never duplicate gear.</p>
             <h2>SAVE DATA</h2>
             <div class="op-save">
               <button type="button" data-act="export-save">EXPORT SAVE</button>
@@ -746,6 +807,7 @@ export class Safehouse {
           <section class="station-col">
             <h2>CONTRABAND</h2>
             <div class="sh-list">${contraband}</div>
+            <button class="sh-augments station-reroll" data-act="refresh-market">ROTATE STOCK · $50</button>
             <p class="sh-note">${intel}</p>
             <p class="sh-note">Buy ammo from storage. Sell guns and contraband here; pack consumables at the supply depot.</p>
           </section>
@@ -880,6 +942,20 @@ export class Safehouse {
         this.render();
         return;
       }
+      case 'refresh-market': {
+        const error = this.profile.refreshMarket(50);
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = 'MARKET STOCK ROTATED · $50';
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
       case 'craft': {
         const id = target.dataset.id;
         if (!id) return;
@@ -979,6 +1055,24 @@ export class Safehouse {
         success = 'LOADOUT UPDATED';
         break;
       }
+      case 'preset-save': {
+        const index = Number(target.dataset.index);
+        error = this.profile.savePreset(index);
+        success = `PRESET 0${index + 1} SAVED`;
+        break;
+      }
+      case 'preset-load': {
+        const index = Number(target.dataset.index);
+        error = this.profile.applyPreset(index);
+        success = `PRESET 0${index + 1} EQUIPPED`;
+        break;
+      }
+      case 'preset-clear': {
+        const index = Number(target.dataset.index);
+        this.profile.clearPreset(index);
+        success = `PRESET 0${index + 1} CLEARED`;
+        break;
+      }
       case 'reset': {
         this.handleReset();
         return;
@@ -1049,19 +1143,41 @@ export class Safehouse {
       helixDiscount > 0 ? ` · HELIX -${helixDiscount}%` : ''
     }`;
 
+    const humanity = this.profile.humanityInfo();
+    const strainPct = Math.min(100, (humanity.used / Math.max(1, humanity.max)) * 100);
+    this.augAttrsEl.innerHTML += `
+      <div class="aug-humanity stage-${humanity.stage}">
+        <div class="aug-humanity-head">
+          <span class="hud-label">NEURAL LOAD</span>
+          <b>${humanity.used} / ${humanity.max}</b>
+          <span class="aug-humanity-state">${humanity.label}</span>
+        </div>
+        <div class="aug-humanity-bar"><i style="width:${strainPct}%"></i></div>
+        <p class="sh-note">Capacity grows with BODY and level. Strain above 60% starts ripperdoc rejection risk; above 85% it starts costing armor and vision.</p>
+      </div>`;
+
     this.augCyberwareEl.innerHTML = CYBERWARE_DEFS.map((def) => {
       const rank = cyberware[def.id];
       const maxed = rank >= def.maxRank;
       const cost = maxed ? 0 : this.profile.cyberwarePrice(def.id);
-      return `<div class="aug-item">
+      const info = this.profile.humanityInfo(def.id);
+      const overCapacity = !maxed && info.used + info.nextCost > info.max;
+      const riskPct = Math.round(info.risk * 100);
+      return `<div class="aug-item${overCapacity ? ' locked' : ''}">
         <div class="aug-info">
           <span class="aug-name">${def.name}</span>
           <span class="aug-desc">${def.desc}</span>
-          <span class="aug-rank">RANK ${rank}/${def.maxRank}</span>
+          <span class="aug-rank">RANK ${rank}/${def.maxRank} · LOAD ${
+            maxed ? '—' : `+${info.nextCost}`
+          }${!maxed && riskPct > 0 ? ` · RISK ${riskPct}%` : ''}${
+            overCapacity ? ' · CAPACITY BLOCKED' : ''
+          }</span>
         </div>
         <div class="sh-actions aug-action">
           <span class="aug-cost">${maxed ? 'MAX' : `$${cost}`}</span>
-          <button data-act="install" data-id="${def.id}" ${maxed ? 'disabled' : ''}>${maxed ? 'MAXED' : 'INSTALL'}</button>
+          <button data-act="install" data-id="${def.id}" ${
+            maxed || overCapacity ? 'disabled' : ''
+          }>${maxed ? 'MAXED' : overCapacity ? 'NO CAPACITY' : 'INSTALL'}</button>
         </div>
       </div>`;
     }).join('');
@@ -1140,15 +1256,17 @@ export class Safehouse {
     this.wbAttachmentsEl.innerHTML =
       ATTACHMENTS.map((def) => {
         const installed = selected?.attachment === def.id;
-        const disabled = !selected || installed;
+        const stock = this.profile.stockFor(stockKey('attachment', def.id));
+        const disabled = !selected || installed || stock <= 0;
         return `<div class="aug-item">
           <div class="aug-info">
             <span class="aug-name">${def.name}</span>
             <span class="aug-desc">${def.desc}</span>
+            <span class="aug-rank">STOCK ${stock}</span>
           </div>
           <div class="sh-actions aug-action">
             <span class="aug-cost">$${this.profile.attachmentPrice(def.id)}</span>
-            <button data-act="install" data-id="${def.id}" ${disabled ? 'disabled' : ''}>${installed ? 'INSTALLED' : 'INSTALL'}</button>
+            <button data-act="install" data-id="${def.id}" ${disabled ? 'disabled' : ''}>${installed ? 'INSTALLED' : stock <= 0 ? 'OUT OF STOCK' : 'INSTALL'}</button>
           </div>
         </div>`;
       }).join('') +

@@ -70,6 +70,27 @@ export const RECIPES: Recipe[] = [
     output: { kind: 'weapon', weapon: 'ak' },
   },
   {
+    id: 'revolver',
+    name: 'MAGNUM',
+    desc: 'Fabricate a MAGNUM hand cannon and stow it in the case.',
+    cost: { scrap: 6, polymer: 3 },
+    output: { kind: 'weapon', weapon: 'revolver' },
+  },
+  {
+    id: 'carbine',
+    name: 'CARBINE',
+    desc: 'Fabricate a CARBINE and stow it in the case.',
+    cost: { scrap: 9, circuit: 5, polymer: 4 },
+    output: { kind: 'weapon', weapon: 'carbine' },
+  },
+  {
+    id: 'dmr',
+    name: 'LONGSHOT DMR',
+    desc: 'Fabricate a LONGSHOT DMR and stow it in the case.',
+    cost: { scrap: 11, circuit: 7, polymer: 3 },
+    output: { kind: 'weapon', weapon: 'dmr' },
+  },
+  {
     id: 'lmg',
     name: 'RIPPER LMG',
     desc: 'Fabricate a RIPPER LMG and stow it in the case.',

@@ -18,10 +18,13 @@ describe('enemy archetype data', () => {
     expect(pickEnemyKind(0.52)).toBe('blade');
     expect(pickEnemyKind(0.58)).toBe('netrunner');
     expect(pickEnemyKind(0.62)).toBe('operator');
-    expect(pickEnemyKind(0.65)).toBe('grunt');
+    expect(pickEnemyKind(0.65)).toBe('stalker');
+    expect(pickEnemyKind(0.72)).toBe('breacher');
+    expect(pickEnemyKind(0.75)).toBe('drone');
+    expect(pickEnemyKind(0.8)).toBe('grunt');
     expect(pickEnemyKind(0.99)).toBe('grunt');
     expect(ENEMY_KIND_ROLLS.map((entry) => entry.below)).toEqual([
-      0.08, 0.15, 0.26, 0.34, 0.39, 0.44, 0.5, 0.56, 0.61, 0.65,
+      0.08, 0.15, 0.26, 0.34, 0.39, 0.44, 0.5, 0.56, 0.61, 0.65, 0.7, 0.74, 0.77,
     ]);
   });
 
@@ -39,10 +42,37 @@ describe('enemy archetype data', () => {
     expect(rollEnemyLoadout('blade', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
     expect(rollEnemyLoadout('netrunner', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
     expect(rollEnemyLoadout('operator', () => 0.99)).toEqual({ weapon: 'pistol', ammo: 5 });
+    expect(rollEnemyLoadout('stalker', () => 0.99)).toEqual({ weapon: 'fists', ammo: 0 });
+    expect(rollEnemyLoadout('breacher', () => 0.99)).toEqual({
+      weapon: 'shotgun',
+      ammo: 6,
+    });
+    expect(rollEnemyLoadout('drone', () => 0.99)).toEqual({ weapon: 'needler', ammo: 12 });
     expect(rollEnemyLoadout('shield', seq([0.54]))).toEqual({ weapon: 'bat', ammo: 0 });
     expect(rollEnemyLoadout('shield', seq([0.56]))).toEqual({ weapon: 'pistol', ammo: 4 });
     expect(rollEnemyLoadout('grunt', seq([0.1, 0.99]))).toEqual({ weapon: 'fists', ammo: 0 });
-    expect(rollEnemyLoadout('grunt', seq([0.2, 0.99]))).toEqual({ weapon: 'bat', ammo: 0 });
+    expect(rollEnemyLoadout('grunt', seq([0.15, 0.99]))).toEqual({ weapon: 'bat', ammo: 0 });
+    expect(rollEnemyLoadout('grunt', seq([0.33, 0.99]))).toEqual({
+      weapon: 'revolver',
+      ammo: 11,
+    });
+    expect(rollEnemyLoadout('grunt', seq([0.58, 0.99]))).toEqual({
+      weapon: 'carbine',
+      ammo: 11,
+    });
+    expect(rollEnemyLoadout('grunt', seq([0.65, 0.99]))).toEqual({
+      weapon: 'needler',
+      ammo: 11,
+    });
+    expect(rollEnemyLoadout('grunt', seq([0.87, 0.99]))).toEqual({ weapon: 'dmr', ammo: 11 });
+    expect(rollEnemyLoadout('grunt', seq([0.97, 0.99]))).toEqual({
+      weapon: 'plasma',
+      ammo: 11,
+    });
+    expect(rollEnemyLoadout('grunt', seq([0.995, 0.99]))).toEqual({
+      weapon: 'railgun',
+      ammo: 11,
+    });
     expect(rollEnemyLoadout('grunt', seq([0.9, 0.5]))).toEqual({ weapon: 'lmg', ammo: 8 });
   });
 

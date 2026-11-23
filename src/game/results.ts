@@ -1,5 +1,6 @@
 import { fmtTime } from '../core/math';
 import { ATTACHMENT_MAP, type AttachmentId } from './attachments';
+import { ENDINGS, type EndingId } from './endings';
 import { NAMED_MAP, WEAPONS, type NamedWeaponId, type WeaponId } from './weapons';
 
 export interface RewardSummary {
@@ -43,6 +44,7 @@ export interface WinResultContext {
   modifierNames: string[];
   final: boolean;
   money: number;
+  ending?: EndingId | null;
 }
 
 export interface ResultText {
@@ -76,7 +78,11 @@ export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
       : `LEVEL ${r.level} · ${r.xp}/${r.xpNext} XP · ${r.perkPoints} PP`;
   const accuracyLine = r.accuracy === null ? 'ACC —' : `ACC ${Math.round(r.accuracy * 100)}%`;
   const performance = `${accuracyLine} · STEALTH ${r.stealthKills} · PEAK HEAT ${Math.round(r.peakHeat)}`;
-  const finale = ctx.final ? '\nTHE LEASH IS CUT. THE CITY REMEMBERS.' : '';
+  const finale = ctx.final
+    ? ctx.ending
+      ? `\nENDING: ${ENDINGS[ctx.ending].title}\n${ENDINGS[ctx.ending].summary}`
+      : '\nTHE LEASH IS CUT. THE CITY REMEMBERS.'
+    : '';
   const mods = ctx.modifierNames.join(' · ');
   const note = `EXTRACTED: ${extracted}\n${contraband}\n${levelLine}\n${performance}\nINSERTION: ${ctx.approachName} · ${Math.round(ctx.approachMult * 100)}% PAY${
     mods ? `\nMODIFIERS: ${mods}` : ''

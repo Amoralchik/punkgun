@@ -7,9 +7,10 @@ import { TextureBank } from './textures';
 import { WeatherField, weatherForLevel } from './weather';
 import { Level, TILE } from '../game/map';
 import { World } from '../game/world';
-import type { Enemy, EnemyKind, Player } from '../game/world-types';
+import type { Enemy, EnemyKind, ObjectiveNode, Player } from '../game/world-types';
 import { WEAPONS, WeaponId } from '../game/weapons';
 import { LOOT_DEFS, LootKind } from '../game/economy';
+import type { Palette } from '../core/settings';
 
 const QUAD = new THREE.PlaneGeometry(1, 1);
 const RELOAD_RING_GEO = new THREE.RingGeometry(34, 38, 40);
@@ -55,12 +56,18 @@ interface WeaponVisual {
 
 const WEAPON_VIS: Record<Exclude<WeaponId, 'fists'>, WeaponVisual> = {
   pistol: { w: 40, h: 20, x: 38, y: 5 },
+  revolver: { w: 44, h: 21, x: 39, y: 5 },
   shotgun: { w: 54, h: 18, x: 40, y: 5 },
   bat: { w: 50, h: 15, x: 36, y: 5 },
   smg: { w: 46, h: 18, x: 34, y: 5 },
+  carbine: { w: 54, h: 18, x: 38, y: 5 },
+  needler: { w: 48, h: 17, x: 36, y: 5 },
   rifle: { w: 64, h: 15, x: 40, y: 5 },
+  dmr: { w: 70, h: 15, x: 41, y: 5 },
   ak: { w: 58, h: 17, x: 38, y: 5 },
   lmg: { w: 72, h: 22, x: 42, y: 5 },
+  plasma: { w: 60, h: 23, x: 40, y: 5 },
+  railgun: { w: 78, h: 18, x: 42, y: 5 },
 };
 
 export class Renderer {
@@ -74,6 +81,8 @@ export class Renderer {
 
   private readonly dynamic = new THREE.Group();
   private readonly fx = new THREE.Group();
+  private readonly holoGroup = new THREE.Group();
+  private readonly holoMats: THREE.MeshBasicMaterial[] = [];
   private mapMesh: THREE.Mesh | null = null;
   private mapLevel: Level | null = null;
   private exitMesh: THREE.Mesh | null = null;
@@ -82,6 +91,7 @@ export class Renderer {
   private readonly doorViews = new Map<number, { group: THREE.Group; door: World['doors'][number] }>();
   private readonly pickupViews = new Map<number, THREE.Group>();
   private readonly lootViews = new Map<number, THREE.Group>();
+  private readonly objectiveViews = new Map<number, THREE.Group>();
   private readonly barrelViews = new Map<number, THREE.Mesh>();
   private readonly cameraViews = new Map<
     number,
@@ -125,6 +135,7 @@ export class Renderer {
   private bloomScale = 1;
   private conesVisible = true;
   private reducedMotion = false;
+  private palette = { cyan: 0x5ef1ff, magenta: 0xff2f8e, red: 0xff3b4e, amber: 0xffc46b };
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -143,6 +154,7 @@ export class Renderer {
 
     this.scene.add(this.dynamic);
     this.scene.add(this.fx);
+    this.scene.add(this.holoGroup);
     this.scene.add(this.weather.group);
     this.buildPools();
     this.slashMat = new THREE.MeshBasicMaterial({
@@ -263,10 +275,13 @@ export class Renderer {
     this.weather.setKind(weatherForLevel(world.level.id));
     this.resize();
     this.dynamic.clear();
+    this.holoGroup.clear();
+    this.holoMats.length = 0;
     this.unitViews.clear();
     this.doorViews.clear();
     this.pickupViews.clear();
     this.lootViews.clear();
+    this.objectiveViews.clear();
     this.barrelViews.clear();
     for (const view of this.cameraViews.values()) view.beamMat.dispose();
     for (const view of this.turretViews.values()) view.beamMat.dispose();
@@ -321,6 +336,8 @@ export class Renderer {
 
     for (const p of world.pickups) this.addPickupView(p.id, p.weapon);
     for (const l of world.loot) this.addLootView(l.id, l.kind);
+    for (const node of world.objectives) this.addObjectiveView(node);
+    if (level.id !== 'safehouse') this.addHoloAds(level);
 
     const exitTex = this.textures.exit;
     const exitMat = new THREE.MeshBasicMaterial({
@@ -545,6 +562,70 @@ export class Renderer {
     this.pickupViews.set(id, group);
   }
 
+  private addHoloAds(level: Level): void {
+    const order = ['sector07', 'tenements', 'nightmarket', 'docks', 'spire', 'sublevel'];
+    const index = Math.max(0, order.indexOf(level.id)) % this.textures.holo.length;
+    const texture = this.textures.holo[index];
+    const positions = [
+      { x: level.w * TILE * 0.5, y: level.h * TILE * 0.82, scale: 1 },
+      { x: level.w * TILE * 0.22, y: level.h * TILE * 0.24, scale: 0.72 },
+    ];
+    for (const [i, pos] of positions.entries()) {
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const mesh = new THREE.Mesh(QUAD, material);
+      mesh.position.set(pos.x, pos.y, 0.18 + i * 0.01);
+      mesh.scale.set(320 * pos.scale, 80 * pos.scale, 1);
+      this.holoGroup.add(mesh);
+      this.holoMats.push(material);
+    }
+  }
+
+  private addObjectiveView(node: ObjectiveNode): void {
+    const group = new THREE.Group();
+    const color =
+      node.kind === 'zone' ? 0x7dffcf : node.kind === 'case' ? 0xffc46b : 0x5ef1ff;
+    const ring = new THREE.Mesh(QUAD, this.mat(this.textures.dot, true, 0.32, color));
+    const size = node.kind === 'zone' ? node.radius * 2 : 78;
+    ring.scale.set(size, size, 1);
+    ring.position.z = 0.42;
+    group.add(ring);
+    if (node.kind !== 'zone') {
+      const icon = new THREE.Mesh(
+        QUAD,
+        this.mat(node.kind === 'case' ? this.textures.loot.optic : this.textures.loot.shard),
+      );
+      icon.scale.set(48, 48, 1);
+      icon.position.z = 0.8;
+      group.add(icon);
+    }
+    group.position.set(node.x, node.y, 0);
+    this.dynamic.add(group);
+    this.objectiveViews.set(node.id, group);
+  }
+
+  private syncObjectives(world: World): void {
+    for (const node of world.objectives) {
+      let group = this.objectiveViews.get(node.id);
+      if (!group) {
+        this.addObjectiveView(node);
+        group = this.objectiveViews.get(node.id);
+      }
+      if (!group) continue;
+      group.visible = !node.completed;
+      const pulse =
+        node.kind === 'zone'
+          ? 1 + Math.sin(performance.now() * 0.0025) * 0.02
+          : 1 + Math.sin(performance.now() * 0.006 + node.id) * 0.08;
+      group.scale.set(pulse, pulse, 1);
+    }
+  }
+
   /* ------------------------------------------------------------------ */
   /* frame                                                               */
   /* ------------------------------------------------------------------ */
@@ -577,12 +658,17 @@ export class Renderer {
     this.syncLasers(world);
     this.syncPickups(world);
     this.syncLoot(world);
+    this.syncObjectives(world);
     this.syncSupplyEffects(world);
     this.syncEffects(world);
     this.syncMelee(world);
     this.syncExit(world);
     this.updateCamera(world, dt, false);
     this.weather.update(this.camX, this.camY, this.viewH * this.aspect, this.viewH, dt);
+    const holoT = performance.now() * 0.0014;
+    this.holoMats.forEach((material, index) => {
+      material.opacity = 0.14 + Math.sin(holoT + index * 1.7) * 0.045;
+    });
 
     this.bloom.strength =
       (0.48 + Math.sin(performance.now() * 0.0016) * 0.04 + world.shake * 0.2) * this.bloomScale;
@@ -661,8 +747,13 @@ export class Renderer {
     const vis = ent.weapon === 'fists' ? null : WEAPON_VIS[ent.weapon];
     const speed = Math.hypot(ent.vx, ent.vy);
     const moving = Math.min(1, speed / 220);
+    const frameCount = isPlayer
+      ? this.textures.playerWalk.length
+      : this.textures.enemyWalk[variant].length;
     const walkFrame =
-      moving > 0.12 ? Math.floor(performance.now() * 0.011 + ent.id * 0.63) % 2 : 0;
+      moving > 0.12
+        ? Math.floor(performance.now() * 0.011 + ent.id * 0.63) % frameCount
+        : 0;
     const bodyTex = isPlayer
       ? this.textures.playerWalk[walkFrame]
       : this.textures.enemyWalk[variant][walkFrame];
@@ -720,7 +811,13 @@ export class Renderer {
     view.flash.visible = flashing;
     if (flashing) {
       const gunScale =
-        ent.weapon === 'shotgun' ? 1.25 : ent.weapon === 'lmg' ? 1.15 : ent.weapon === 'rifle' ? 1.05 : 1;
+        ent.weapon === 'shotgun'
+          ? 1.25
+          : ent.weapon === 'lmg' || ent.weapon === 'railgun'
+            ? 1.15
+            : ent.weapon === 'rifle' || ent.weapon === 'dmr'
+              ? 1.05
+              : 1;
       const s = (30 + Math.random() * 18) * gunScale;
       view.flash.scale.set(s, s, 1);
       view.flash.rotation.z = Math.random() * Math.PI * 2;
@@ -799,7 +896,7 @@ export class Renderer {
       }
       const active = enemy.state === 'alert' || enemy.state === 'chase' || enemy.markT > 0;
       view.vision.visible = true;
-      view.visionMat.color.setHex(active ? 0xff2f8e : 0x5ef1ff);
+      view.visionMat.color.setHex(active ? this.palette.magenta : this.palette.cyan);
       view.visionMat.opacity = active ? 0.028 : 0.015;
 
       const pos = view.vision.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -889,7 +986,7 @@ export class Renderer {
       view.group.rotation.z = cam.angle;
       view.beam.scale.set(beamLength, 2, 1);
       view.beam.position.x = beamLength / 2;
-      view.beamMat.color.setHex(cam.alertT > 0 ? 0xff3b4e : 0xffc46b);
+      view.beamMat.color.setHex(cam.alertT > 0 ? this.palette.red : this.palette.amber);
       view.beamMat.opacity = cam.alertT > 0 ? 0.5 : 0.22;
     }
     for (const [id, view] of this.cameraViews) {
@@ -945,7 +1042,7 @@ export class Renderer {
       view.group.rotation.z = turret.angle;
       view.beam.scale.set(beamLength, 2, 1);
       view.beam.position.x = beamLength / 2;
-      view.beamMat.color.setHex(turret.aiming ? 0xff3b4e : 0xffc46b);
+      view.beamMat.color.setHex(turret.aiming ? this.palette.red : this.palette.amber);
       view.beamMat.opacity = turret.aiming ? 0.5 : 0.18;
     }
     for (const [id, view] of this.turretViews) {
@@ -985,7 +1082,7 @@ export class Renderer {
         1,
       );
       view.mesh.position.set(laser.x, laser.y, 0.5);
-      view.mat.color.setHex(active ? 0xff3b4e : 0xffc46b);
+      view.mat.color.setHex(active ? this.palette.red : this.palette.amber);
       view.mat.opacity = active ? 0.82 : 0.1;
     }
     for (const [id, view] of this.laserViews) {
@@ -1184,7 +1281,7 @@ export class Renderer {
     const t = performance.now() * 0.002;
     const open = world.exitOpen;
     this.exitMat.opacity = open ? 0.55 + Math.sin(t * 2) * 0.2 : 0.16 + Math.sin(t) * 0.03;
-    this.exitMat.color.setHex(open ? 0x5ef1ff : 0xff2f8e);
+    this.exitMat.color.setHex(open ? this.palette.cyan : this.palette.magenta);
     const s = open ? 118 + Math.sin(t * 2) * 6 : 108;
     this.exitMesh.scale.set(s, s, 1);
   }
@@ -1237,6 +1334,19 @@ export class Renderer {
 
   setReducedMotion(value: boolean): void {
     this.reducedMotion = value;
+  }
+
+  setPalette(palette: Palette): void {
+    if (palette === 'deuteranopia') {
+      this.palette = { cyan: 0x7fd4ff, magenta: 0xff8a3d, red: 0xff6a3d, amber: 0xffd166 };
+    } else if (palette === 'protanopia') {
+      this.palette = { cyan: 0x4ea8ff, magenta: 0xffb000, red: 0xff6b00, amber: 0xffe08a };
+    } else if (palette === 'tritanopia') {
+      this.palette = { cyan: 0x6bffb8, magenta: 0xff6b9d, red: 0xff4f7a, amber: 0xffd166 };
+    } else {
+      this.palette = { cyan: 0x5ef1ff, magenta: 0xff2f8e, red: 0xff3b4e, amber: 0xffc46b };
+    }
+    this.laserMat.color.setHex(this.palette.red);
   }
 
   /* ------------------------------------------------------------------ */

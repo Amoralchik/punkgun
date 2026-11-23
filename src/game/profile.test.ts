@@ -5,6 +5,8 @@ import {
   Profile,
   SAVE_KEY,
   SAVE_VERSION,
+  backupKey,
+  corruptKey,
   encodeSave,
   listSaveSlots,
   slotKey,
@@ -110,6 +112,60 @@ describe('save slots', () => {
   });
 });
 
+describe('save recovery', () => {
+  it('restores the last known-good backup when the primary slot is corrupt', () => {
+    const storage = new MemoryStorage();
+    const profile = fresh(storage);
+    profile.data.money = 500;
+    profile.save();
+    profile.data.money = 600;
+    profile.save();
+    expect(JSON.parse(storage.getItem(backupKey(1)) ?? 'null').profile.money).toBe(500);
+
+    storage.setItem(SAVE_KEY, '{ damaged');
+    const recovered = fresh(storage);
+
+    expect(recovered.data.money).toBe(500);
+    expect(recovered.lastRecovery).toEqual({
+      source: 'backup',
+      quarantinedKey: corruptKey(1),
+      primaryCorrupt: true,
+    });
+    expect(recovered.recoveryNote()).toContain('RECOVERED');
+    expect(storage.getItem(corruptKey(1))).toBe('{ damaged');
+    expect(JSON.parse(storage.getItem(SAVE_KEY) ?? 'null').version).toBe(SAVE_VERSION);
+  });
+
+  it('quarantines a corrupt save with no backup instead of losing the evidence', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(SAVE_KEY, JSON.stringify({ version: SAVE_VERSION, profile: 'broken' }));
+
+    const profile = fresh(storage);
+
+    expect(profile.data.money).toBe(120);
+    expect(profile.lastRecovery?.primaryCorrupt).toBe(true);
+    expect(profile.lastRecovery?.source).toBe('quarantine');
+    expect(storage.getItem(corruptKey(1))).not.toBeNull();
+    expect(profile.recoveryNote()).toContain('QUARANTINED');
+  });
+
+  it('keeps the previous payload when importing a replacement save', () => {
+    const storage = new MemoryStorage();
+    const profile = fresh(storage);
+    profile.data.money = 900;
+    profile.save();
+
+    const incoming = encodeSave({ ...profile.data, money: 42 });
+    expect(profile.importSave(incoming)).toBeNull();
+    expect(profile.data.money).toBe(42);
+
+    expect(JSON.parse(storage.getItem(backupKey(1)) ?? 'null').profile.money).toBe(900);
+    storage.setItem(SAVE_KEY, 'nope');
+    const recovered = fresh(storage);
+    expect(recovered.data.money).toBe(900);
+  });
+});
+
 describe('v1 migration and v2 validation', () => {
   it('migrates the legacy raw profile into v2 and preserves progress', () => {
     const storage = new MemoryStorage();
@@ -162,7 +218,7 @@ describe('v1 migration and v2 validation', () => {
         turned: 1,
       },
       { id: 'fists', weapon: 'fists', ammo: 0, cellX: 0, cellY: 0, turned: false },
-      { id: 'bad', weapon: 'railgun', ammo: 4, cellX: 0, cellY: 0, turned: false },
+      { id: 'bad', weapon: 'railgunX', ammo: 4, cellX: 0, cellY: 0, turned: false },
       { id: 42, weapon: 'pistol', ammo: 4, cellX: 0, cellY: 0, turned: false },
     ];
 
@@ -288,5 +344,30 @@ describe('profile combat economy', () => {
     expect(profile.data.clears).toBe(1);
     expect(profile.data.bestTime).toBe(42.5);
     expect(new Profile(1, storage).data.money).toBe(profile.data.money);
+  });
+});
+
+describe('loadout presets', () => {
+  it('saves and re-equips a stash fit without duplicating gear', () => {
+    const profile = new Profile(2, null);
+    profile.data.money = 5000;
+    expect(profile.buyWeapon('smg')).toBeNull();
+    const smg = profile.data.stash.find((item) => item.weapon === 'smg');
+    expect(smg).toBeDefined();
+    expect(profile.equip(smg!.id)).toBeNull();
+    const stashSize = profile.data.stash.length;
+
+    expect(profile.savePreset(0)).toBeNull();
+    expect(profile.data.presets[0]).toMatchObject({ weapon: 'smg' });
+    expect(profile.data.stash.length).toBe(stashSize);
+
+    profile.data.equippedId = null;
+    expect(profile.applyPreset(0)).toBeNull();
+    expect(profile.equipped?.weapon).toBe('smg');
+    expect(profile.data.stash.length).toBe(stashSize);
+
+    expect(profile.applyPreset(1)).toBe('EMPTY PRESET');
+    profile.clearPreset(0);
+    expect(profile.data.presets[0]).toBeNull();
   });
 });

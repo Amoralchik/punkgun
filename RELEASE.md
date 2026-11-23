@@ -17,15 +17,23 @@ the manifest/SW URLs.
 
 ## Performance Budget
 
+`npm run budget` is enforced by `verify` and `package`.
+
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~201 kB | 260 kB |
-| Vendor JS | ~553 kB across 3 chunks | 650 kB total |
-| CSS | ~44 kB | 60 kB |
-| Initial gzip | ~194 kB | 240 kB |
+| App JS | ~268 kB | 300 kB |
+| Vendor JS | ~541 kB across 3 chunks | 620 kB total |
+| Total JS | ~802 kB | 860 kB |
+| CSS | ~47 kB | 60 kB |
+| Initial gzip (JS + CSS + HTML) | ~225 kB | 250 kB |
+| Largest single chunk | ~344 kB | 360 kB |
+| Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
-Vendor code is split into sub-320 kB chunks by Rolldown. The previous >500 kB warning is gone.
+Vendor code is split into sub-360 kB chunks by Rolldown. The previous >500 kB warning is gone.
+`scripts/check-budget.mjs` fails CI when any row is exceeded. The app-JS
+budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
+23 cyberware/perk additions); it is not an open-ended allowance.
 
 ## PWA / Offline
 
@@ -37,6 +45,10 @@ Vendor code is split into sub-320 kB chunks by Rolldown. The previous >500 kB wa
 
 ## Save Recovery
 
+- Primary save: `punkgun.save.v2` (slots 1–3 namespaced).
+- Previous payload: `.bak`; rejected payload: `.corrupt`.
+- Corrupt primary is quarantined, then the backup is loaded; the hub reports the recovery.
+- Future versions are rejected rather than coerced.
 - `OPERATOR → SAVE DATA` exports a validated v2 JSON snapshot.
 - Import accepts v1/v2 and runs through the same sanitizer as normal loads.
 - Current save is v2; legacy v1 remains untouched after migration.
@@ -47,23 +59,27 @@ Vendor code is split into sub-320 kB chunks by Rolldown. The previous >500 kB wa
 - WebGL context loss stops the frame loop and presents `RELOAD CLIENT`.
 - No WebGL => `SIGNAL LOST` boot failure, not a black canvas.
 - Reduced motion disables shake, hit-stop, death slow-mo, death slides, flashes and CSS motion.
+- Colorblind palettes cover UI and world tells; subtitles/event log and control presets are in Settings.
+- Gameplay SFX pan left/right from their world position; music/ambience stay centered.
 
 ## QA Checklist
 
-- `npm run verify`
+- `npm run verify` (typecheck + 68 unit tests + build + budget)
+- `npm run smoke` (production preview boot/deploy/pause)
 - `npm run package`
+- Full matrix and manual checklist: [QA.md](./QA.md)
 - Production preview: boot, deploy, reload, pause, operator import/export.
-- Offline preview: service worker controlled, network disabled, cached shell loads.
-- Save migration: v1 → v2 money/level/stash/equipped preserved.
+- Offline preview: service worker controlled (cache `punkgun-v2`), network disabled, cached shell loads.
+- Save migration: v1 → v2 money/level/stash/equipped preserved; corrupt primary recovers from `.bak`.
 - Console clean on boot, run, death, win, safehouse.
-- Reduced motion on/off.
-- Weather on/off.
+- Reduced motion on/off; palette/subtitles/log toggles; control presets.
+- Weather/fog modifiers and holo ads on/off.
 
 ## Localization Readiness
 
 - Document language is `en`; manifest declares `en`.
-- UI copy is currently inline in TypeScript/HTML. A full extraction pass is not done in 0.1.0.
-- Recommended next step: route user-visible strings through a typed message catalog before adding
+- HUD event copy routes through `src/core/i18n.ts` with a typed `MessageKey` catalog.
+- Most station/manual/dialogue copy is still inline. Route it through the same catalog before adding
   a second locale. Do not machine-translate the inline copy in place.
 
 ## Credits

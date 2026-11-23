@@ -37,8 +37,11 @@ function boot(): void {
     return;
   }
 
-  if (import.meta.env.DEV) {
-    (window as unknown as { __game: Game }).__game = game;
+  if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('debug')) {
+    // Named debug surface: smoke tests read the running game only behind DEV or ?debug=1.
+    const debugWindow = window as Window & { __game?: Game; __punkgunReady?: boolean };
+    debugWindow.__game = game;
+    debugWindow.__punkgunReady = true;
   }
 
   canvas.addEventListener(

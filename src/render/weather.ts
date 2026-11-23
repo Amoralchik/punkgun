@@ -4,8 +4,8 @@ import { mulberry32 } from '../core/math';
 export type WeatherKind = 'rain' | 'ash' | 'embers' | 'none';
 
 export function weatherForLevel(id: string): WeatherKind {
-  if (id === 'nightmarket' || id === 'docks' || id === 'sector07') return 'rain';
-  if (id === 'tenements' || id === 'spire') return 'ash';
+  if (id === 'nightmarket' || id === 'docks' || id === 'sector07' || id === 'transit') return 'rain';
+  if (id === 'tenements' || id === 'spire' || id === 'arcology') return 'ash';
   if (id === 'sublevel') return 'embers';
   return 'none';
 }

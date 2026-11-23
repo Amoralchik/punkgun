@@ -45,6 +45,7 @@
         </div>
         <div class="hud-corner hud-br">
           <span id="hud-status" class="hud-status">EXIT SEALED</span>
+          <span id="hud-psychosis" class="hud-psychosis"></span>
           <span id="hud-time" class="hud-time">00:00.0</span>
         </div>
         <div id="hud-objective" class="hud-objective">
@@ -64,6 +65,8 @@
         <div id="hud-damage-dir" class="hud-damage-dir"></div>
         <div id="hud-consumable" class="hud-consumable off"></div>
         <div id="hud-prompt" class="hud-prompt"></div>
+        <div id="hud-subtitle" class="hud-subtitle"></div>
+        <div id="hud-log" class="hud-log off"></div>
         <div class="hud-keys">WASD MOVE &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; SHIFT SANDEVISTAN &middot; C CAMO &middot; E USE &middot; M MUTE</div>
       </div>
 
@@ -322,6 +325,23 @@
             <label class="pause-check"><input id="set-cones" type="checkbox" checked /> ENEMY VISION CONES</label>
             <label class="pause-check"><input id="set-weather" type="checkbox" checked /> WEATHER / PARTICLES</label>
             <label class="pause-check"><input id="set-reduced-motion" type="checkbox" /> REDUCED MOTION</label>
+            <label>CONTROL LAYOUT
+              <select id="set-controls">
+                <option value="wasd">WASD</option>
+                <option value="esdf">ESDF</option>
+                <option value="arrows">ARROWS</option>
+              </select>
+            </label>
+            <label>COLOR PALETTE
+              <select id="set-palette">
+                <option value="default">DEFAULT</option>
+                <option value="deuteranopia">DEUTERANOPIA</option>
+                <option value="protanopia">PROTANOPIA</option>
+                <option value="tritanopia">TRITANOPIA</option>
+              </select>
+            </label>
+            <label class="pause-check"><input id="set-subtitles" type="checkbox" checked /> SUBTITLES</label>
+            <label class="pause-check"><input id="set-dialogue-log" type="checkbox" checked /> DIALOGUE / EVENT LOG</label>
           </div>
           <div class="pause-hint">ESC TO RESUME. ABANDONING FORFEITS THE CURRENT LOADOUT AND LOOT.</div>
         </div>
@@ -346,8 +366,9 @@
             </section>
             <section>
               <h3>CONTRACTS</h3>
-              <p><b>PURGE</b> kill every hostile · <b>HIT</b> kill the amber-marked target · <b>RECOVER</b> extract marked caches. Exit opens when the objective is done.</p>
-              <p><b>THE SUBLEVEL</b> is a boss contract: break three armor plates off the augmented psycho. Every shattered plate summons adds and releases a radial shockwave. From phase 2 it also telegraphs a charge — break line of sight or sidestep. After a charge or plate break the magenta core is exposed; a hit in that window removes two plates.</p>
+              <p><b>PURGE</b> kill every hostile · <b>HIT</b> kill the marked target · <b>RECOVER</b> extract caches · <b>SABOTAGE</b> plant taps on marked terminals · <b>EXTRACTION</b> secure the case and survive the converge · <b>HUNT</b> chase a fleeing mark · <b>DEFENSE</b> hold the zone for 45 seconds. Exit opens when the objective is done.</p>
+              <p><b>CHAPTERS</b> street, Sublevel, and Spire each gate on three clears and a boss. Four bosses: the augmented psycho, GRIN, DEADWEIGHT, and the Board. The finale ends in one of three choices.</p>
+              <p><b>BOSSES</b> break armor plates; every shattered plate summons adds and releases a radial shockwave. From phase 2 they telegraph a charge — break line of sight or sidestep. After a charge or plate break the magenta core is exposed; a hit in that window removes two plates.</p>
               <p><b>SAFEHOUSE</b> stations are focused consoles: CONTRACTS, MARKET, SUPPLIES, WORKBENCH, CLINIC, ARCHIVE, FABRICATOR, and DEPLOY. <b>TAB</b> opens the terminal overview and the attaché case. The deploy pad always asks which contract to run before launch.</p>
             </section>
             <section>
@@ -359,11 +380,13 @@
             <section>
               <h3>AUGMENTS &amp; XP</h3>
               <p>Clears grant XP and levels. Levels give perk points for the clinic; credits buy permanent cyberware. Armor, speed, spread, and enemy vision all come from your build.</p>
-              <p><b>ACTIVE 'WARE</b> — <b>SHIFT</b> Sandevistan slows the world; <b>C</b> Optical Camo breaks line of sight. Second Heart, Biomonitor, Mantis Blades, and Gorilla Arms are passive installs.</p>
+              <p><b>ACTIVE 'WARE</b> — <b>SHIFT</b> Sandevistan slows the world; <b>C</b> Optical Camo breaks line of sight; <b>X</b> Microgenerator EMP; <b>V</b> Berserk; <b>G</b> Overclock; <b>H</b> Intrusion Deck. Second Heart, Biomonitor, Mantis Blades, and Gorilla Arms are passive installs.</p>
+              <p><b>NEURAL LOAD</b> — every implant consumes humanity. Above 60% strain the ripperdoc may reject an install; above 85% armor and vision suffer. BODY and level raise capacity.</p>
             </section>
             <section>
               <h3>STEALTH &amp; HEAT</h3>
               <p>Vision cones show enemy sight. Approach from behind and press <b>E</b> for a silent takedown. Gunfire raises heat; at high heat, reinforcements breach the sector.</p>
+              <p><b>ACCESSIBILITY</b> — pause &rarr; settings: reduced motion, colorblind palettes, subtitles, event log, and WASD/ESDF/ARROWS control presets.</p>
             </section>
             <section>
               <h3>DEATH &amp; RETRY</h3>
@@ -374,6 +397,18 @@
             PUNKGUN 0.1.0 · THREE.JS · PROCEDURAL ART + AUDIO · <b>NO EXTERNAL ASSETS</b><br />
             FIRST DEPLOYMENT BRIEFING — CLOSE TO CONTINUE.
           </div>
+        </div>
+      </div>
+
+      <div id="overlay-ending" class="overlay ending hidden">
+        <div class="ending-panel">
+          <div class="kicker">// FINAL TRANSMISSION</div>
+          <h1 class="end-title">CHOOSE THE AFTERMATH</h1>
+          <p id="ending-intro" class="stats">
+            The Spire is quiet. Three files are still open. Pick the one the city
+            will remember.
+          </p>
+          <div id="ending-options" class="ending-options"></div>
         </div>
       </div>
 

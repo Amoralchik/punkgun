@@ -1,4 +1,5 @@
 import type { LayoutId } from './map';
+import type { EndingId } from './endings';
 
 export type FactionId = 'helix' | 'teeth' | 'orbit' | 'sublevel' | 'market';
 
@@ -55,6 +56,8 @@ export const FACTION_BY_LAYOUT: Record<LayoutId, FactionId> = {
   docks: 'orbit',
   spire: 'helix',
   sublevel: 'sublevel',
+  transit: 'orbit',
+  arcology: 'helix',
 };
 
 export function factionForLayout(id: LayoutId): FactionId {
@@ -66,6 +69,7 @@ export interface DossierUnlock {
   level?: number;
   boss?: boolean;
   final?: boolean;
+  ending?: EndingId;
 }
 
 export interface Dossier {
@@ -187,6 +191,45 @@ export const DOSSIERS: Dossier[] = [
       'You have a gun. That is usually enough.',
     ],
   },
+  {
+    id: 'ending-burn',
+    order: 9,
+    title: 'THE LEDGER BURNS',
+    kicker: '// ENDING FILE — ASH',
+    faction: 'helix',
+    unlock: { ending: 'burn' },
+    body: [
+      'The PUNKGUN archive does not survive the tower. Neither does the room that held it.',
+      'Helix files the loss as a thermal event. Three executives resign. Two are promoted. The city keeps paying rent.',
+      'MOTH is quiet for the first time since you woke up. You do not know whether that is grief or relief.',
+    ],
+  },
+  {
+    id: 'ending-broadcast',
+    order: 10,
+    title: 'THE FILE GOES PUBLIC',
+    kicker: '// ENDING FILE — SIGNAL',
+    faction: 'market',
+    unlock: { ending: 'broadcast' },
+    body: [
+      'Every screen in Vanta-7 carries the same name, the same project number, the same list of people who signed it.',
+      'The board calls it a data incident. The street calls it a confession.',
+      'MOTH stays in your ear. It sounds lighter. It sounds almost free.',
+    ],
+  },
+  {
+    id: 'ending-vanish',
+    order: 11,
+    title: 'THE GHOST EXIT',
+    kicker: '// ENDING FILE — NO FIXED ADDRESS',
+    faction: 'market',
+    unlock: { ending: 'vanish' },
+    body: [
+      'You leave the Spire standing and the archive intact. You take a copy with you and put your name somewhere it cannot be indexed.',
+      'The debt is still real. It belongs to a person who no longer exists.',
+      'The rain keeps falling. Somewhere the market opens for the night. You have a gun. That is usually enough.',
+    ],
+  },
 ];
 
 export interface StoryProgress {
@@ -194,12 +237,14 @@ export interface StoryProgress {
   level: number;
   bossCleared: boolean;
   finalCleared: boolean;
+  ending?: EndingId | null;
 }
 
 export function dossierUnlocked(dossier: Dossier, p: StoryProgress): boolean {
   const u = dossier.unlock;
   if (u.final && !p.finalCleared) return false;
   if (u.boss && !p.bossCleared) return false;
+  if (u.ending && p.ending !== u.ending) return false;
   if (u.clears !== undefined && p.clears < u.clears) return false;
   if (u.level !== undefined && p.level < u.level) return false;
   return true;
@@ -207,6 +252,7 @@ export function dossierUnlocked(dossier: Dossier, p: StoryProgress): boolean {
 
 export function unlockText(dossier: Dossier): string {
   const u = dossier.unlock;
+  if (u.ending) return 'CHOOSE THE AFTERMATH';
   if (u.final) return 'CLEAR THE FINAL CONTRACT';
   if (u.boss) return 'BREAK THE SUBLEVEL';
   if (u.clears !== undefined) return `CLEAR ${u.clears} CONTRACT${u.clears === 1 ? '' : 'S'}`;

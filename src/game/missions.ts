@@ -1,10 +1,20 @@
 import { randomSeed, mulberry32 } from '../core/math';
+import { BOSSES, BossId } from './bosses';
 import { factionForLayout, FactionId } from './lore';
 import { LAYOUTS, layoutCacheCount, LayoutId } from './map';
 import { ModifierId, rollModifiers } from './modifiers';
 
-export type ObjectiveKind = 'purge' | 'target' | 'recover' | 'boss';
+export type ObjectiveKind =
+  | 'purge'
+  | 'target'
+  | 'recover'
+  | 'boss'
+  | 'sabotage'
+  | 'extraction'
+  | 'hunt'
+  | 'defense';
 export type Risk = 'LOW' | 'MED' | 'HIGH';
+export type ChapterId = 1 | 2 | 3 | 'final';
 
 export interface Contract {
   id: string;
@@ -17,8 +27,11 @@ export interface Contract {
   risk: Risk;
   tagline: string;
   faction: FactionId;
-  chapter?: 'final';
-  /** Boss access gate. */
+  chapter?: ChapterId;
+  bossId?: BossId;
+  /** Authored campaign beat rather than a generated board entry. */
+  authored?: boolean;
+  /** Boss/chapter access gate. */
   locked?: boolean;
   requiredClears?: number;
   modifiers: ModifierId[];
@@ -58,9 +71,29 @@ const TAGLINES: Record<ObjectiveKind, string[]> = {
     'The client pays for cargo, not corpses.',
   ],
   boss: [
-    'Three plates. One psycho. No witnesses.',
-    'The sublevel is a cage. You are the entertainment.',
+    'One arena. One monster. No witnesses.',
+    'The floor is a cage. You are the entertainment.',
     'It has already killed the last crew. Finish it.',
+  ],
+  sabotage: [
+    'The client wants the floor dark, not quiet.',
+    'Plant the taps. Let the grid eat itself.',
+    'Break the hardware. Leave the people.',
+  ],
+  extraction: [
+    'The case leaves with you or it does not leave at all.',
+    'Grab the package. Everyone heard you arrive.',
+    'No package, no pay. No exit, no package.',
+  ],
+  hunt: [
+    'The mark runs. That is the point.',
+    'Track it. Corner it. Finish it.',
+    'It knows you are coming. Make that irrelevant.',
+  ],
+  defense: [
+    'Hold the line until the timer dies.',
+    'They want the room back. Do not give it to them.',
+    'Stand where the light is. Count the seconds.',
   ],
 };
 
@@ -82,7 +115,15 @@ export function objectiveText(contract: Contract): string {
     case 'recover':
       return `RECOVER ${contract.requiredLoot} CACHE${contract.requiredLoot === 1 ? '' : 'S'}`;
     case 'boss':
-      return 'KILL THE AUGMENTED PSYCHO';
+      return 'KILL THE BOSS';
+    case 'sabotage':
+      return `SABOTAGE ${contract.requiredLoot} TERMINAL${contract.requiredLoot === 1 ? '' : 'S'}`;
+    case 'extraction':
+      return 'SECURE THE CASE';
+    case 'hunt':
+      return 'HUNT THE MARKED TARGET';
+    case 'defense':
+      return 'HOLD THE ZONE';
   }
 }
 
@@ -95,34 +136,66 @@ export function objectiveDetail(contract: Contract): string {
     case 'recover':
       return `Grab ${contract.requiredLoot} marked cache${contract.requiredLoot === 1 ? '' : 's'}, then reach the exit.`;
     case 'boss':
-      return 'Break three armor plates off the augmented psycho, then reach the exit. It summons adds when a plate shatters.';
+      return 'Break the boss armor plates, survive the arena mechanics, then reach the exit.';
+    case 'sabotage':
+      return `Reach ${contract.requiredLoot} marked terminal${contract.requiredLoot === 1 ? '' : 's'} and plant the tap. Cameras and patrols make noise.`;
+    case 'extraction':
+      return 'Secure the package. The sector will converge once you touch it. Reach the exit.';
+    case 'hunt':
+      return 'The target flees and calls for help. Corner it, kill it, then reach the exit.';
+    case 'defense':
+      return 'Hold the marked zone for 45 seconds. Reinforcements arrive in waves.';
   }
 }
 
-/** Rolls a seeded board of contracts; one of each objective, distinct layouts. */
+/** Objectives available on the generated board. Boss is authored. */
+export const BOARD_OBJECTIVES: ObjectiveKind[] = [
+  'purge',
+  'target',
+  'recover',
+  'sabotage',
+  'extraction',
+  'hunt',
+  'defense',
+];
+
+function requiredFor(objective: ObjectiveKind, rng: () => number, layoutId: LayoutId): number {
+  if (objective === 'recover') {
+    const desired = 1 + Math.floor(rng() * 2);
+    return Math.min(desired, Math.max(1, layoutCacheCount(layoutId)));
+  }
+  if (objective === 'sabotage') return 2 + Math.floor(rng() * 2);
+  if (objective === 'extraction') return 1;
+  return 0;
+}
+
+function rewardFor(objective: ObjectiveKind, requiredLoot: number, rng: () => number): number {
+  if (objective === 'purge') return 70 + Math.floor(rng() * 26);
+  if (objective === 'target' || objective === 'hunt') return 105 + Math.floor(rng() * 31);
+  if (objective === 'recover') return 95 + requiredLoot * 20 + Math.floor(rng() * 21);
+  if (objective === 'sabotage') return 90 + requiredLoot * 18 + Math.floor(rng() * 18);
+  if (objective === 'extraction') return 128 + Math.floor(rng() * 22);
+  if (objective === 'defense') return 120 + Math.floor(rng() * 26);
+  return 105 + Math.floor(rng() * 35);
+}
+
+/** Rolls a seeded board of contracts; unique objectives and layouts. */
 export function rollContracts(count = 3, seed = randomSeed()): Contract[] {
   const rng = mulberry32(seed);
   const layouts = shuffle(
     LAYOUTS.filter((layout) => layout.id !== 'sublevel' && layout.id !== 'safehouse'),
     rng,
   );
-  const objectives = shuffle<ObjectiveKind>(['purge', 'target', 'recover'], rng);
+  const objectives = shuffle(BOARD_OBJECTIVES, rng);
   const names = shuffle(CODENAMES, rng);
   const contracts: Contract[] = [];
 
   for (let i = 0; i < count; i++) {
     const layout = layouts[i % layouts.length];
     const objective = objectives[i % objectives.length];
-    const desiredLoot = 1 + Math.floor(rng() * 2);
-    const requiredLoot =
-      objective === 'recover'
-        ? Math.min(desiredLoot, Math.max(1, layoutCacheCount(layout.id)))
-        : desiredLoot;
+    const requiredLoot = requiredFor(objective, rng, layout.id);
     const riskBonus = layout.id === 'tenements' ? 12 : layout.id === 'nightmarket' ? 6 : 0;
-    let reward = 0;
-    if (objective === 'purge') reward = 70 + Math.floor(rng() * 26) + riskBonus;
-    else if (objective === 'target') reward = 105 + Math.floor(rng() * 31) + riskBonus;
-    else reward = 95 + requiredLoot * 20 + Math.floor(rng() * 21) + riskBonus;
+    const reward = rewardFor(objective, requiredLoot, rng) + riskBonus;
     const risk: Risk = reward >= 140 ? 'HIGH' : reward >= 110 ? 'MED' : 'LOW';
     const modifiers = rollModifiers(rng);
     const contractSeed = (seed + i * 0x9e3779b9) >>> 0;
@@ -146,40 +219,48 @@ export function rollContracts(count = 3, seed = randomSeed()): Contract[] {
   return contracts;
 }
 
-/** A permanent high-risk boss contract on the sublevel arena. */
-export function createBossContract(playerLevel: number, seed = randomSeed()): Contract {
-  const layout = LAYOUTS.find((entry) => entry.id === 'sublevel') ?? LAYOUTS[0];
+/** A high-risk boss contract for one of the four arena archetypes. */
+export function createBossContract(
+  playerLevel: number,
+  seed = randomSeed(),
+  bossId: BossId = 'psycho',
+): Contract {
+  const boss = BOSSES[bossId];
+  const layout = LAYOUTS.find((entry) => entry.id === boss.layoutId) ?? LAYOUTS[0];
   const rng = mulberry32(seed);
   return {
-    id: `boss-${seed.toString(36)}`,
-    title: 'THE SUBLEVEL',
+    id: `boss-${bossId}-${seed.toString(36)}`,
+    title: boss.title,
     layoutId: layout.id,
     layoutName: layout.name,
     objective: 'boss',
     requiredLoot: 0,
-    reward: 230 + Math.max(0, playerLevel - 1) * 12,
+    reward: boss.reward + Math.max(0, playerLevel - 1) * 12,
     risk: 'HIGH',
     tagline: TAGLINES.boss[Math.floor(rng() * TAGLINES.boss.length)],
-    faction: 'sublevel',
+    faction: boss.faction,
+    bossId,
     modifiers: [],
     seed,
   };
 }
 
-/** The story finale, available after the Sublevel boss is cleared. */
+/** The story finale, available after the third boss. */
 export function createFinalContract(seed = randomSeed()): Contract {
+  const boss = BOSSES.board;
   return {
     id: `final-${seed.toString(36)}`,
-    title: 'LAST LIGHT',
-    layoutId: 'spire',
+    title: boss.title,
+    layoutId: boss.layoutId,
     layoutName: 'HELIX SPIRE',
-    objective: 'target',
+    objective: 'boss',
     requiredLoot: 0,
-    reward: 420,
+    reward: boss.reward,
     risk: 'HIGH',
     tagline: 'The tower has one last light. Put it out.',
     faction: 'helix',
     chapter: 'final',
+    bossId: 'board',
     modifiers: ['elite'],
     seed,
   };

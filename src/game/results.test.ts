@@ -69,6 +69,20 @@ describe('run result text', () => {
     expect(out.note).toContain('THE LEASH IS CUT');
   });
 
+  it('formats the chosen ending instead of the generic finale line', () => {
+    const out = winResult(reward, {
+      approachName: 'GHOST',
+      approachMult: 1.2,
+      modifierNames: [],
+      final: true,
+      money: 1282,
+      ending: 'broadcast',
+    });
+    expect(out.note).toContain('ENDING: BROADCAST THE FILE');
+    expect(out.note).toContain('Push Project PUNKGUN');
+    expect(out.note).not.toContain('THE LEASH IS CUT');
+  });
+
   it('formats an empty extraction and no modifiers', () => {
     const out = winResult(
       { ...reward, extracted: null, contrabandCount: 0, accuracy: null, levelsGained: 0 },

@@ -16,11 +16,20 @@ export interface CaseEntry extends CasePlacement {
 }
 
 export function baseSize(weapon: WeaponId): { w: number; h: number } {
-  if (weapon === 'lmg') return { w: 4, h: 1 };
-  if (weapon === 'rifle' || weapon === 'ak' || weapon === 'shotgun' || weapon === 'bat') {
+  if (weapon === 'lmg' || weapon === 'railgun' || weapon === 'plasma') return { w: 4, h: 1 };
+  if (
+    weapon === 'rifle' ||
+    weapon === 'dmr' ||
+    weapon === 'ak' ||
+    weapon === 'shotgun' ||
+    weapon === 'carbine' ||
+    weapon === 'bat'
+  ) {
     return { w: 3, h: 1 };
   }
-  if (weapon === 'pistol' || weapon === 'smg') return { w: 2, h: 1 };
+  if (weapon === 'pistol' || weapon === 'revolver' || weapon === 'smg' || weapon === 'needler') {
+    return { w: 2, h: 1 };
+  }
   return { w: 1, h: 1 };
 }
 

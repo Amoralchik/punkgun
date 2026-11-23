@@ -56,8 +56,17 @@ export function settleRun(
     attachment: player.attachment,
     variant: player.variant,
   });
-  if (contract?.objective === 'boss') profile.data.bossCleared = true;
-  if (contract?.chapter === 'final') profile.data.finalCleared = true;
+  if (contract?.chapter === 'final') {
+    profile.data.finalCleared = true;
+    profile.data.bossesCleared.board = true;
+  }
+  if (contract?.objective === 'boss') {
+    profile.data.bossCleared = true;
+    if (contract.bossId) profile.data.bossesCleared[contract.bossId] = true;
+  }
+  if (contract?.authored && !profile.data.completedContracts.includes(contract.id)) {
+    profile.data.completedContracts.push(contract.id);
+  }
   if (contract && contract.objective !== 'boss' && contract.chapter !== 'final') {
     profile.data.regularClears++;
   }
@@ -69,7 +78,13 @@ export function settleRun(
 
   const riskXp = contract?.risk === 'HIGH' ? 120 : contract?.risk === 'MED' ? 80 : 50;
   const objectiveXp =
-    contract?.objective === 'target' ? 25 : contract?.objective === 'recover' ? 20 : 0;
+    contract?.objective === 'target' || contract?.objective === 'hunt'
+      ? 25
+      : contract?.objective === 'recover' || contract?.objective === 'sabotage'
+        ? 20
+        : contract?.objective === 'extraction' || contract?.objective === 'defense'
+          ? 30
+          : 0;
   const rankXp = rank === 'S' ? 30 : rank === 'A' ? 15 : 0;
   const xpGain = riskXp + objectiveXp + world.kills * 4 + Math.round(bonus * 0.25) + rankXp;
   const levelInfo = profile.addXp(xpGain);

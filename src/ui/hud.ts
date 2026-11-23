@@ -1,8 +1,16 @@
 import { fmtTime } from '../core/math';
-import { NamedWeaponId, NAMED_MAP, WeaponId, WEAPONS } from '../game/weapons';
+import { NamedWeaponId, NAMED_MAP, WeaponId, WEAPONS, weaponFamily } from '../game/weapons';
 import { ATTACHMENT_MAP, AttachmentId } from '../game/attachments';
 
 export type ResultKind = 'death' | 'win';
+
+export interface AbilitySlot {
+  key: string;
+  label: string;
+  activeT: number;
+  cooldown: number;
+  maxCooldown: number;
+}
 
 export class Hud {
   private readonly root = document.getElementById('hud')!;
@@ -25,8 +33,11 @@ export class Hud {
   private readonly consumableEl = document.getElementById('hud-consumable')!;
   private readonly heatEl = document.getElementById('hud-heat')!;
   private readonly statusEl = document.getElementById('hud-status')!;
+  private readonly psychosisEl = document.getElementById('hud-psychosis')!;
   private readonly timeEl = document.getElementById('hud-time')!;
   private readonly promptEl = document.getElementById('hud-prompt')!;
+  private readonly subtitleEl = document.getElementById('hud-subtitle')!;
+  private readonly logEl = document.getElementById('hud-log')!;
   private readonly approachEl = document.getElementById('hud-approach')!;
   private readonly crosshair = document.getElementById('crosshair')!;
   private readonly objectiveEl = document.getElementById('hud-objective')!;
@@ -56,6 +67,7 @@ export class Hud {
   private lastBoss = '';
   private lastConsumable = '';
   private lastStatus = '';
+  private lastPsychosis = '';
   private lastTime = '';
   private lastPrompt: string | null | undefined;
   private lastObjectiveLabel = '';
@@ -66,6 +78,10 @@ export class Hud {
   private flashEnabled = true;
   private hitTimer: number | null = null;
   private damageDirTimer: number | null = null;
+  private subtitleTimer: number | null = null;
+  private subtitlesEnabled = true;
+  private logEnabled = true;
+  private logLines: string[] = [];
 
   setStats(
     hostiles: number,
@@ -97,20 +113,7 @@ export class Hud {
       this.weaponEl.textContent = w;
       this.lastWeapon = w;
     }
-    const type =
-      weapon === 'fists' || weapon === 'bat'
-        ? 'MELEE'
-        : weapon === 'pistol'
-          ? 'PISTOL'
-          : weapon === 'shotgun'
-            ? 'SHOTGUN'
-            : weapon === 'smg'
-              ? 'SMG'
-              : weapon === 'rifle'
-                ? 'RIFLE'
-                : weapon === 'ak'
-                  ? 'AK'
-                  : 'LMG';
+    const type = weaponFamily(weapon);
     if (type !== this.lastWeaponType) {
       this.weaponTypeEl.textContent = type;
       this.lastWeaponType = type;
@@ -176,46 +179,89 @@ export class Hud {
     this.heatEl.classList.toggle('hot', rounded >= 55);
   }
 
-  setAbilities(
-    slowT: number,
-    slowCd: number,
-    camoT: number,
-    camoCd: number,
-    slowRank: number,
-    camoRank: number,
-  ): void {
-    if (slowRank <= 0 && camoRank <= 0) {
-      if (this.lastAbilities !== '') {
-        this.lastAbilities = '';
-        this.abilitiesEl.innerHTML = '';
-        this.abilitiesEl.classList.add('off');
-      }
-      return;
-    }
-    const key = `${slowRank}:${slowT.toFixed(1)}:${slowCd.toFixed(1)}:${camoRank}:${camoT.toFixed(1)}:${camoCd.toFixed(1)}`;
+  setAbilities(slots: AbilitySlot[]): void {
+    const key = slots
+      .map((s) => `${s.key}:${s.activeT.toFixed(1)}:${s.cooldown.toFixed(1)}`)
+      .join('|');
     if (key === this.lastAbilities) return;
     this.lastAbilities = key;
+    if (slots.length === 0) {
+      this.abilitiesEl.innerHTML = '';
+      this.abilitiesEl.classList.add('off');
+      return;
+    }
     this.abilitiesEl.classList.remove('off');
-    const slot = (
-      label: string,
-      keyName: string,
-      activeT: number,
-      cooldown: number,
-      rank: number,
-      baseCooldown: number,
-      perRank: number,
-    ): string => {
-      const maxCd = baseCooldown - (rank - 1) * perRank;
-      const active = activeT > 0;
-      const pct = active ? 100 : cooldown > 0 ? Math.max(0, (1 - cooldown / maxCd) * 100) : 100;
-      return `<div class="ability${active ? ' active' : ''}${!active && cooldown > 0 ? ' cooling' : ''}">
-        <span class="ability-key">${keyName}</span><span class="ability-name">${label}</span>
-        <div class="ability-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
-      </div>`;
-    };
-    this.abilitiesEl.innerHTML =
-      (slowRank > 0 ? slot('SANDEVISTAN', 'SHIFT', slowT, slowCd, slowRank, 14, 3) : '') +
-      (camoRank > 0 ? slot('OPTICAL CAMO', 'C', camoT, camoCd, camoRank, 12, 2) : '');
+    this.abilitiesEl.innerHTML = slots
+      .map((slot) => {
+        const active = slot.activeT > 0;
+        const pct = active
+          ? 100
+          : slot.cooldown > 0
+            ? Math.max(0, (1 - slot.cooldown / Math.max(0.01, slot.maxCooldown)) * 100)
+            : 100;
+        return `<div class="ability${active ? ' active' : ''}${
+          !active && slot.cooldown > 0 ? ' cooling' : ''
+        }">
+          <span class="ability-key">${slot.key}</span><span class="ability-name">${slot.label}</span>
+          <div class="ability-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+        </div>`;
+      })
+      .join('');
+  }
+
+  setPsychosis(stage: number, label: string): void {
+    const key = `${stage}`;
+    if (key === this.lastPsychosis) return;
+    this.lastPsychosis = key;
+    document.body.classList.toggle('cyberpsycho', stage >= 2);
+    this.psychosisEl.classList.toggle('on', stage > 0);
+    this.psychosisEl.classList.toggle('critical', stage >= 2);
+    this.psychosisEl.textContent = stage > 0 ? `NEURAL ${label}` : '';
+  }
+
+  setSubtitlesEnabled(value: boolean): void {
+    this.subtitlesEnabled = value;
+    if (!value) {
+      this.subtitleEl.classList.remove('on');
+      this.subtitleEl.textContent = '';
+    }
+  }
+
+  setLogEnabled(value: boolean): void {
+    this.logEnabled = value;
+    this.logEl.classList.toggle('off', !value);
+    if (value) this.renderLog();
+  }
+
+  private renderLog(): void {
+    this.logEl.innerHTML = this.logLines
+      .slice(-4)
+      .map(
+        (line) =>
+          `<span>${line.replace(
+            /[<>&]/g,
+            (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c,
+          )}</span>`,
+      )
+      .join('');
+  }
+
+  subtitle(text: string, holdMs = 2600): void {
+    if (!this.subtitlesEnabled) return;
+    this.subtitleEl.textContent = text;
+    this.subtitleEl.classList.add('on');
+    if (this.subtitleTimer !== null) window.clearTimeout(this.subtitleTimer);
+    this.subtitleTimer = window.setTimeout(() => {
+      this.subtitleEl.classList.remove('on');
+      this.subtitleTimer = null;
+    }, holdMs);
+  }
+
+  logLine(text: string): void {
+    this.logLines.push(text);
+    if (this.logLines.length > 6) this.logLines.shift();
+    if (!this.logEnabled) return;
+    this.renderLog();
   }
 
   setConsumable(label: string, visible: boolean): void {

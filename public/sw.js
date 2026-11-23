@@ -1,4 +1,4 @@
-const CACHE = 'punkgun-v1';
+const CACHE = 'punkgun-v2';
 const CORE = ['/', '/index.html', '/offline.html', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

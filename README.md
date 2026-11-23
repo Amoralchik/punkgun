@@ -16,36 +16,38 @@ Open the local URL printed by Vite. Default dev port is `5188`.
 ## Verify and Package
 
 ```bash
-npm run verify      # typecheck + unit tests + production build
-npm run package     # build + release/punkgun-<version>/ + .tar.gz
+npm run verify      # typecheck + unit tests + production build + budget
+npm run package     # build + budget + release/punkgun-<version>/ + .tar.gz
+npm run smoke       # headless production boot/deploy/pause smoke
 ```
 
-The production build is an installable PWA with a service-worker app shell and offline fallback. Deployment instructions and the performance budget are in [RELEASE.md](./RELEASE.md).
+The production build is an installable PWA with a service-worker app shell and offline fallback. Deployment instructions, budgets, and the QA matrix are in [RELEASE.md](./RELEASE.md) and [QA.md](./QA.md). Implementation status is tracked in [PLAN.md](./PLAN.md).
 
 ## Controls
 
-- `WASD` move, mouse aim
+- `WASD` move, mouse aim (WASD/ESDF/ARROWS presets in Settings)
 - `LMB` strike/shoot, `R` reload, `RMB` throw weapon
-- `E` interact / pick up / backstab / kick doors
+- `E` interact / pick up / backstab / kick doors / plant taps / secure cases
 - `Q` use packed supply
-- `SHIFT` Sandevistan, `C` Optical Camo (when installed)
+- `SHIFT` Sandevistan, `C` Optical Camo, `X` EMP, `V` Berserk, `G` Overclock, `H` Intrusion Deck
 - `TAB` safehouse terminal, `M` mute
 
 ## Current Systems
 
-- One-hit combat, armor plates, Second Heart, cyberware and perks
-- Pistol/shotgun/SMG/rifle/AK/LMG, named variants, attachments
+- One-hit combat, armor plates, Second Heart, 22 cyberware implants, 15 perks, neural-load/cyberpsychosis risk
+- 12 firearm families, 8 named variants, attachments, crafting, loadout presets
 - Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, deploy
-- Contract modifiers, insertion approaches, faction reputation, economy
-- Boss with armor phases, radial shockwaves, telegraphed charges, and an exposed weak core
+- 12 contract modifiers, 8 objectives (purge, target, recover, sabotage, extraction, hunt, defense, boss), insertion approaches, faction reputation, seeded market stock and price drift
+- Four bosses across three campaign chapters plus a branching three-ending finale
 - Stealth takedowns, body discovery, enemy vision cones, alert propagation
 - Hazards: explosive barrels, security cameras, turrets, laser grids
-- Procedural district weather and ambience, reload/death reactions, reduced-motion accessibility
-- PWA/offline shell, save export/import, fatal error boundary
+- Procedural district weather, holo ads, faction music layers, reload/death reactions, 4-frame walk cycles
+- Accessibility: reduced motion, colorblind palettes, subtitles, event log, control presets
+- PWA/offline shell, save v2 with backup/quarantine recovery, export/import, fatal error boundary
 
 ## Tests
 
-`npm test` runs the Vitest suite. Current coverage focuses on save migration, economy, inventory, seeding, effects, combat helpers, hazards, and run settlement.
+`npm test` runs the Vitest suite (68 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run smoke` exercises the production shell and one live deployment.
 
 ## Status
 

@@ -2,6 +2,7 @@
 export class Input {
   readonly keys = new Set<string>();
   private pressed = new Set<string>();
+  private keymap: Record<string, string> = {};
 
   mouseX = 0;
   mouseY = 0;
@@ -50,11 +51,15 @@ export class Input {
   }
 
   held(code: string): boolean {
-    return this.keys.has(code);
+    return this.keys.has(this.keymap[code] ?? code);
   }
 
   wasPressed(code: string): boolean {
-    return this.pressed.has(code);
+    return this.pressed.has(this.keymap[code] ?? code);
+  }
+
+  setKeymap(map: Record<string, string>): void {
+    this.keymap = map;
   }
 
   endFrame(): void {

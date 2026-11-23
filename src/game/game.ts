@@ -1,14 +1,18 @@
 import { AudioEngine, ambienceForLevel } from '../core/audio';
 import { Input } from '../core/input';
-import { Settings } from '../core/settings';
+import { Settings, controlKeymap, type ControlPreset, type Palette } from '../core/settings';
 import { randomSeed, seedLabel } from '../core/math';
+import { t } from '../core/i18n';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
 import { LayoutId, Level, loadLevel, Station, StationKind } from './map';
 import { CONSUMABLE_MAP } from './consumables';
-import { Contract, createBossContract, createFinalContract, objectiveText, rollContracts } from './missions';
+import { Contract, objectiveText } from './missions';
+import { buildBoard } from './campaign';
+import { BOSSES } from './bosses';
 import { BOSS_DIALOGUE, DialogueLine, FACTIONS, handlerLine } from './lore';
+import { ENDING_ORDER, ENDINGS, type EndingId } from './endings';
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
 import { xpForNext } from './progression';
@@ -48,6 +52,8 @@ export class Game {
   private readonly dialogueTextEl = document.getElementById('dialogue-text')!;
   private readonly dialogueProgressEl = document.getElementById('dialogue-progress')!;
   private readonly dialogueNextEl = document.getElementById('dialogue-next') as HTMLButtonElement;
+  private readonly endingRoot = document.getElementById('overlay-ending')!;
+  private readonly endingOptions = document.getElementById('ending-options')!;
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
@@ -60,6 +66,12 @@ export class Game {
   private readonly setWeather = document.getElementById('set-weather') as HTMLInputElement;
   private readonly setReducedMotion = document.getElementById(
     'set-reduced-motion',
+  ) as HTMLInputElement;
+  private readonly setControls = document.getElementById('set-controls') as HTMLSelectElement;
+  private readonly setPalette = document.getElementById('set-palette') as HTMLSelectElement;
+  private readonly setSubtitles = document.getElementById('set-subtitles') as HTMLInputElement;
+  private readonly setDialogueLog = document.getElementById(
+    'set-dialogue-log',
   ) as HTMLInputElement;
   private readonly hubRoot = document.getElementById('hub')!;
   private readonly hubPrompt = document.getElementById('hub-prompt')!;
@@ -86,13 +98,16 @@ export class Game {
   private startedWithWeapon = false;
   private lastReward: RewardSummary | null = null;
   private manualOpen = false;
+  private endingOpen = false;
   private panelOpen = false;
+  private recoveryNote: string | null = null;
   private abandonArmed = false;
   private abandonTimer: number | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
+    this.recoveryNote = this.profile.recoveryNote();
     this.safehouse = new Safehouse(this.profile, {
       onDeploy: (contractId, approachId) => this.startRun(contractId, approachId),
       onClick: () => {
@@ -121,15 +136,7 @@ export class Game {
   }
 
   private rollBoard(): Contract[] {
-    const seed = randomSeed();
-    const boss = createBossContract(this.profile.data.level, seed);
-    boss.requiredClears = 3;
-    boss.locked = this.profile.data.regularClears < 3;
-    const board = [...rollContracts(3, seed), boss];
-    if (this.profile.data.bossCleared && !this.profile.data.finalCleared) {
-      board.push(createFinalContract(seed));
-    }
-    return board;
+    return buildBoard(this.profile, randomSeed());
   }
 
   private rerollBoard(): Contract[] | null {
@@ -206,15 +213,20 @@ export class Game {
     };
     this.hubPrompt.textContent = station
       ? `E — ${labels[station.kind]}`
-      : 'TAB — OPEN TERMINAL';
+      : this.recoveryNote
+        ? `${this.recoveryNote} · TAB — OPEN TERMINAL`
+        : 'TAB — OPEN TERMINAL';
   }
 
   private openPanel(kind?: StationKind): void {
     if (this.state !== 'safehouse' || this.panelOpen) return;
     this.panelOpen = true;
     this.hubRoot.classList.add('hidden');
+    const notice = this.recoveryNote;
+    this.recoveryNote = null;
     if (kind) this.safehouse.openStation(kind);
     else this.safehouse.show();
+    if (notice) this.safehouse.setNotice(notice);
     this.input.endFrame();
   }
 
@@ -241,6 +253,7 @@ export class Game {
         requiredLoot: contract.requiredLoot,
         approach,
         modifiers: contract.modifiers,
+        bossId: contract.bossId,
       },
       this.profile.runMods(),
       seed,
@@ -268,6 +281,11 @@ export class Game {
       if (act === 'dialogue-next') this.advanceDialogue();
       else if (act === 'dialogue-cancel') this.cancelDialogue();
     });
+    this.endingRoot.addEventListener('click', (ev) => {
+      const id = (ev.target as HTMLElement).closest<HTMLElement>('[data-ending]')?.dataset
+        .ending;
+      if (id) this.chooseEnding(id as EndingId);
+    });
     this.pauseRoot.addEventListener('click', (ev) => this.handlePauseClick(ev));
     this.manualRoot.addEventListener('click', (ev) => {
       if ((ev.target as HTMLElement).closest('[data-act="close-manual"]')) this.closeManual();
@@ -282,7 +300,12 @@ export class Game {
       this.setCones,
       this.setWeather,
       this.setReducedMotion,
+      this.setSubtitles,
+      this.setDialogueLog,
     ]) {
+      el.addEventListener('change', () => this.onSettingsInput());
+    }
+    for (const el of [this.setControls, this.setPalette]) {
       el.addEventListener('change', () => this.onSettingsInput());
     }
 
@@ -298,6 +321,14 @@ export class Game {
         } else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') {
           e.preventDefault();
           this.advanceDialogue();
+        }
+        return;
+      }
+      if (this.endingOpen) {
+        const index = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
+        if (index >= 0) {
+          e.preventDefault();
+          this.chooseEnding(ENDING_ORDER[index]);
         }
         return;
       }
@@ -350,13 +381,18 @@ export class Game {
 
   private applySettings(): void {
     const reduced = this.settings.data.reducedMotion;
+    this.input.setKeymap(controlKeymap(this.settings.data.controls));
     this.audio.setVolume(this.settings.data.volume);
     this.renderer.setShakeScale(reduced ? 0 : this.settings.data.shake);
     this.renderer.setBloomScale(this.settings.data.bloom);
     this.renderer.setConesVisible(this.settings.data.cones);
     this.renderer.setWeatherEnabled(this.settings.data.weather);
     this.renderer.setReducedMotion(reduced);
+    this.renderer.setPalette(this.settings.data.palette);
     this.hud.setFlashEnabled(this.settings.data.flash && !reduced);
+    this.hud.setSubtitlesEnabled(this.settings.data.subtitles);
+    this.hud.setLogEnabled(this.settings.data.dialogueLog);
+    document.body.dataset.palette = this.settings.data.palette;
     document.body.classList.toggle('no-scanlines', !this.settings.data.scanlines);
     document.body.classList.toggle('reduced-motion', reduced);
   }
@@ -370,6 +406,10 @@ export class Game {
     this.setCones.checked = this.settings.data.cones;
     this.setWeather.checked = this.settings.data.weather;
     this.setReducedMotion.checked = this.settings.data.reducedMotion;
+    this.setControls.value = this.settings.data.controls;
+    this.setPalette.value = this.settings.data.palette;
+    this.setSubtitles.checked = this.settings.data.subtitles;
+    this.setDialogueLog.checked = this.settings.data.dialogueLog;
   }
 
   private onSettingsInput(): void {
@@ -381,6 +421,10 @@ export class Game {
     this.settings.set('cones', this.setCones.checked);
     this.settings.set('weather', this.setWeather.checked);
     this.settings.set('reducedMotion', this.setReducedMotion.checked);
+    this.settings.set('controls', this.setControls.value as ControlPreset);
+    this.settings.set('palette', this.setPalette.value as Palette);
+    this.settings.set('subtitles', this.setSubtitles.checked);
+    this.settings.set('dialogueLog', this.setDialogueLog.checked);
     this.applySettings();
   }
 
@@ -469,7 +513,27 @@ export class Game {
     this.audio.unlock();
     if (contract.objective === 'boss') {
       this.pendingRun = { contract, approachId };
-      this.dialogueLines = BOSS_DIALOGUE;
+      const boss = contract.bossId ? BOSSES[contract.bossId] : null;
+      this.dialogueLines =
+        contract.bossId === 'psycho' || !boss
+          ? BOSS_DIALOGUE
+          : [
+              { speaker: 'MOTH', text: `${boss.name}. ${boss.blurb}` },
+              {
+                speaker: 'KESTREL',
+                text:
+                  contract.chapter === 'final'
+                    ? 'And after the board, what is left?'
+                    : 'And the exit?',
+              },
+              {
+                speaker: 'MOTH',
+                text:
+                  contract.chapter === 'final'
+                    ? 'Whatever you decide. The leash ends here.'
+                    : 'There is an exit. Reach it. I will keep the lights on.',
+              },
+            ];
       this.dialogueIndex = 0;
       this.dialogueOpen = true;
       this.dialogueRoot.classList.remove('hidden');
@@ -498,6 +562,8 @@ export class Game {
     this.dialogueProgressEl.textContent = `${this.dialogueIndex + 1} / ${this.dialogueLines.length}`;
     this.dialogueNextEl.textContent =
       this.dialogueIndex === this.dialogueLines.length - 1 ? 'DEPLOY' : 'CONTINUE';
+    this.hud.logLine(`${line.speaker}: ${line.text}`);
+    this.hud.subtitle(`${line.speaker}: ${line.text}`, 4200);
   }
 
   private advanceDialogue(): void {
@@ -539,6 +605,10 @@ export class Game {
     const { contract, approach } = config;
     this.currentContract = contract;
     this.currentApproach = approach;
+    this.manualOpen = false;
+    this.manualRoot.classList.add('hidden');
+    this.endingOpen = false;
+    this.endingRoot.classList.add('hidden');
     this.world = this.createWorld(config);
     this.renderer.bind(this.world);
     this.acc = 0;
@@ -548,6 +618,7 @@ export class Game {
     this.state = 'playing';
     this.world.player.invulnT = 1.2;
     this.audio.setAmbience(ambienceForLevel(contract.layoutId));
+    this.audio.setFaction(contract.faction);
     this.audio.setBossMode(contract.objective === 'boss' || contract.chapter === 'final');
     this.panelOpen = false;
     this.hubRoot.classList.add('hidden');
@@ -558,6 +629,8 @@ export class Game {
     this.lastShotsHit = 0;
     this.lastKills = 0;
     this.setApproachVignette(approach);
+    document.body.classList.toggle('contract-fog', contract.modifiers.includes('fog'));
+    document.body.classList.toggle('contract-blackout', approach === 'blackout');
     this.showBrief(contract);
     this.playScreenTransition();
     this.input.endFrame();
@@ -582,6 +655,7 @@ export class Game {
     this.briefFaction.style.color = faction.color;
     this.briefObjective.textContent = objectiveText(contract);
     this.briefHandler.textContent = `MOTH: ${handlerLine(contract.faction, contract.title.length)}`;
+    this.hud.logLine(`MOTH: ${handlerLine(contract.faction, contract.title.length)}`);
     this.briefRoot.classList.remove('hidden');
     this.briefT = 1.5;
   }
@@ -589,17 +663,22 @@ export class Game {
   private returnToSafehouse(): void {
     this.audio.setAmbience('none');
     this.audio.setBossMode(false);
+    this.audio.setFaction('market');
+    this.audio.setIntensity(0);
     this.hud.setHacked(false);
     this.state = 'safehouse';
     this.pauseRoot.classList.add('hidden');
     this.manualRoot.classList.add('hidden');
     this.manualOpen = false;
+    this.endingRoot.classList.add('hidden');
+    this.endingOpen = false;
     this.hud.hideResults();
     this.hud.setVisible(false);
     this.hud.exitPointer(0, 0, false);
     this.briefRoot.classList.add('hidden');
     this.briefT = 0;
     this.approachVignette.className = 'approach-vignette';
+    document.body.classList.remove('contract-fog', 'contract-blackout');
     this.dialogueRoot.classList.add('hidden');
     this.dialogueOpen = false;
     this.pendingRun = null;
@@ -623,6 +702,12 @@ export class Game {
   }
 
   private onEvent(e: WorldEvent): void {
+    if (this.state === 'playing' || this.state === 'dead' || this.state === 'win') {
+      const screen = this.renderer.worldToScreen(e.x, e.y);
+      this.audio.setSfxPan(
+        Math.max(-1, Math.min(1, (screen.x / Math.max(1, window.innerWidth)) * 2 - 1)),
+      );
+    }
     switch (e.type) {
       case 'pistol':
         this.audio.shot(false);
@@ -641,6 +726,24 @@ export class Game {
         break;
       case 'shot-lmg':
         this.audio.lmgShot();
+        break;
+      case 'shot-revolver':
+        this.audio.revolverShot();
+        break;
+      case 'shot-carbine':
+        this.audio.carbineShot();
+        break;
+      case 'shot-needler':
+        this.audio.needlerShot();
+        break;
+      case 'shot-dmr':
+        this.audio.dmrShot();
+        break;
+      case 'shot-plasma':
+        this.audio.plasmaShot();
+        break;
+      case 'shot-railgun':
+        this.audio.railgunShot();
         break;
       case 'armorHitEnemy':
         this.audio.shieldHit();
@@ -661,11 +764,15 @@ export class Game {
         break;
       case 'kill':
         this.audio.kill();
-        this.profile.addComponent();
+        this.profile.addComponent(
+          Math.random() < this.profile.data.perks.scavenger * 0.25 ? 2 : 1,
+        );
         break;
       case 'stealthKill':
         this.audio.stealthKill();
-        this.profile.addComponent();
+        this.profile.addComponent(
+          Math.random() < this.profile.data.perks.scavenger * 0.25 ? 2 : 1,
+        );
         break;
       case 'siren':
         this.audio.siren();
@@ -678,6 +785,8 @@ export class Game {
         break;
       case 'bossPhase':
         this.audio.bossPhase();
+        this.hud.subtitle(t('event.bossPhase'));
+        this.hud.logLine('BOSS: plate shattered');
         break;
       case 'bossShock':
         this.audio.explosion();
@@ -714,12 +823,28 @@ export class Game {
       case 'camo':
         this.audio.camo();
         break;
+      case 'emp':
+      case 'deck':
+        this.audio.emp();
+        break;
+      case 'berserk':
+        this.audio.berserk();
+        break;
+      case 'overclock':
+        this.audio.overclock();
+        break;
+      case 'kerenzikov':
+        this.audio.kerenzikov();
+        this.hud.subtitle(t('event.kerenzikov'));
+        break;
       case 'camoBreak':
         this.audio.camoBreak();
         break;
       case 'secondHeart':
         this.audio.secondHeart();
         this.hud.flashDamage('armor');
+        this.hud.subtitle(t('event.secondHeart'));
+        this.hud.logLine('SECOND HEART: survived lethal hit');
         break;
       case 'biomonitor':
         this.audio.biomonitor();
@@ -791,12 +916,28 @@ export class Game {
         break;
       case 'netrunnerHack':
         this.audio.uiError();
+        this.hud.subtitle(t('event.netrunnerHack'), 3200);
+        this.hud.logLine('NETRUNNER: hack landed');
+        break;
+      case 'sabotage':
+        this.hud.subtitle(t('event.sabotage'));
+        this.hud.logLine('SABOTAGE: terminal tapped');
+        break;
+      case 'caseSecured':
+        this.hud.subtitle(t('event.caseSecured'));
+        this.hud.logLine('EXTRACTION: case secured');
+        break;
+      case 'objectiveComplete':
+        this.hud.subtitle(t('event.objectiveComplete'));
+        this.hud.logLine('OBJECTIVE: complete');
         break;
       case 'operatorDeploy':
         this.audio.alert();
         break;
       case 'exitOpen':
         this.audio.exitOpen();
+        this.hud.subtitle(t('event.exitOpen'));
+        this.hud.logLine('EXIT: open');
         break;
       case 'win':
         this.audio.win();
@@ -836,6 +977,11 @@ export class Game {
       return;
     }
 
+    if (this.currentContract?.chapter === 'final' && !this.profile.data.ending) {
+      this.showEndingChoice();
+      return;
+    }
+
     const r = this.lastReward;
     if (!r) return;
     const { stats, note } = winResult(r, {
@@ -844,8 +990,37 @@ export class Game {
       modifierNames: (this.currentContract?.modifiers ?? []).map((id) => MODIFIER_MAP[id].name),
       final: this.currentContract?.chapter === 'final',
       money: this.profile.data.money,
+      ending: this.profile.data.ending,
     });
     this.hud.showResult('win', stats, note);
+  }
+
+  private showEndingChoice(): void {
+    this.endingOpen = true;
+    this.hud.hideResults();
+    this.endingOptions.innerHTML = ENDING_ORDER.map((id, index) => {
+      const def = ENDINGS[id];
+      return `<button class="ending-option" style="--ending:${def.color}" data-ending="${id}">
+        <span class="ending-key">${String(index + 1).padStart(2, '0')} · ${def.kicker.replace('// ', '')}</span>
+        <b>${def.title}</b>
+        <small>${def.summary}</small>
+        <small>${def.body[0]}</small>
+      </button>`;
+    }).join('');
+    this.endingRoot.classList.remove('hidden');
+    (this.endingOptions.querySelector('button') as HTMLButtonElement | null)?.focus();
+    this.input.endFrame();
+  }
+
+  private chooseEnding(id: EndingId): void {
+    if (!this.endingOpen || !ENDINGS[id]) return;
+    this.endingOpen = false;
+    this.profile.data.ending = id;
+    this.profile.save();
+    this.endingRoot.classList.add('hidden');
+    this.audio.win();
+    this.showResultOverlay();
+    this.input.endFrame();
   }
 
   frame(dtRaw: number): void {
@@ -944,7 +1119,7 @@ export class Game {
       this.hud.setConsumable(supply, !!p.supplyType && p.supplyCharges > 0);
       const boss = this.world.boss;
       this.hud.setBoss(
-        'AUGMENTED PSYCHO',
+        this.world.bossName,
         boss?.armor ?? 0,
         boss?.maxArmor ?? 0,
         !!boss && boss.alive && this.state === 'playing',
@@ -966,14 +1141,11 @@ export class Game {
         approachDef.color,
       );
       this.hud.setHeat(this.world.heat);
-      const ranks = this.world.abilityRanks;
-      this.hud.setAbilities(
-        p.slowT,
-        p.slowCd,
-        p.camoT,
-        p.camoCloakCd,
-        ranks.sandevistan,
-        ranks.camo,
+      this.audio.setIntensity(this.world.heat / 100);
+      this.hud.setAbilities(this.world.abilitySlots());
+      this.hud.setPsychosis(
+        this.profile.humanityStage,
+        this.profile.humanityInfo().label,
       );
       const spread =
         1 +

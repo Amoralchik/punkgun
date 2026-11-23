@@ -9,8 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "tsc --noEmit && vitest run && vite build",
-    "package": "npm run build && node scripts/package.mjs"
+    "budget": "node scripts/check-budget.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "verify": "tsc --noEmit && vitest run && vite build && node scripts/check-budget.mjs",
+    "package": "npm run build && node scripts/check-budget.mjs && node scripts/package.mjs"
   },
   "dependencies": {
     "three": "^0.187.0"

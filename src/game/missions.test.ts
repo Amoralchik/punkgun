@@ -13,8 +13,17 @@ describe('seeded mission generation', () => {
     expect(new Set(a.map((c) => c.objective)).size).toBe(3);
     expect(new Set(a.map((c) => c.layoutId)).size).toBe(3);
     for (const contract of a) {
-      expect(contract.requiredLoot).toBeGreaterThanOrEqual(1);
-      expect(contract.requiredLoot).toBeLessThanOrEqual(2);
+      if (contract.objective === 'recover') {
+        expect(contract.requiredLoot).toBeGreaterThanOrEqual(1);
+        expect(contract.requiredLoot).toBeLessThanOrEqual(2);
+      } else if (contract.objective === 'sabotage') {
+        expect(contract.requiredLoot).toBeGreaterThanOrEqual(2);
+        expect(contract.requiredLoot).toBeLessThanOrEqual(3);
+      } else if (contract.objective === 'extraction') {
+        expect(contract.requiredLoot).toBe(1);
+      } else {
+        expect(contract.requiredLoot).toBe(0);
+      }
       expect(contract.reward).toBeGreaterThan(0);
       expect(contract.id).toContain(contract.seed.toString(36));
     }
@@ -24,6 +33,18 @@ describe('seeded mission generation', () => {
     const a = rollContracts(3, 123456);
     const b = rollContracts(3, 654321);
     expect(a).not.toEqual(b);
+  });
+
+  it('covers the expanded objective pool over generated boards', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 120; seed++) {
+      const board = rollContracts(3, seed);
+      expect(new Set(board.map((c) => c.objective)).size).toBe(3);
+      for (const contract of board) seen.add(contract.objective);
+    }
+    expect(seen).toEqual(
+      new Set(['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt', 'defense']),
+    );
   });
 
   it('makes boss and final contracts seed-stable', () => {

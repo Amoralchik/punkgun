@@ -1,4 +1,5 @@
-import { GunId, NamedWeaponId, NAMED_MAP, NAMED_WEAPONS, WeaponId, isGun } from './weapons';
+import { randomSeed, mulberry32 } from '../core/math';
+import { GunId, NamedWeaponId, NAMED_MAP, NAMED_WEAPONS, WEAPONS, WeaponId, isGun } from './weapons';
 import { AMMO_PACKS, LOOT_DEFS, LootKind, WEAPON_ECONOMY } from './economy';
 import { ATTACHMENT_MAP, AttachmentId } from './attachments';
 import { canPlace, findFree, type CasePlacement } from './inventory';
@@ -20,6 +21,8 @@ import {
   RepRank,
 } from './reputation';
 import type { FactionId } from './lore';
+import { BOSS_ORDER, type BossId } from './bosses';
+import { ENDINGS, type EndingId } from './endings';
 import {
   CONSUMABLE_MAP,
   ConsumableId,
@@ -36,6 +39,10 @@ import {
   PerkRanks,
   PERK_DEFS,
   RunMods,
+  humanityCapacity,
+  humanityLabel,
+  humanityStage,
+  humanityUsed,
   xpForNext,
 } from './progression';
 
@@ -43,6 +50,16 @@ export const SAVE_VERSION = 2;
 export const SAVE_KEY = 'punkgun.save.v2';
 export const LEGACY_SAVE_KEY = 'punkgun.save.v1';
 export const SAVE_SLOT_COUNT = 3;
+
+export type RecoverySource = 'backup' | 'legacy' | 'quarantine';
+
+export interface SaveRecovery {
+  source: RecoverySource;
+  /** Key holding the rejected payload, when one was preserved. */
+  quarantinedKey: string | null;
+  /** True when the primary slot was unreadable and had to be bypassed. */
+  primaryCorrupt: boolean;
+}
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -77,6 +94,16 @@ export function normalizeSaveSlot(slot: number): number {
 export function slotKey(slot: number): string {
   const n = normalizeSaveSlot(slot);
   return n === 1 ? SAVE_KEY : `${SAVE_KEY}.slot.${n}`;
+}
+
+/** Previous known-good payload for a slot. */
+export function backupKey(slot: number): string {
+  return `${slotKey(slot)}.bak`;
+}
+
+/** Last rejected payload for a slot, preserved for manual recovery. */
+export function corruptKey(slot: number): string {
+  return `${slotKey(slot)}.corrupt`;
 }
 
 function getBrowserStorage(): StorageLike | null {
@@ -173,6 +200,58 @@ export interface StashItem extends CasePlacement {
   variant: NamedWeaponId | null;
 }
 
+export interface MarketState {
+  seed: number;
+  refreshedRun: number;
+  stock: Record<string, number>;
+}
+
+export type StockKind = 'weapon' | 'named' | 'attachment' | 'supply';
+
+/** Stable storage key for a market entry. */
+export function stockKey(kind: StockKind, id: string): string {
+  return `${kind}:${id}`;
+}
+
+function hashString(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+const STOCK_RANGE: Record<StockKind, [number, number]> = {
+  weapon: [1, 2],
+  named: [1, 1],
+  attachment: [1, 2],
+  supply: [2, 4],
+};
+
+function rollStock(seed: number): Record<string, number> {
+  const rng = mulberry32(seed);
+  const stock: Record<string, number> = {};
+  const groups: Array<[StockKind, string[]]> = [
+    ['weapon', Object.keys(WEAPON_ECONOMY)],
+    ['named', NAMED_WEAPONS.map((def) => def.id)],
+    ['attachment', Object.keys(ATTACHMENT_MAP)],
+    ['supply', Object.keys(CONSUMABLE_MAP)],
+  ];
+  for (const [kind, ids] of groups) {
+    const [min, max] = STOCK_RANGE[kind];
+    for (const id of ids) {
+      stock[stockKey(kind, id)] = min + Math.floor(rng() * (max - min + 1));
+    }
+  }
+  return stock;
+}
+
+export function priceDrift(seed: number, key: string): number {
+  const rng = mulberry32((seed ^ hashString(key)) >>> 0);
+  return (rng() * 0.24 - 0.12);
+}
+
 export interface ProfileData {
   money: number;
   stash: StashItem[];
@@ -195,7 +274,24 @@ export interface ProfileData {
   attributePoints: number;
   regularClears: number;
   reputation: Reputation;
+  /** Boss gates defeated, one flag per authored arena. */
+  bossesCleared: Record<BossId, boolean>;
+  /** Authored campaign beats already banked. */
+  completedContracts: string[];
+  /** Chosen finale, null until the Spire falls. */
+  ending: EndingId | null;
+  /** Seeded rotating market stock and price drift. */
+  market: MarketState;
+  /** Three quick-loadout recipes pointing at stash fits. */
+  presets: Array<LoadoutPreset | null>;
 }
+
+const EMPTY_BOSSES: Record<BossId, boolean> = {
+  psycho: false,
+  grin: false,
+  crane: false,
+  board: false,
+};
 
 const EMPTY_COMPONENTS: Record<ComponentId, number> = {
   scrap: 0,
@@ -213,6 +309,14 @@ export interface RunLoadout {
   variant: NamedWeaponId | null;
   supplyType: ConsumableId | null;
   supplyCharges: number;
+}
+
+export interface LoadoutPreset {
+  name: string;
+  weapon: WeaponId;
+  variant: NamedWeaponId | null;
+  attachment: AttachmentId | null;
+  supplyType: ConsumableId | null;
 }
 
 function freshId(): string {
@@ -252,6 +356,11 @@ function defaultData(): ProfileData {
     attributePoints: 0,
     regularClears: 0,
     reputation: { ...EMPTY_REPUTATION },
+    bossesCleared: { ...EMPTY_BOSSES },
+    completedContracts: [],
+    ending: null,
+    market: { seed: 0, refreshedRun: 0, stock: {} },
+    presets: [null, null, null],
   };
 }
 
@@ -259,11 +368,17 @@ const VALID_WEAPONS: Record<WeaponId, true> = {
   fists: true,
   bat: true,
   pistol: true,
+  revolver: true,
   shotgun: true,
   smg: true,
+  carbine: true,
+  needler: true,
   rifle: true,
+  dmr: true,
   ak: true,
   lmg: true,
+  plasma: true,
+  railgun: true,
 };
 
 /**
@@ -273,12 +388,17 @@ const VALID_WEAPONS: Record<WeaponId, true> = {
 export class Profile {
   data: ProfileData;
   slot: number;
+  /** Set when startup had to bypass or restore a damaged save. */
+  lastRecovery: SaveRecovery | null = null;
   private storage: StorageLike | null;
+  private lastGoodRaw: string | null = null;
+  private lastGoodContent: string | null = null;
 
   constructor(slot = 1, storage: StorageLike | null = getBrowserStorage()) {
     this.slot = normalizeSaveSlot(slot);
     this.storage = storage;
     this.data = this.load();
+    this.ensureMarket();
     this.layoutCase();
     this.save();
   }
@@ -289,13 +409,60 @@ export class Profile {
 
   private load(): ProfileData {
     if (!this.storage) return defaultData();
-    const primary = this.storage.getItem(slotKey(this.slot));
-    if (primary) return this.decode(primary) ?? defaultData();
+    const key = slotKey(this.slot);
+    const primary = this.storage.getItem(key);
+    let primaryCorrupt = false;
+
+    if (primary) {
+      const decoded = this.decode(primary);
+      if (decoded) {
+        this.lastGoodRaw = primary;
+        this.lastGoodContent = JSON.stringify(decoded);
+        return decoded;
+      }
+      primaryCorrupt = true;
+      const quarantinedKey = this.quarantine(primary);
+      const backup = this.storage.getItem(backupKey(this.slot));
+      if (backup) {
+        const recovered = this.decode(backup);
+        if (recovered) {
+          this.lastGoodRaw = backup;
+          this.lastGoodContent = JSON.stringify(recovered);
+          this.lastRecovery = { source: 'backup', quarantinedKey, primaryCorrupt };
+          return recovered;
+        }
+      }
+      this.lastRecovery = { source: 'quarantine', quarantinedKey, primaryCorrupt };
+    }
+
     if (this.slot === 1) {
       const legacy = this.storage.getItem(LEGACY_SAVE_KEY);
-      if (legacy) return this.decode(legacy) ?? defaultData();
+      if (legacy) {
+        const migrated = this.decode(legacy);
+        if (migrated) {
+          this.lastRecovery = {
+            source: 'legacy',
+            quarantinedKey: primaryCorrupt ? corruptKey(this.slot) : null,
+            primaryCorrupt,
+          };
+          return migrated;
+        }
+      }
     }
+
     return defaultData();
+  }
+
+  /** Preserve an unreadable payload without letting it break startup. */
+  private quarantine(raw: string): string | null {
+    if (!this.storage) return null;
+    const key = corruptKey(this.slot);
+    try {
+      this.storage.setItem(key, raw);
+      return key;
+    } catch {
+      return null;
+    }
   }
 
   private decode(raw: string): ProfileData | null {
@@ -399,6 +566,71 @@ export class Profile {
                 (parsed.finalCleared === true ? 1 : 0),
             );
       const reputation = normalizeReputation(parsed.reputation);
+      const bossesCleared = { ...EMPTY_BOSSES };
+      const rawBosses = parsed.bossesCleared as Partial<Record<BossId, boolean>> | undefined;
+      for (const id of BOSS_ORDER) {
+        bossesCleared[id] = rawBosses?.[id] === true;
+      }
+      // v2 saves only tracked the first boss; preserve that progress.
+      if (parsed.bossCleared === true) bossesCleared.psycho = true;
+      const completedContracts = Array.isArray(parsed.completedContracts)
+        ? parsed.completedContracts.filter(
+            (id): id is string => typeof id === 'string' && id.length > 0,
+          )
+        : [];
+      const ending =
+        typeof parsed.ending === 'string' && parsed.ending in ENDINGS
+          ? (parsed.ending as EndingId)
+          : null;
+      const rawMarket = parsed.market as Partial<MarketState> | undefined;
+      const market: MarketState = {
+        seed:
+          typeof rawMarket?.seed === 'number' && Number.isFinite(rawMarket.seed)
+            ? rawMarket.seed >>> 0
+            : 0,
+        refreshedRun:
+          typeof rawMarket?.refreshedRun === 'number' &&
+          Number.isFinite(rawMarket.refreshedRun)
+            ? Math.max(0, Math.floor(rawMarket.refreshedRun))
+            : 0,
+        stock: {},
+      };
+      if (rawMarket?.stock && typeof rawMarket.stock === 'object') {
+        for (const [key, value] of Object.entries(rawMarket.stock)) {
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            market.stock[key] = Math.max(0, Math.floor(value));
+          }
+        }
+      }
+      const presets: Array<LoadoutPreset | null> = [null, null, null];
+      const rawPresets = parsed.presets;
+      if (Array.isArray(rawPresets)) {
+        for (let i = 0; i < presets.length; i++) {
+          const raw = rawPresets[i] as Partial<LoadoutPreset> | null | undefined;
+          if (!raw || typeof raw !== 'object') continue;
+          if (typeof raw.weapon !== 'string' || VALID_WEAPONS[raw.weapon as WeaponId] !== true) {
+            continue;
+          }
+          presets[i] = {
+            name: typeof raw.name === 'string' ? raw.name.slice(0, 20) : `PRESET ${i + 1}`,
+            weapon: raw.weapon as WeaponId,
+            variant:
+              typeof raw.variant === 'string' && NAMED_MAP[raw.variant as NamedWeaponId]
+                ? (raw.variant as NamedWeaponId)
+                : null,
+            attachment:
+              typeof raw.attachment === 'string' &&
+              ATTACHMENT_MAP[raw.attachment as AttachmentId]
+                ? (raw.attachment as AttachmentId)
+                : null,
+            supplyType:
+              typeof raw.supplyType === 'string' &&
+              CONSUMABLE_MAP[raw.supplyType as ConsumableId]
+                ? (raw.supplyType as ConsumableId)
+                : null,
+          };
+        }
+      }
 
       return {
         money:
@@ -432,6 +664,11 @@ export class Profile {
         attributePoints,
         regularClears,
         reputation,
+        bossesCleared,
+        completedContracts,
+        ending,
+        market,
+        presets,
         supplyType:
           parsed.supplyType && CONSUMABLE_MAP[parsed.supplyType] ? parsed.supplyType : null,
         supplyCharges:
@@ -449,10 +686,73 @@ export class Profile {
   save(): void {
     if (!this.storage) return;
     try {
-      this.storage.setItem(slotKey(this.slot), encodeSave(this.data));
+      const key = slotKey(this.slot);
+      const raw = encodeSave(this.data);
+      const content = JSON.stringify(this.data);
+      if (this.lastGoodRaw && this.lastGoodContent !== content) {
+        this.storage.setItem(backupKey(this.slot), this.lastGoodRaw);
+      }
+      this.storage.setItem(key, raw);
+      this.lastGoodRaw = raw;
+      this.lastGoodContent = content;
     } catch {
       // Storage can be unavailable (private mode); the session still plays.
     }
+  }
+
+  /** Rotate stock every two runs, or repair a legacy market with missing keys. */
+  ensureMarket(force = false): boolean {
+    const stale =
+      force ||
+      this.data.market.seed === 0 ||
+      this.data.runs - this.data.market.refreshedRun >= 2;
+    if (stale) {
+      const seed = randomSeed();
+      this.data.market = {
+        seed,
+        refreshedRun: this.data.runs,
+        stock: rollStock(seed),
+      };
+      this.save();
+      return true;
+    }
+    const expected = rollStock(this.data.market.seed);
+    let changed = false;
+    for (const [key, value] of Object.entries(expected)) {
+      if (this.data.market.stock[key] === undefined) {
+        this.data.market.stock[key] = value;
+        changed = true;
+      }
+    }
+    if (changed) this.save();
+    return false;
+  }
+
+  stockFor(key: string): number {
+    return Math.max(0, this.data.market.stock[key] ?? 0);
+  }
+
+  private takeStock(key: string): boolean {
+    const count = this.stockFor(key);
+    if (count <= 0) return false;
+    this.data.market.stock[key] = count - 1;
+    return true;
+  }
+
+  priceDrift(key: string): number {
+    return priceDrift(this.data.market.seed, key);
+  }
+
+  marketPrice(key: string, base: number): number {
+    return Math.max(1, Math.round(base * (1 + this.priceDrift(key))));
+  }
+
+  refreshMarket(cost = 50): string | null {
+    if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
+    this.data.money -= cost;
+    this.ensureMarket(true);
+    this.save();
+    return null;
   }
 
   exportSave(): string {
@@ -468,10 +768,26 @@ export class Profile {
     return null;
   }
 
+  /** Human-readable startup recovery notice; null when the save was clean. */
+  recoveryNote(): string | null {
+    const recovery = this.lastRecovery;
+    if (!recovery) return null;
+    if (recovery.source === 'backup') {
+      return 'SAVE RECOVERED FROM LAST KNOWN-GOOD BACKUP';
+    }
+    if (recovery.source === 'legacy') {
+      return 'LEGACY SAVE MIGRATED';
+    }
+    return recovery.quarantinedKey
+      ? 'CORRUPT SAVE QUARANTINED — STARTED FRESH'
+      : 'SAVE UNREADABLE — STARTED FRESH';
+  }
+
   /** Switch the active profile to another slot, creating it if empty. */
   loadSlot(slot: number): void {
     this.slot = normalizeSaveSlot(slot);
     this.data = this.load();
+    this.ensureMarket();
     this.layoutCase();
     this.save();
   }
@@ -558,11 +874,13 @@ export class Profile {
     return true;
   }
 
-  addComponent(): ComponentId {
-    const roll = Math.random();
-    const id: ComponentId =
-      roll < 0.45 ? 'scrap' : roll < 0.72 ? 'polymer' : roll < 0.9 ? 'circuit' : 'biogel';
-    this.data.components[id]++;
+  addComponent(count = 1): ComponentId {
+    let id: ComponentId = 'scrap';
+    for (let i = 0; i < Math.max(1, count); i++) {
+      const roll = Math.random();
+      id = roll < 0.45 ? 'scrap' : roll < 0.72 ? 'polymer' : roll < 0.9 ? 'circuit' : 'biogel';
+      this.data.components[id]++;
+    }
     this.save();
     return id;
   }
@@ -648,6 +966,7 @@ export class Profile {
     const id = freshId();
     const free = findFree(this.data.stash, id, weapon);
     if (!free) return 'CASE FULL';
+    if (!this.takeStock(stockKey('weapon', weapon))) return 'OUT OF STOCK';
     this.data.money -= price;
     const item: StashItem = {
       id,
@@ -671,6 +990,7 @@ export class Profile {
     const itemId = freshId();
     const free = findFree(this.data.stash, itemId, def.base);
     if (!free) return 'CASE FULL';
+    if (!this.takeStock(stockKey('named', id))) return 'OUT OF STOCK';
     this.data.money -= price;
     const item: StashItem = {
       id: itemId,
@@ -695,6 +1015,7 @@ export class Profile {
     if (item.attachment === attachmentId) return 'ALREADY INSTALLED';
     const price = this.attachmentPrice(attachmentId);
     if (this.data.money < price) return 'NOT ENOUGH CREDITS';
+    if (!this.takeStock(stockKey('attachment', attachmentId))) return 'OUT OF STOCK';
     this.data.money -= price;
     item.attachment = attachmentId;
     this.save();
@@ -747,9 +1068,55 @@ export class Profile {
     return null;
   }
 
+  savePreset(index: number): string | null {
+    if (index < 0 || index >= this.data.presets.length) return 'UNKNOWN PRESET';
+    const item = this.equipped;
+    this.data.presets[index] = {
+      name: item
+        ? item.variant
+          ? NAMED_MAP[item.variant].name
+          : WEAPONS[item.weapon].name
+        : 'FISTS',
+      weapon: item?.weapon ?? 'fists',
+      variant: item?.variant ?? null,
+      attachment: item?.attachment ?? null,
+      supplyType: this.data.supplyType,
+    };
+    this.save();
+    return null;
+  }
+
+  applyPreset(index: number): string | null {
+    const preset = this.data.presets[index];
+    if (!preset) return 'EMPTY PRESET';
+    if (preset.weapon === 'fists') {
+      this.data.equippedId = null;
+      this.save();
+      return null;
+    }
+    const item = this.data.stash.find(
+      (entry) =>
+        entry.weapon === preset.weapon &&
+        (!preset.variant || entry.variant === preset.variant) &&
+        (!preset.attachment || entry.attachment === preset.attachment),
+    );
+    if (!item) return 'PRESET WEAPON NOT IN STASH';
+    this.data.equippedId = item.id;
+    this.save();
+    return null;
+  }
+
+  clearPreset(index: number): void {
+    if (index >= 0 && index < this.data.presets.length) {
+      this.data.presets[index] = null;
+      this.save();
+    }
+  }
+
   /** Consumes the equipped weapon for the run and counts the attempt. */
   beginRun(): RunLoadout {
     this.data.runs++;
+    this.ensureMarket();
     const item = this.equipped;
     const supplyType = this.data.supplyType;
     const supplyCharges = this.data.supplyCharges;
@@ -782,6 +1149,7 @@ export class Profile {
   /** A fists-only retry: counts the attempt but touches no stash weapon. */
   recordAttempt(): RunLoadout {
     this.data.runs++;
+    this.ensureMarket();
     this.save();
     return {
       weapon: 'fists',
@@ -837,6 +1205,7 @@ export class Profile {
     if (this.data.supplyCharges >= SUPPLY_MAX) return 'KIT FULL';
     const price = this.supplyPrice(id);
     if (this.data.money < price) return 'NOT ENOUGH CREDITS';
+    if (!this.takeStock(stockKey('supply', id))) return 'OUT OF STOCK';
     this.data.money -= price;
     this.data.supplyType = id;
     this.data.supplyCharges++;
@@ -851,7 +1220,52 @@ export class Profile {
   }
 
   runMods(): RunMods {
-    return computeMods(this.data.cyberware, this.data.perks, this.data.attributes);
+    const strain = humanityStage(this.humanityUsed, this.humanityMax);
+    return computeMods(this.data.cyberware, this.data.perks, this.data.attributes, strain);
+  }
+
+  get humanityUsed(): number {
+    return humanityUsed(this.data.cyberware);
+  }
+
+  get humanityMax(): number {
+    return humanityCapacity(this.data.attributes, this.data.level);
+  }
+
+  get humanityStage(): number {
+    return humanityStage(this.humanityUsed, this.humanityMax);
+  }
+
+  humanityInfo(id?: CyberwareId): {
+    used: number;
+    max: number;
+    stage: number;
+    label: string;
+    nextCost: number;
+    risk: number;
+  } {
+    const def = id ? CYBERWARE_DEFS.find((entry) => entry.id === id) : null;
+    const rank = id ? this.data.cyberware[id] : 0;
+    return {
+      used: this.humanityUsed,
+      max: this.humanityMax,
+      stage: this.humanityStage,
+      label: humanityLabel(this.humanityStage as 0 | 1 | 2 | 3),
+      nextCost: def ? (def.humanity[rank] ?? 0) : 0,
+      risk: id ? this.cyberwareRisk(id) : 0,
+    };
+  }
+
+  /** Chance the next install is rejected by neural strain. */
+  cyberwareRisk(id: CyberwareId): number {
+    const def = CYBERWARE_DEFS.find((entry) => entry.id === id);
+    if (!def) return 0;
+    const rank = this.data.cyberware[id];
+    if (rank >= def.maxRank) return 0;
+    const next = def.humanity[rank] ?? 0;
+    const capacity = this.humanityMax;
+    const strain = this.humanityUsed / Math.max(1, capacity);
+    return Math.max(0, Math.min(0.45, (strain - 0.5) * 0.55 + next / Math.max(1, capacity) * 0.3));
   }
 
   rep(faction: FactionId): number {
@@ -863,13 +1277,21 @@ export class Profile {
   }
 
   weaponPrice(weapon: Exclude<WeaponId, 'fists'>): number {
+    const key = stockKey('weapon', weapon);
     const base = WEAPON_ECONOMY[weapon].price;
-    return Math.max(1, Math.round(base * (1 - repDiscount(this.rep('market')))));
+    return Math.max(
+      1,
+      Math.round(base * (1 - repDiscount(this.rep('market'))) * (1 + this.priceDrift(key))),
+    );
   }
 
   namedPrice(id: NamedWeaponId): number {
+    const key = stockKey('named', id);
     const def = NAMED_MAP[id];
-    return Math.max(1, Math.round(def.price * (1 - repDiscount(this.rep('market')))));
+    return Math.max(
+      1,
+      Math.round(def.price * (1 - repDiscount(this.rep('market'))) * (1 + this.priceDrift(key))),
+    );
   }
 
   ammoPrice(item: StashItem): number {
@@ -882,28 +1304,46 @@ export class Profile {
     return repDiscount(this.rep(faction));
   }
 
-  /** Clinic pricing follows Helix standing. */
+  /** Clinic pricing follows Helix standing and TECHNOPHILE training. */
   cyberwarePrice(id: CyberwareId): number {
     const def = CYBERWARE_DEFS.find((entry) => entry.id === id);
     if (!def) return 0;
     const rank = this.data.cyberware[id];
     const base = def.costs[rank] ?? 0;
     if (base <= 0) return 0;
-    return Math.max(1, Math.round(base * (1 - this.discountFor('helix'))));
+    return Math.max(
+      1,
+      Math.round(base * (1 - this.discountFor('helix')) * (1 - this.data.perks.technophile * 0.08)),
+    );
   }
 
-  /** Workbench pricing follows Night Market standing. */
+  /** Workbench pricing follows Night Market standing and GUNSMITH training. */
   attachmentPrice(id: AttachmentId): number {
     const def = ATTACHMENT_MAP[id];
     if (!def) return 0;
-    return Math.max(1, Math.round(def.cost * (1 - this.discountFor('market'))));
+    return Math.max(
+      1,
+      Math.round(
+        def.cost *
+          (1 - this.discountFor('market')) *
+          (1 - this.data.perks.gunsmith * 0.1) *
+          (1 + this.priceDrift(stockKey('attachment', id))),
+      ),
+    );
   }
 
   /** Supply-depot pricing follows Night Market standing. */
   supplyPrice(id: ConsumableId): number {
     const def = CONSUMABLE_MAP[id];
     if (!def) return 0;
-    return Math.max(1, Math.round(def.cost * (1 - this.discountFor('market'))));
+    return Math.max(
+      1,
+      Math.round(
+        def.cost *
+          (1 - this.discountFor('market')) *
+          (1 + this.priceDrift(stockKey('supply', id))),
+      ),
+    );
   }
 
   spendAttribute(id: keyof Attributes): string | null {
@@ -917,14 +1357,23 @@ export class Profile {
     return null;
   }
 
-  installCyberware(id: CyberwareId): string | null {
+  installCyberware(id: CyberwareId, rng: () => number = Math.random): string | null {
     const def = CYBERWARE_DEFS.find((d) => d.id === id);
     if (!def) return 'UNKNOWN CYBERWARE';
     const rank = this.data.cyberware[id];
     if (rank >= def.maxRank) return 'ALREADY AT MAX RANK';
+    const nextLoad = def.humanity[rank] ?? 0;
+    if (this.humanityUsed + nextLoad > this.humanityMax) {
+      return 'NEURAL CAPACITY EXCEEDED — RAISE BODY OR UPGRADE';
+    }
     const cost = this.cyberwarePrice(id);
     if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
+    const risk = this.cyberwareRisk(id);
     this.data.money -= cost;
+    if (risk > 0 && rng() < risk) {
+      this.save();
+      return `INSTALL REJECTED — NEURAL STRAIN ${Math.round(risk * 100)}%`;
+    }
     this.data.cyberware[id] = rank + 1;
     this.save();
     return null;
@@ -977,6 +1426,7 @@ export class Profile {
 
   reset(): void {
     this.data = defaultData();
+    this.ensureMarket();
     this.save();
   }
 }

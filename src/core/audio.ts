@@ -1,8 +1,12 @@
 export type AmbienceKind = 'none' | 'rain' | 'wind' | 'embers';
 
+export type MusicFaction = 'helix' | 'teeth' | 'orbit' | 'sublevel' | 'market';
+
 export function ambienceForLevel(id: string): AmbienceKind {
-  if (id === 'sector07' || id === 'nightmarket' || id === 'docks') return 'rain';
-  if (id === 'tenements' || id === 'spire') return 'wind';
+  if (id === 'sector07' || id === 'nightmarket' || id === 'docks' || id === 'transit') {
+    return 'rain';
+  }
+  if (id === 'tenements' || id === 'spire' || id === 'arcology') return 'wind';
   if (id === 'sublevel') return 'embers';
   return 'none';
 }
@@ -21,6 +25,9 @@ export class AudioEngine {
   private muted = false;
   private volume = 0.85;
   private bossMode = false;
+  private faction: MusicFaction = 'market';
+  private intensity = 0;
+  private sfxPan = 0;
 
   unlock(): void {
     if (this.ctx) {
@@ -69,6 +76,15 @@ export class AudioEngine {
   /* primitives                                                        */
   /* ---------------------------------------------------------------- */
 
+  private output(ctx: AudioContext, dest?: AudioNode): AudioNode {
+    const target = dest ?? this.master;
+    if (!target || dest || this.sfxPan === 0) return target ?? ctx.destination;
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = this.sfxPan;
+    panner.connect(target);
+    return panner;
+  }
+
   private tone(
     type: OscillatorType,
     f0: number,
@@ -89,7 +105,7 @@ export class AudioEngine {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.006);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(g).connect(dest ?? this.master);
+    osc.connect(g).connect(this.output(ctx, dest));
     osc.start(t);
     osc.stop(t + dur + 0.02);
   }
@@ -119,7 +135,7 @@ export class AudioEngine {
     const g = ctx.createGain();
     g.gain.setValueAtTime(Math.max(0.0002, gain), t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(dest ?? this.master);
+    src.connect(f).connect(g).connect(this.output(ctx, dest));
     src.start(t, Math.random() * 0.5, dur + 0.02);
   }
 
@@ -173,6 +189,47 @@ export class AudioEngine {
     this.noise(0.05, 0.3, 'highpass', 2800, 0.7);
     this.tone('sine', 100, 38, 0.18, 0.4);
     this.tone('square', 190, 70, 0.1, 0.1);
+  }
+
+  revolverShot(): void {
+    this.noise(0.24, 0.52, 'lowpass', 1200, 0.6);
+    this.noise(0.1, 0.34, 'highpass', 3000, 0.8);
+    this.tone('sine', 120, 34, 0.3, 0.5);
+    this.tone('square', 260, 80, 0.12, 0.16);
+  }
+
+  carbineShot(): void {
+    this.noise(0.08, 0.34, 'bandpass', 1900, 0.9);
+    this.noise(0.04, 0.24, 'highpass', 3600, 0.7);
+    this.tone('sine', 160, 55, 0.12, 0.32);
+    this.tone('triangle', 380, 120, 0.06, 0.08);
+  }
+
+  needlerShot(): void {
+    this.noise(0.045, 0.22, 'highpass', 5200, 1.4);
+    this.tone('triangle', 900, 420, 0.06, 0.1);
+    this.tone('square', 1400, 600, 0.04, 0.05);
+  }
+
+  dmrShot(): void {
+    this.noise(0.2, 0.44, 'bandpass', 2300, 0.7);
+    this.noise(0.07, 0.3, 'highpass', 4600, 0.7);
+    this.tone('sine', 150, 42, 0.3, 0.4);
+    this.tone('triangle', 680, 220, 0.1, 0.08);
+  }
+
+  plasmaShot(): void {
+    this.noise(0.18, 0.28, 'bandpass', 900, 2.2);
+    this.tone('sawtooth', 320, 90, 0.32, 0.16);
+    this.tone('sine', 1100, 240, 0.28, 0.12);
+    this.tone('triangle', 70, 40, 0.4, 0.24);
+  }
+
+  railgunShot(): void {
+    this.noise(0.34, 0.5, 'lowpass', 2400, 0.6);
+    this.tone('sawtooth', 1800, 120, 0.3, 0.18);
+    this.tone('sine', 80, 28, 0.4, 0.5);
+    this.tone('square', 1400, 300, 0.08, 0.06);
   }
 
   swing(): void {
@@ -258,6 +315,30 @@ export class AudioEngine {
     this.tone('triangle', 1900, 420, 0.32, 0.08);
   }
 
+  emp(): void {
+    this.noise(0.3, 0.28, 'highpass', 900, 0.7);
+    this.tone('sawtooth', 220, 1600, 0.25, 0.16);
+    this.tone('sine', 1600, 60, 0.38, 0.2);
+  }
+
+  berserk(): void {
+    this.noise(0.45, 0.24, 'lowpass', 520, 0.9);
+    this.tone('sawtooth', 70, 180, 0.5, 0.2);
+    this.tone('square', 140, 70, 0.35, 0.1);
+  }
+
+  overclock(): void {
+    this.tone('sawtooth', 480, 960, 0.28, 0.12);
+    this.tone('triangle', 960, 1440, 0.24, 0.08);
+    this.noise(0.2, 0.1, 'highpass', 3200, 0.7);
+  }
+
+  kerenzikov(): void {
+    this.tone('sine', 1200, 180, 0.32, 0.14);
+    this.noise(0.4, 0.08, 'bandpass', 2400, 1.5);
+    this.tone('sawtooth', 80, 40, 0.42, 0.18);
+  }
+
   camoBreak(): void {
     this.noise(0.18, 0.18, 'bandpass', 1200, 0.8);
     this.tone('square', 260, 140, 0.1, 0.07);
@@ -304,11 +385,13 @@ export class AudioEngine {
   }
 
   pickup(): void {
+    this.sfxPan = 0;
     this.tone('square', 720, 1180, 0.07, 0.1);
   }
 
   loot(): void {
     if (!this.ctx) return;
+    this.sfxPan = 0;
     const t = this.ctx.currentTime;
     this.tone('triangle', 660, 660, 0.12, 0.1, t);
     this.tone('triangle', 990, 990, 0.2, 0.08, t + 0.08);
@@ -322,6 +405,7 @@ export class AudioEngine {
 
   levelUp(): void {
     if (!this.ctx) return;
+    this.sfxPan = 0;
     const t = this.ctx.currentTime;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
       this.tone('triangle', f, f, 0.45, 0.1, t + i * 0.07);
@@ -329,10 +413,12 @@ export class AudioEngine {
   }
 
   uiClick(): void {
+    this.sfxPan = 0;
     this.tone('square', 880, 1320, 0.05, 0.055);
   }
 
   uiError(): void {
+    this.sfxPan = 0;
     this.tone('square', 200, 110, 0.16, 0.08);
   }
 
@@ -362,6 +448,20 @@ export class AudioEngine {
 
   setBossMode(on: boolean): void {
     this.bossMode = on;
+  }
+
+  setFaction(faction: MusicFaction): void {
+    this.faction = faction;
+  }
+
+  /** 0..1 heat/complication level: adds hats and a high counter-line. */
+  setIntensity(value: number): void {
+    this.intensity = Math.max(0, Math.min(1, value));
+  }
+
+  /** -1 left, 0 center, +1 right. Applies to master SFX only. */
+  setSfxPan(value: number): void {
+    this.sfxPan = Math.max(-1, Math.min(1, value));
   }
 
   setAmbience(kind: AmbienceKind): void {
@@ -504,7 +604,14 @@ export class AudioEngine {
       this.tone('triangle', 190, 120, 0.12, 0.1, t, bus);
     }
 
-    const bassPattern = [33, 0, 33, 36, 0, 33, 0, 31, 33, 0, 33, 40, 0, 36, 0, 31];
+    const patterns: Record<MusicFaction, number[]> = {
+      helix: [33, 0, 33, 36, 0, 33, 0, 31, 33, 0, 33, 40, 0, 36, 0, 31],
+      teeth: [31, 0, 31, 31, 34, 0, 31, 0, 29, 0, 31, 36, 0, 34, 0, 29],
+      orbit: [38, 0, 38, 41, 0, 38, 0, 36, 38, 0, 43, 0, 41, 0, 36, 0],
+      sublevel: [26, 0, 26, 27, 0, 26, 0, 24, 26, 0, 29, 0, 27, 0, 24, 0],
+      market: [33, 0, 33, 36, 0, 33, 0, 31, 33, 0, 33, 40, 0, 36, 0, 31],
+    };
+    const bassPattern = patterns[this.faction] ?? patterns.market;
     const midi = bassPattern[s];
     if (midi) {
       const f = 440 * Math.pow(2, (midi - 69) / 12);
@@ -536,6 +643,14 @@ export class AudioEngine {
       }
       if (s === 4 || s === 12) {
         this.tone('square', 330, 165, stepDur * 2, 0.03, t, bus);
+      }
+    }
+    if (this.intensity > 0.55) {
+      if (s % 4 === 2) {
+        this.noise(0.025, 0.04 + this.intensity * 0.03, 'highpass', 9400, 0.8, t, bus);
+      }
+      if (s === 6 || s === 14) {
+        this.tone('triangle', 660, 880, stepDur * 1.4, 0.018 * this.intensity, t, bus);
       }
     }
   }
