@@ -11,6 +11,7 @@ npm run verify      # typecheck + unit tests + production build
 npm run package     # build + release/punkgun-<version>/ + .tar.gz
 ```
 
+Packaging writes `release/punkgun-<version>.tar.gz` and `release/SHA256SUMS.txt`.
 Deploy the contents of `release/punkgun-<version>/` to any static host over HTTPS.
 The service worker is scoped to `/`; do not host the game under a sub-path without changing
 the manifest/SW URLs.

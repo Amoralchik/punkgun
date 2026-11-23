@@ -4,7 +4,7 @@
 
 ```bash
 npm run verify   # typecheck + Vitest + production build + budget
-npm run package  # build + budget + release folder/tarball
+npm run package  # build + budget + release folder/tarball/SHA256SUMS
 npm run smoke    # production preview + headless Chrome boot/deploy/pause smoke
 ```
 

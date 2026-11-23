@@ -29,7 +29,7 @@ npm run soak:long     # 30-minute heap/error soak (--minutes=N supported)
 
 CI runs verify, browser smokes, a soak and packaging on push/PR via [.github/workflows/ci.yml](./.github/workflows/ci.yml).
 
-The production build is an installable PWA with a service-worker app shell and offline fallback. Deployment instructions, budgets, and the QA matrix are in [RELEASE.md](./RELEASE.md) and [QA.md](./QA.md). Implementation status is tracked in [PLAN.md](./PLAN.md).
+Packaging emits a tarball plus `SHA256SUMS.txt` for artifact verification. The production build is an installable PWA with a service-worker app shell and offline fallback. Deployment instructions, budgets, and the QA matrix are in [RELEASE.md](./RELEASE.md) and [QA.md](./QA.md). Implementation status is tracked in [PLAN.md](./PLAN.md).
 
 ## Controls
 

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
   mkdirSync,
@@ -32,6 +33,8 @@ writeFileSync(
 
 try {
   execFileSync('tar', ['-czf', archive, '-C', release, name], { stdio: 'inherit' });
+  const hash = createHash('sha256').update(readFileSync(archive)).digest('hex');
+  writeFileSync(`${release}/SHA256SUMS.txt`, `${hash}  ${name}.tar.gz\n`);
 } catch (error) {
   console.warn(`Tar archive skipped: ${error instanceof Error ? error.message : String(error)}`);
 }
