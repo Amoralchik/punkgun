@@ -102,6 +102,7 @@ export class Safehouse {
   private readonly msgEl = document.getElementById('sh-msg')!;
   private readonly resetEl = document.getElementById('sh-reset')!;
   private readonly newGameEl = document.getElementById('sh-new-game')!;
+  private readonly newGameHeadEl = document.getElementById('sh-new-game-head')!;
   private readonly saveImportEl = document.getElementById('save-import') as HTMLInputElement;
   private readonly stationRoot = document.getElementById('overlay-station')!;
   private readonly stationPanel = document.querySelector<HTMLElement>('.station-panel')!;
@@ -507,6 +508,7 @@ export class Safehouse {
     this.msgEl.classList.toggle('err', this.messageError);
     this.resetEl.textContent = this.resetArmed ? 'CONFIRM WIPE' : 'RESET SAVE';
     this.newGameEl.textContent = this.newGameArmed ? 'CONFIRM NEW GAME' : 'NEW GAME';
+    this.newGameHeadEl.textContent = this.newGameArmed ? 'CONFIRM NEW GAME' : 'NEW GAME';
     if (this.stationMode) this.renderStation();
     if (this.caseView.isOpen) this.caseView.render();
   }

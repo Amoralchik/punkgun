@@ -272,11 +272,11 @@ async function main() {
       g.profile.data.money = 999;
       g.profile.save();
       g.openPanel();
-      document.getElementById('sh-new-game').click();
-      return document.getElementById('sh-new-game').textContent;
+      document.getElementById('sh-new-game-head').click();
+      return document.getElementById('sh-new-game-head').textContent;
     })()`);
     if (!armed.includes('CONFIRM')) throw new Error(`New game did not arm: ${armed}`);
-    await cdp.evaluate(`document.getElementById('sh-new-game').click()`);
+    await cdp.evaluate(`document.getElementById('sh-new-game-head').click()`);
     await sleep(250);
     const fresh = await cdp.evaluate(`(() => {
       document.querySelector('[data-act="close-manual"]')?.click();
