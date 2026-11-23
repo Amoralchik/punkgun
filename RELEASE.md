@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 181 unit tests + build + budget)
+- `npm run verify` (typecheck + 182 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -90,7 +90,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Epilogues append faction, role and lifepath consequence lines, localized in English/Spanish.
 - Enemies patrol fixed route points around their spawn instead of rerolling every waypoint.
-- Explosions alert enemies within 420 units, beyond their damage radius.
+- Explosions alert enemies within 420 units, beyond their damage radius; glass-break noise is covered too.
 - Sandevistan, camo, EMP/deck, Berserk and Overclock trigger brief colored screen washes.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions, mission/dead/win timing and frame input/render finalization are split out.
