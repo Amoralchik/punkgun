@@ -66,7 +66,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 170 unit tests + build + budget)
+- `npm run verify` (typecheck + 171 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -85,7 +85,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Boss missions and boss-rush waves present the encounter intro card without blocking input.
 - Plate breaks fire a brief full-screen phase pulse; reduced motion keeps it static.
 - Boss plate breaks add two telegraphed arena lasers, disabled for 1.4s on spawn.
-- Missions with spare caches lock them as breachable safes; terminal breaches open nearby safes.
+- Missions with spare caches lock them as breachable safes; terminal and camera breaches open nearby safes and loop nearby security.
 - The final contract applies a magenta color grade and heavier vignette.
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.

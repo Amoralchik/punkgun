@@ -210,6 +210,26 @@ describe('mission objectives', () => {
     expect(plus.objectiveText()).toContain('NG+3');
   });
 
+  it('chains camera breaches into nearby safes', () => {
+    const events: string[] = [];
+    const world = new World(
+      loadLevel('sector07'),
+      fakeInput(),
+      (event) => events.push(event.type),
+      null,
+      { objective: 'sabotage', requiredLoot: 1 },
+      baseMods(),
+      42,
+    );
+    const camera = world.cameras[0];
+    const safe = world.loot.find((item) => item.locked)!;
+    safe.x = camera.x + 20;
+    safe.y = camera.y + 20;
+    world.resolveHazardBreach('camera', camera.id, true);
+    expect(safe.locked).toBe(false);
+    expect(events).toContain('networkUnlock');
+  });
+
   it('unlocks nearby safes through a terminal network chain', () => {
     const events: string[] = [];
     const world = new World(

@@ -778,13 +778,41 @@ export class World {
       return;
     }
     target.alive = false;
+    for (const camera of this.cameras) {
+      if (camera === target || !camera.alive) continue;
+      if (dist(camera.x, camera.y, target.x, target.y) <= 300) camera.disabledT = 8;
+    }
+    for (const turret of this.turrets) {
+      if (turret === target || !turret.alive) continue;
+      if (dist(turret.x, turret.y, target.x, target.y) <= 300) turret.disabledT = 8;
+    }
     this.emit({
       type: hazard === 'camera' ? 'cameraBroken' : 'turretBroken',
       x: target.x,
       y: target.y,
       angle: 0,
     });
+    const opened = this.unlockSafesNear(target.x, target.y, 300);
     this.emit({ type: 'breachSuccess', x: target.x, y: target.y, angle: 0 });
+    if (opened > 0) {
+      this.emit({
+        type: 'networkUnlock',
+        x: target.x,
+        y: target.y,
+        angle: 0,
+        count: opened,
+      });
+    }
+  }
+
+  private unlockSafesNear(x: number, y: number, radius: number): number {
+    let opened = 0;
+    for (const item of this.loot) {
+      if (!item.locked || dist(item.x, item.y, x, y) > radius) continue;
+      item.locked = false;
+      opened++;
+    }
+    return opened;
   }
 
   resolveBreach(nodeId: number, success: boolean): void {
@@ -809,12 +837,7 @@ export class World {
         laser.disabledT = 8;
       }
     }
-    let opened = 0;
-    for (const item of this.loot) {
-      if (!item.locked || dist(item.x, item.y, node.x, node.y) > 440) continue;
-      item.locked = false;
-      opened++;
-    }
+    const opened = this.unlockSafesNear(node.x, node.y, 440);
     this.emit({ type: 'breachSuccess', x: node.x, y: node.y, angle: 0 });
     if (opened > 0) {
       this.emit({
