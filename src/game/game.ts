@@ -12,6 +12,7 @@ import { BossIntro } from '../ui/boss-intro';
 import { SettingsPanel } from '../ui/settings-panel';
 import { BreachController } from '../ui/breach-controller';
 import { DialogueController } from '../ui/dialogue-controller';
+import { EndingController } from '../ui/ending-controller';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -22,7 +23,7 @@ import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
 import { DialogueSession } from './dialogue-session';
 import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, handlerLine, localizeDialogue, type DialogueLine } from './lore';
-import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from './endings';
+import { availableEndings, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
 
 import { APPROACH_MAP, ApproachId } from './attributes';
@@ -59,12 +60,6 @@ export class Game {
   private readonly briefFaction = document.getElementById('brief-faction')!;
   private readonly briefObjective = document.getElementById('brief-objective')!;
   private readonly briefHandler = document.getElementById('brief-handler')!;
-  private readonly endingRoot = document.getElementById('overlay-ending')!;
-  private readonly endingOptions = document.getElementById('ending-options')!;
-  private readonly epilogueRoot = document.getElementById('overlay-epilogue')!;
-  private readonly epilogueKicker = document.getElementById('epilogue-kicker')!;
-  private readonly epilogueTitle = document.getElementById('epilogue-title')!;
-  private readonly epilogueBody = document.getElementById('epilogue-body')!;
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
@@ -79,6 +74,7 @@ export class Game {
   });
   private readonly profile: Profile;
   private readonly dialogue: DialogueController;
+  private readonly ending: EndingController;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
   private contracts: Contract[] = [];
@@ -106,8 +102,6 @@ export class Game {
   private deathRecorded = false;
   private manualOpen = false;
   private tourOpen = false;
-  private endingOpen = false;
-  private epilogueOpen = false;
   private panelOpen = false;
   private recoveryNote: string | null = null;
   private abandonArmed = false;
@@ -116,6 +110,11 @@ export class Game {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.profile = new Profile();
+    this.ending = new EndingController(this.profile, {
+      hideResults: () => this.hud.hideResults(),
+      onWin: () => this.audio.win(),
+      onFinish: () => this.showResultOverlay(),
+    });
     this.dialogue = new DialogueController(this.profile, {
       onDeploy: (boons) => this.deployPending(boons),
       onLog: (text) => this.hud.logLine(text),
@@ -297,15 +296,15 @@ export class Game {
     }
 
     document.getElementById('overlay-dialogue')!.addEventListener('click', (ev) => this.dialogue.handleClick(ev));
-    this.endingRoot.addEventListener('click', (ev) => {
+    document.getElementById('overlay-ending')!.addEventListener('click', (ev) => {
       const id = (ev.target as HTMLElement).closest<HTMLElement>('[data-ending]')?.dataset
         .ending;
-      if (id) this.chooseEnding(id as EndingId);
+      if (id) this.ending.choose(id as EndingId);
     });
     document.getElementById('overlay-breach')!.addEventListener('click', (ev) => this.breach.handleClick(ev));
-    this.epilogueRoot.addEventListener('click', (ev) => {
+    document.getElementById('overlay-epilogue')!.addEventListener('click', (ev) => {
       if ((ev.target as HTMLElement).closest('[data-act="epilogue-next"]')) {
-        this.finishEpilogue();
+        this.ending.finish();
       }
     });
     this.tourRoot.addEventListener('click', (ev) => {
@@ -363,20 +362,20 @@ export class Game {
         }
         return;
       }
-      if (this.epilogueOpen) {
+      if (this.ending.isEpilogue) {
         if (e.code === 'Enter' || e.code === 'Space') {
           e.preventDefault();
-          this.finishEpilogue();
+          this.ending.finish();
         }
         return;
       }
-      if (this.endingOpen) {
+      if (this.ending.isOpen) {
         const endings = availableEndings(this.profile.data);
         const index = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
         if (index >= 0) {
           e.preventDefault();
           const id = endings[index];
-          if (id) this.chooseEnding(id);
+          if (id) this.ending.choose(id);
         }
         return;
       }
@@ -436,8 +435,8 @@ export class Game {
       this.dialogueOpen ||
       this.manualOpen ||
       this.tourOpen ||
-      this.endingOpen ||
-      this.epilogueOpen ||
+      this.ending.isOpen ||
+      this.ending.isEpilogue ||
       (this.state === 'safehouse' && this.panelOpen)
     );
   }
@@ -767,10 +766,7 @@ export class Game {
     this.manualRoot.classList.add('hidden');
     this.tourOpen = false;
     this.tourRoot.classList.add('hidden');
-    this.endingOpen = false;
-    this.epilogueOpen = false;
-    this.endingRoot.classList.add('hidden');
-    this.epilogueRoot.classList.add('hidden');
+    this.ending.close();
     this.world = this.createWorld(config);
     this.renderer.bind(this.world);
     if (contract.objective === 'boss') {
@@ -852,10 +848,7 @@ export class Game {
     this.pauseRoot.classList.add('hidden');
     this.manualRoot.classList.add('hidden');
     this.manualOpen = false;
-    this.endingRoot.classList.add('hidden');
-    this.endingOpen = false;
-    this.epilogueRoot.classList.add('hidden');
-    this.epilogueOpen = false;
+    this.ending.close();
     this.hud.hideResults();
     this.hud.setVisible(false);
     this.hud.exitPointer(0, 0, false);
@@ -1241,7 +1234,7 @@ export class Game {
     }
 
     if (this.currentContract?.chapter === 'final' && !this.profile.data.ending) {
-      this.showEndingChoice();
+      this.ending.showChoice();
       return;
     }
 
@@ -1256,48 +1249,6 @@ export class Game {
       ending: this.profile.data.ending,
     });
     this.hud.showResult('win', stats, note);
-  }
-
-  private showEndingChoice(): void {
-    this.endingOpen = true;
-    this.epilogueOpen = false;
-    this.hud.hideResults();
-    this.endingOptions.innerHTML = availableEndings(this.profile.data).map((id, index) => {
-      const def = ENDINGS[id];
-      return `<button class="ending-option" style="--ending:${def.color}" data-ending="${id}">
-        <span class="ending-key">${String(index + 1).padStart(2, '0')} · ${def.kicker.replace('// ', '')}</span>
-        <b>${def.title}</b>
-        <small>${def.summary}</small>
-        <small>${def.body[0]}</small>
-      </button>`;
-    }).join('');
-    this.endingRoot.classList.remove('hidden');
-    (this.endingOptions.querySelector('button') as HTMLButtonElement | null)?.focus();
-    this.input.endFrame();
-  }
-
-  private chooseEnding(id: EndingId): void {
-    if (!this.endingOpen || !ENDINGS[id] || !endingUnlocked(id, this.profile.data)) return;
-    this.endingOpen = false;
-    this.epilogueOpen = true;
-    this.profile.recordEnding(id);
-    this.profile.data.ending = id;
-    this.profile.save();
-    this.endingRoot.classList.add('hidden');
-    this.epilogueKicker.textContent = ENDINGS[id].kicker;
-    this.epilogueTitle.textContent = ENDINGS[id].title;
-    this.epilogueBody.innerHTML = ENDINGS[id].body.map((p) => `<p>${p}</p>`).join('');
-    this.epilogueRoot.classList.remove('hidden');
-    this.audio.win();
-    this.input.endFrame();
-  }
-
-  private finishEpilogue(): void {
-    if (!this.epilogueOpen) return;
-    this.epilogueOpen = false;
-    this.epilogueRoot.classList.add('hidden');
-    this.showResultOverlay();
-    this.input.endFrame();
   }
 
   frame(dtRaw: number): void {

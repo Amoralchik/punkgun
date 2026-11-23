@@ -473,6 +473,17 @@ async function main() {
       throw new Error(`Boss rush failed: ${JSON.stringify(bossRush)}`);
     }
     await cdp.evaluate(`window.__game.returnToSafehouse()`);
+    const ending = await cdp.evaluate(`(() => {
+      const game = window.__game;
+      game.ending.showChoice();
+      const visible = !document.getElementById('overlay-ending').classList.contains('hidden');
+      const options = document.querySelectorAll('[data-ending]').length;
+      game.ending.close();
+      return { visible, options };
+    })()`);
+    if (!ending.visible || ending.options < 3) {
+      throw new Error(`Ending overlay failed: ${JSON.stringify(ending)}`);
+    }
 
     const fresh = await cdp.evaluate(`(() => {
       document.querySelector('[data-act="close-manual"]')?.click();
@@ -529,6 +540,7 @@ async function main() {
           ventures: true,
           role,
           bossRush,
+          ending: true,
           offline: true,
           gamepadMenu: true,
           newGame: fresh,
