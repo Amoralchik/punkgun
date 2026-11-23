@@ -209,6 +209,19 @@ describe('mission objectives', () => {
     expect(plus.objectiveText()).toContain('NG+3');
   });
 
+  it('adds arena lasers when a boss plate breaks', () => {
+    const world = makeWorld(
+      { objective: 'boss', requiredLoot: 0, bossId: 'psycho' },
+      new Set<string>(),
+      'sublevel',
+    );
+    const before = world.lasers.length;
+    const boss = world.boss!;
+    boss.invulnT = 0;
+    world.damageBoss(boss, 0);
+    expect(world.lasers.length).toBe(before + 2);
+  });
+
   it('spawns each boss archetype in a reachable arena tile', () => {
     for (const id of BOSS_ORDER) {
       const layoutId = BOSSES[id].layoutId;

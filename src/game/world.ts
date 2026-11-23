@@ -2595,11 +2595,35 @@ export class World {
       e.speedMult = Math.min(1.5, e.speedMult + 0.12);
       this.spawnReinforcements(this.bossDef.adds + Math.min(2, this.ngPlus), this.bossDef.addKind);
       if (this.bossDef.shock) this.bossShock(e);
+      this.spawnBossHazards(e);
       e.bossWeakT = 1.4;
       this.emit({ type: 'bossPhase', x: e.x, y: e.y, angle: e.angle });
     } else {
       this.killEnemy(e, 'player');
     }
+  }
+
+  private spawnBossHazards(e: Enemy): void {
+    if (this.lasers.length >= 8) return;
+    const phase = this.time;
+    this.lasers.push({
+      id: this.nextId++,
+      x: e.x,
+      y: e.y,
+      axis: 'h',
+      phase,
+      alive: true,
+      disabledT: 1.4,
+    });
+    this.lasers.push({
+      id: this.nextId++,
+      x: e.x,
+      y: e.y,
+      axis: 'v',
+      phase: phase + 1.3,
+      alive: true,
+      disabledT: 1.4,
+    });
   }
 
   private bossShock(e: Enemy): void {
