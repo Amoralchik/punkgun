@@ -751,32 +751,11 @@ export class Game {
     if (this.combatEvents.handle(e)) return;
     if (this.runEvents.handle(e)) return;
     switch (e.type) {
-      case 'quickhack':
-        this.audio.quickhack();
-        this.hud.subtitle(t('event.quickhack'));
-        this.hud.logLine('QUICKHACK: target rebooted');
-        break;
-      case 'quickhackFail':
-        this.audio.quickhackFail();
-        this.hud.subtitle(t('event.quickhackFail'), 1600);
-        break;
-      case 'medicHeal':
-        this.audio.medicHeal();
-        this.hud.logLine('MEDIC: ally plate restored');
-        break;
       case 'bossPhase':
         this.bossPhase.flash('ARMOR PLATE SHATTERED');
         this.audio.bossPhase();
         this.hud.subtitle(t('event.bossPhase'));
         this.hud.logLine('BOSS: plate shattered');
-        break;
-      case 'flash':
-        this.audio.flash();
-        this.hud.flashDamage('flash');
-        break;
-      case 'kerenzikov':
-        this.audio.kerenzikov();
-        this.hud.subtitle(t('event.kerenzikov'));
         break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {

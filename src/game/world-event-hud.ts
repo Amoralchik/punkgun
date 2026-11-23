@@ -18,6 +18,27 @@ export class WorldEventHud {
         this.hud.subtitle(t('event.secondHeart'));
         this.hud.logLine('SECOND HEART: survived lethal hit');
         return true;
+      case 'quickhack':
+        this.audio.quickhack();
+        this.hud.subtitle(t('event.quickhack'));
+        this.hud.logLine('QUICKHACK: target rebooted');
+        return true;
+      case 'quickhackFail':
+        this.audio.quickhackFail();
+        this.hud.subtitle(t('event.quickhackFail'), 1600);
+        return true;
+      case 'medicHeal':
+        this.audio.medicHeal();
+        this.hud.logLine('MEDIC: ally plate restored');
+        return true;
+      case 'flash':
+        this.audio.flash();
+        this.hud.flashDamage('flash');
+        return true;
+      case 'kerenzikov':
+        this.audio.kerenzikov();
+        this.hud.subtitle(t('event.kerenzikov'));
+        return true;
       case 'doorLocked':
         this.audio.uiError();
         this.hud.logLine('DOOR SEALED — KICK TO BREACH');
