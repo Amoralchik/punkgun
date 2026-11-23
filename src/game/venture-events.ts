@@ -15,6 +15,7 @@ export interface VentureChoice {
   cost?: number;
   effects: VentureEffect[];
   reply: string;
+  replyEs: string;
 }
 
 export interface VentureEventDef {
@@ -45,6 +46,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         cost: 120,
         effects: [{ kind: 'rep', faction: 'helix', amount: 1 }],
         reply: 'The paperwork clears. The noodles stay warm.',
+        replyEs: 'El papeleo se aclara. Los fideos siguen calientes.',
       },
       {
         id: 'refuse',
@@ -55,6 +57,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rep', faction: 'market', amount: 1 },
         ],
         reply: 'The inspector writes you up. The block remembers you did not fold.',
+        replyEs: 'El inspector te multa. El bloque recuerda que no cediste.',
       },
       {
         id: 'sell',
@@ -65,6 +68,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -3 },
         ],
         reply: 'A chain buys the lease before sunrise. The broth goes with it.',
+        replyEs: 'Una cadena compra el contrato antes del amanecer. El caldo se va con él.',
       },
     ],
   },
@@ -86,6 +90,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rep', faction: 'orbit', amount: 1 },
         ],
         reply: 'The crate sells fast. Low Orbit marks you as reliable.',
+        replyEs: 'La caja se vende rápido. Low Orbit te marca como fiable.',
       },
       {
         id: 'trace',
@@ -96,6 +101,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rep', faction: 'helix', amount: 1 },
         ],
         reply: 'The serial numbers are Helix hardware. The inspector is grateful.',
+        replyEs: 'Los números de serie son hardware de Helix. El inspector lo agradece.',
       },
     ],
   },
@@ -115,6 +121,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         cost: 160,
         effects: [{ kind: 'rep', faction: 'teeth', amount: 1 }],
         reply: 'A freelancer takes the chair. The Teeth send their thanks.',
+        replyEs: 'Un freelance ocupa el sillón. Los Dientes envían su agradecimiento.',
       },
       {
         id: 'cut',
@@ -125,6 +132,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The clinic stays open with cheaper hands and worse stitches.',
+        replyEs: 'La clínica sigue abierta con manos más baratas y peores puntadas.',
       },
     ],
   },
@@ -146,6 +154,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'components', count: 1 },
         ],
         reply: 'The patient survives. The wristband yields a useful component.',
+        replyEs: 'El paciente sobrevive. La pulsera entrega un componente útil.',
       },
       {
         id: 'sell',
@@ -157,6 +166,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'Helix collects its property. The clinic ledger gets heavier.',
+        replyEs: 'Helix recupera su propiedad. El libro de la clínica pesa más.',
       },
     ],
   },
@@ -176,6 +186,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         cost: 100,
         effects: [{ kind: 'rep', faction: 'teeth', amount: 1 }],
         reply: 'The Teeth leave with their teeth. The bar stays standing.',
+        replyEs: 'Los Dientes se van con sus dientes. El bar sigue en pie.',
       },
       {
         id: 'ride',
@@ -186,6 +197,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The fight draws a crowd. The damage costs more than the tab.',
+        replyEs: 'La pelea atrae público. Los daños cuestan más que la cuenta.',
       },
     ],
   },
@@ -205,6 +217,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         cost: 150,
         effects: [{ kind: 'rep', faction: 'market', amount: 1 }],
         reply: 'The kid keeps quiet. The market hears you can be trusted.',
+        replyEs: 'El crío calla. El mercado oye que se puede confiar en ti.',
       },
       {
         id: 'skim',
@@ -216,6 +229,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The till balances on paper. Helix gets a useful name.',
+        replyEs: 'La caja cuadra en papel. Helix gana un nombre útil.',
       },
     ],
   },
@@ -235,6 +249,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         cost: 200,
         effects: [{ kind: 'rep', faction: 'helix', amount: 1 }],
         reply: 'The audit closes early. The racks keep their secrets.',
+        replyEs: 'La auditoría cierra pronto. Los racks guardan sus secretos.',
       },
       {
         id: 'leak',
@@ -246,6 +261,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rep', faction: 'helix', amount: -1 },
         ],
         reply: 'The data hits the market. Helix loses face; the Sublevel notices.',
+        replyEs: 'Los datos llegan al mercado. Helix pierde cara; el Subnivel se da cuenta.',
       },
     ],
   },
@@ -267,6 +283,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'components', count: 1 },
         ],
         reply: 'The buyer checks out. The deck gives up a clean component.',
+        replyEs: 'El comprador pasa la revisión. El mazo suelta un componente limpio.',
       },
       {
         id: 'sell',
@@ -278,6 +295,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The deck leaves the racks. So does a little of the haven\'s reputation.',
+        replyEs: 'El mazo sale de los racks. También un poco de la reputación del refugio.',
       },
     ],
   },
@@ -296,6 +314,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         labelEs: 'DEVUELVE EL CUERPO',
         effects: [{ kind: 'rep', faction: 'sublevel', amount: 1 }],
         reply: 'The van comes back. Nobody thanks you, but nobody forgets.',
+        replyEs: 'La furgoneta vuelve. Nadie te da las gracias, pero nadie lo olvida.',
       },
       {
         id: 'strip',
@@ -307,6 +326,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The parts sell. The shop smells wrong for a week.',
+        replyEs: 'Las piezas se venden. El taller huele mal una semana.',
       },
     ],
   },
@@ -326,6 +346,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         cost: 180,
         effects: [{ kind: 'rep', faction: 'orbit', amount: 1 }],
         reply: 'The container ships cold and on time. Low Orbit pays the fee.',
+        replyEs: 'El contenedor sale frío y a tiempo. Low Orbit paga la tarifa.',
       },
       {
         id: 'undercut',
@@ -337,6 +358,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The Teeth pay cash. Low Orbit marks the loss.',
+        replyEs: 'Los Dientes pagan en efectivo. Low Orbit marca la pérdida.',
       },
     ],
   },
@@ -355,6 +377,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
         labelEs: 'REDIRIGE EL PAQUETE',
         effects: [{ kind: 'rep', faction: 'orbit', amount: 1 }],
         reply: 'The package arrives. The route stays yours.',
+        replyEs: 'El paquete llega. La ruta sigue siendo tuya.',
       },
       {
         id: 'fence',
@@ -366,6 +389,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The buyer pays cash. The courier network loses a little trust.',
+        replyEs: 'El comprador paga en efectivo. La red de mensajeros pierde algo de confianza.',
       },
     ],
   },
@@ -388,6 +412,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'components', count: 1 },
         ],
         reply: 'The crew leaves empty-handed. The dispatcher owes you.',
+        replyEs: 'La cuadrilla se va con las manos vacías. El despachador te debe una.',
       },
       {
         id: 'abandon',
@@ -399,6 +424,7 @@ export const VENTURE_EVENTS: VentureEventDef[] = [
           { kind: 'rank', delta: -1 },
         ],
         reply: 'The crew strips the depot. The Teeth pay for the tip.',
+        replyEs: 'La cuadrilla desvalija el depósito. Los Dientes pagan por el chivatazo.',
       },
     ],
   },

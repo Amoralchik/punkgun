@@ -20,6 +20,7 @@ describe('venture station locale', () => {
       expect(html).toContain('precios de armas');
       expect(html).toContain('INSPECTOR SANITARIO');
       expect(html).toContain('PAGA LA MULTA');
+      expect(VENTURE_EVENT_MAP['noodle-inspection'].choices[0].replyEs).toContain('papeleo');
     } finally {
       setLocale('en');
     }

@@ -45,7 +45,7 @@ import { renderVentures } from './station-ventures';
 import { renderMarket } from './station-market';
 import { renderContracts, renderDeploy } from './station-contracts';
 import { renderOperator } from './station-operator';
-import { t } from '../core/i18n';
+import { getLocale, t } from '../core/i18n';
 
 export interface SafehouseHooks {
   onDeploy: (contractId: string, approachId: ApproachId, challenge: ChallengeId) => void;
@@ -1016,13 +1016,20 @@ export class Safehouse {
       case 'venture-event': {
         const id = target.dataset.id;
         if (!id) return;
+        const event = this.profile.pendingVentureEvent();
+        const choice = event?.choices.find((entry) => entry.id === id);
+        const reply = choice
+          ? getLocale() === 'es'
+            ? choice.replyEs
+            : choice.reply
+          : null;
         const error = this.profile.resolveVentureEvent(id);
         if (error) {
           this.message = error;
           this.messageError = true;
           this.hooks.onError();
         } else {
-          this.message = 'STREET EVENT RESOLVED';
+          this.message = reply ?? 'STREET EVENT RESOLVED';
           this.messageError = false;
           this.hooks.onClick();
         }

@@ -43,7 +43,7 @@ working checklist.
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | **enforced budget + smoke heap + soak + `soak:long` profile** | CI-hosted 30-minute run |
 | Accessibility | done for this tranche | **reduced motion, palettes, subtitles, log, presets, remap, gamepad + menu navigation** | text-entry gamepad keyboard |
-| Localization readiness | none | **English/Spanish catalog for objectives, stations, boons, HUD, manual, tour, dialogue, taglines, handler lines, venture cards and street events** | long-form station prose, venture replies |
+| Localization readiness | none | **English/Spanish catalog for objectives, stations, boons, HUD, manual, tour, dialogue, taglines, handler lines, venture cards, street events and replies** | long-form station prose |
 | Deep module splits | partial | **world player/bullets/objectives/AI/doors/geometry/gym; all Safehouse station views; hub; client boot; settings; breach; Game dialogue** | Game flow split |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
