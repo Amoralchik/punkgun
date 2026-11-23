@@ -190,6 +190,7 @@ describe('mission objectives', () => {
     const high = makeWorld({ objective: 'purge', requiredLoot: 0, risk: 'HIGH' }, new Set(), 'sector07');
     expect(med.enemies.length).toBe(low.enemies.length + 1);
     expect(high.enemies.length).toBe(low.enemies.length + 2);
+    expect(high.enemies.slice(-1)[0].kind === 'heavy' || high.enemies.slice(-1)[0].kind === 'stalker').toBe(true);
   });
 
   it('scales boss armor and speed on new game plus', () => {

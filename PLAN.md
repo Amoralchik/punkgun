@@ -36,7 +36,7 @@ working checklist.
 | New game flow | reset only | **confirmed reset, lifepath selection, NG+, ending-screen shortcut** | — |
 | Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
 | Stealth | takedowns only | **vision cones, body discovery, alert propagation, ghost-run bonus** | patrol routes, noise sources |
-| Combat gym | none | **16-archetype gym + three-build matrix + risk-scaled density** | squad-composition tuning |
+| Combat gym | none | **16-archetype gym + three-build matrix + risk-scaled density + high-risk squads** | setpiece tuning |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | **shell + cache v2 + smoke + offline/update toast** | native install prompt |

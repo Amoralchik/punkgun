@@ -306,13 +306,13 @@ export class World {
     if (extra > 0 && seedSpawn) {
       for (let i = 0; i < extra; i++) {
         const offset = (i + 1) * 26;
-        this.addEnemy(
-          seedSpawn.x + offset,
-          seedSpawn.y - offset,
-          1,
-          'idle',
-          pickEnemyKind(this.rand()),
-        );
+        const kind =
+          mission.risk === 'HIGH' && i === 1
+            ? this.rand() < 0.5
+              ? 'heavy'
+              : 'stalker'
+            : pickEnemyKind(this.rand());
+        this.addEnemy(seedSpawn.x + offset, seedSpawn.y - offset, 1, 'idle', kind);
       }
     }
 
