@@ -26,6 +26,11 @@ export interface RewardSummary {
   rankBonus: number;
   /** Dialogue/fixer bonus folded into payout. */
   boonBonus?: number;
+  /** Operator role pay bonus folded into payout. */
+  roleBonus?: number;
+  /** Business pay bonus and passive income folded into payout. */
+  ventureBonus?: number;
+  ventureIncome?: number;
   accuracy: number | null;
   stealthKills: number;
   peakHeat: number;
@@ -65,7 +70,12 @@ export function deathResult(input: DeathResultInput): ResultText {
 
 export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
   const boonLine = (r.boonBonus ?? 0) > 0 ? `\nFIXER BONUS   $${r.boonBonus}` : '';
-  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
+  const roleLine = (r.roleBonus ?? 0) > 0 ? `\nROLE BONUS    $${r.roleBonus}` : '';
+  const ventureLine =
+    (r.ventureBonus ?? 0) + (r.ventureIncome ?? 0) > 0
+      ? `\nBUSINESSES    +$${(r.ventureBonus ?? 0) + (r.ventureIncome ?? 0)}`
+      : '';
+  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}${roleLine}${ventureLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
   const ex = r.extracted;
   const extracted = ex
     ? `${ex.variant ? NAMED_MAP[ex.variant].name : WEAPONS[ex.weapon].name} · ${

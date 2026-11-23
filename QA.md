@@ -39,6 +39,7 @@ changes.
 - Escape opens the pause overlay and resume returns to play;
 - return to safehouse restores the hub;
 - NEW GAME arms, confirms, resets money/level and rebuilds the board;
+- Workbench, Ventures and role selection render and act;
 - no page exceptions or console errors along the path;
 - screenshot captured for visual review.
 
@@ -61,6 +62,8 @@ types.
 - [ ] Market stock counts decrease; refresh costs $50; rotation after two runs.
 - [ ] Clinic shows neural load, risk %, capacity block, and rejection message.
 - [ ] Presets save/equip/clear without duplicating stash items.
+- [ ] Role selection changes derived stats and survives save/reload.
+- [ ] Ventures buy/upgrade, show costs/income, and pay after a clear.
 - [ ] Archive unlocks dossiers and ending files.
 - [ ] NEW GAME arms, confirms, wipes the slot, rerolls the campaign board and returns to the hub.
 - [ ] NEW GAME does not change settings, keybinds, palette or volume.

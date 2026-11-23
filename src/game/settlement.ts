@@ -2,6 +2,13 @@ import { APPROACH_MAP, type ApproachId } from './attributes';
 import { ATTACHMENT_MAP } from './attachments';
 import { timeBonus } from './economy';
 import { modifierPayBonus } from './modifiers';
+import { rolePayMult } from './roles';
+import {
+  ventureComponentBonus,
+  ventureIncome,
+  venturePayMult,
+  ventureRepBonus,
+} from './ventures';
 import { repPayBonus } from './reputation';
 import { xpForNext } from './progression';
 import type { Contract } from './missions';
@@ -43,7 +50,14 @@ export function settleRun(
   const rank = score >= 95 ? 'S' : score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';
   const rankBonus = rank === 'S' ? 120 : rank === 'A' ? 60 : rank === 'B' ? 20 : 0;
   const boonBonus = world.boons.includes('pay') ? Math.round((base + bonus + rankBonus) * 0.12) : 0;
-  const payout = base + bonus + rankBonus + boonBonus;
+  const roleBonus = Math.round(
+    (base + bonus + rankBonus) * (rolePayMult(profile.data.role) - 1),
+  );
+  const ventureBonus = Math.round(
+    (base + bonus + rankBonus) * (venturePayMult(profile.data.ventures) - 1),
+  );
+  const venturePassive = ventureIncome(profile.data.ventures);
+  const payout = base + bonus + rankBonus + boonBonus + roleBonus + ventureBonus + venturePassive;
 
   let extractionAmmo = player.ammo + player.clip;
   if (player.attachment && player.weapon !== 'bat' && player.weapon !== 'fists') {
@@ -71,12 +85,18 @@ export function settleRun(
   if (contract && contract.objective !== 'boss' && contract.chapter !== 'final') {
     profile.data.regularClears++;
   }
-  if (contract) profile.data.reputation[contract.faction]++;
+  if (contract) {
+    profile.data.reputation[contract.faction] +=
+      1 + ventureRepBonus(profile.data.ventures);
+  }
   profile.save();
 
   const collected = world.loot.filter((item) => item.collected);
   const contrabandValue = profile.addLoot(collected.map((item) => item.kind));
   if (world.boons.includes('components')) profile.addComponent(3);
+  if (profile.data.role === 'techie') profile.addComponent(1);
+  const ventureComponents = ventureComponentBonus(profile.data.ventures);
+  if (ventureComponents > 0) profile.addComponent(ventureComponents);
 
   const riskXp = contract?.risk === 'HIGH' ? 120 : contract?.risk === 'MED' ? 80 : 50;
   const objectiveXp =
@@ -115,6 +135,9 @@ export function settleRun(
     rank,
     rankBonus,
     boonBonus,
+    roleBonus,
+    ventureBonus,
+    ventureIncome: venturePassive,
     accuracy,
     stealthKills: world.stealthKills,
     peakHeat: world.peakHeat,

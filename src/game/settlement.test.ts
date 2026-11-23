@@ -78,3 +78,46 @@ describe('dialogue boons in settlement', () => {
     ).toBe(beforeComponents + 3);
   });
 });
+
+describe('role and business settlement', () => {
+  it('adds role pay, venture income and chop components', () => {
+    const profile = new Profile(2, new MemoryStorage());
+    profile.data.role = 'fixer';
+    profile.data.ventures.haven = 1;
+    profile.data.ventures.noodle = 2;
+    profile.data.ventures.chop = 1;
+    const contract = rollContracts(3, 321)[0];
+    const world = {
+      time: 60,
+      shotsFired: 0,
+      shotsHit: 0,
+      peakHeat: 0,
+      stealthKills: 0,
+      aliveEnemies: 0,
+      kills: 0,
+      loot: [],
+      player: { weapon: 'fists', ammo: 0, clip: 0, attachment: null, variant: null },
+      boons: [],
+    } as unknown as World;
+    const beforeComponents = Object.values(profile.data.components).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+    const { reward } = settleRun(profile, world, contract, 'standard');
+    expect(reward.roleBonus).toBeGreaterThan(0);
+    expect(reward.ventureBonus).toBeGreaterThan(0);
+    expect(reward.ventureIncome).toBe(62);
+    expect(reward.payout).toBe(
+      reward.base +
+        reward.bonus +
+        reward.rankBonus +
+        (reward.boonBonus ?? 0) +
+        (reward.roleBonus ?? 0) +
+        (reward.ventureBonus ?? 0) +
+        (reward.ventureIncome ?? 0),
+    );
+    expect(
+      Object.values(profile.data.components).reduce((sum, value) => sum + value, 0),
+    ).toBeGreaterThan(beforeComponents);
+  });
+});

@@ -3020,6 +3020,115 @@ body.no-scanlines #scanlines {
   letter-spacing: 0.1em;
   color: rgba(223, 252, 255, 0.28);
 }
+
+.op-roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.op-role {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 9px;
+  text-align: left;
+  background: color-mix(in srgb, var(--role) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--role) 25%, transparent);
+  color: var(--paper);
+  font: inherit;
+  cursor: pointer;
+}
+.op-role:hover,
+.op-role.selected {
+  border-color: var(--role);
+  background: color-mix(in srgb, var(--role) 11%, transparent);
+}
+.op-role b {
+  color: var(--role);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+.op-role-code,
+.op-role-state {
+  font-size: 6px;
+  letter-spacing: 0.14em;
+  color: rgba(223, 252, 255, 0.38);
+}
+.op-role small {
+  font-size: 6.5px;
+  line-height: 1.45;
+  letter-spacing: 0.05em;
+  color: rgba(223, 252, 255, 0.5);
+  text-transform: none;
+}
+.op-role-state {
+  align-self: flex-end;
+  color: var(--role);
+}
+
+
+.venture-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.venture-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--venture) 26%, transparent);
+  background: color-mix(in srgb, var(--venture) 4%, transparent);
+}
+.venture-card.maxed {
+  opacity: 0.72;
+}
+.venture-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--venture);
+}
+.venture-card small {
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: rgba(223, 252, 255, 0.35);
+  text-transform: none;
+}
+.venture-card p {
+  min-height: 32px;
+  font-size: 7.5px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: rgba(223, 252, 255, 0.48);
+  text-transform: none;
+}
+.venture-effect {
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: var(--venture);
+}
+.venture-card button {
+  margin-top: 3px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--venture) 45%, transparent);
+  background: transparent;
+  color: var(--venture);
+  font: inherit;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+.venture-card button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--venture) 12%, transparent);
+}
+.venture-card button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .op-progress {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

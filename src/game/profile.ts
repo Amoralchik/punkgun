@@ -24,6 +24,24 @@ import type { FactionId } from './lore';
 import { BOSS_ORDER, type BossId } from './bosses';
 import { ENDINGS, type EndingId } from './endings';
 import {
+  applyRoleMods,
+  roleClinicDiscount,
+  roleMarketDiscount,
+  roleSupplyDiscount,
+  ROLE_MAP,
+  type RoleId,
+} from './roles';
+import {
+  EMPTY_VENTURES,
+  VENTURE_MAP,
+  ventureClinicDiscount,
+  ventureCost,
+  ventureCourierDiscount,
+  ventureMarketDiscount,
+  type VentureId,
+  type VentureRanks,
+} from './ventures';
+import {
   CONSUMABLE_MAP,
   ConsumableId,
   SUPPLY_MAX,
@@ -282,8 +300,12 @@ export interface ProfileData {
   story: Record<string, string>;
   /** Chosen finale, null until the Spire falls. */
   ending: EndingId | null;
+  /** Operator role identity. */
+  role: RoleId | null;
   /** Seeded rotating market stock and price drift. */
   market: MarketState;
+  /** Owned businesses/fronts. */
+  ventures: VentureRanks;
   /** Three quick-loadout recipes pointing at stash fits. */
   presets: Array<LoadoutPreset | null>;
 }
@@ -362,7 +384,9 @@ function defaultData(): ProfileData {
     completedContracts: [],
     story: {},
     ending: null,
+    role: null,
     market: { seed: 0, refreshedRun: 0, stock: {} },
+    ventures: { ...EMPTY_VENTURES },
     presets: [null, null, null],
   };
 }
@@ -585,6 +609,10 @@ export class Profile {
         typeof parsed.ending === 'string' && parsed.ending in ENDINGS
           ? (parsed.ending as EndingId)
           : null;
+      const role =
+        typeof parsed.role === 'string' && parsed.role in ROLE_MAP
+          ? (parsed.role as RoleId)
+          : null;
       const rawMarket = parsed.market as Partial<MarketState> | undefined;
       const market: MarketState = {
         seed:
@@ -611,6 +639,16 @@ export class Profile {
         for (const [key, value] of Object.entries(rawStory)) {
           if (typeof value === 'string' && value.length <= 40) story[key] = value;
         }
+      }
+      const ventures: VentureRanks = { ...EMPTY_VENTURES };
+      const rawVentures = parsed.ventures as Partial<VentureRanks> | undefined;
+      for (const key of Object.keys(ventures) as VentureId[]) {
+        const value = rawVentures?.[key];
+        const max = VENTURE_MAP[key]?.maxLevel ?? 0;
+        ventures[key] =
+          typeof value === 'number' && Number.isFinite(value)
+            ? Math.max(0, Math.min(max, Math.floor(value)))
+            : 0;
       }
       const presets: Array<LoadoutPreset | null> = [null, null, null];
       const rawPresets = parsed.presets;
@@ -678,7 +716,9 @@ export class Profile {
         completedContracts,
         story,
         ending,
+        role,
         market,
+        ventures,
         presets,
         supplyType:
           parsed.supplyType && CONSUMABLE_MAP[parsed.supplyType] ? parsed.supplyType : null,
@@ -1232,7 +1272,15 @@ export class Profile {
 
   runMods(): RunMods {
     const strain = humanityStage(this.humanityUsed, this.humanityMax);
-    return computeMods(this.data.cyberware, this.data.perks, this.data.attributes, strain);
+    return applyRoleMods(
+      computeMods(this.data.cyberware, this.data.perks, this.data.attributes, strain),
+      this.data.role,
+    );
+  }
+
+  setRole(role: RoleId | null): void {
+    this.data.role = role;
+    this.save();
   }
 
   get humanityUsed(): number {
@@ -1292,7 +1340,14 @@ export class Profile {
     const base = WEAPON_ECONOMY[weapon].price;
     return Math.max(
       1,
-      Math.round(base * (1 - repDiscount(this.rep('market'))) * (1 + this.priceDrift(key))),
+      Math.round(
+        base *
+          (1 - repDiscount(this.rep('market'))) *
+          (1 - roleMarketDiscount(this.data.role)) *
+          (1 - ventureMarketDiscount(this.data.ventures)) *
+          (1 - ventureCourierDiscount(this.data.ventures)) *
+          (1 + this.priceDrift(key)),
+      ),
     );
   }
 
@@ -1301,14 +1356,28 @@ export class Profile {
     const def = NAMED_MAP[id];
     return Math.max(
       1,
-      Math.round(def.price * (1 - repDiscount(this.rep('market'))) * (1 + this.priceDrift(key))),
+      Math.round(
+        def.price *
+          (1 - repDiscount(this.rep('market'))) *
+          (1 - roleMarketDiscount(this.data.role)) *
+          (1 - ventureMarketDiscount(this.data.ventures)) *
+          (1 - ventureCourierDiscount(this.data.ventures)) *
+          (1 + this.priceDrift(key)),
+      ),
     );
   }
 
   ammoPrice(item: StashItem): number {
     const pack = AMMO_PACKS[item.weapon as GunId];
     if (!pack) return 0;
-    return Math.max(1, Math.round(pack.cost * (1 - repDiscount(this.rep('market')))));
+    return Math.max(
+      1,
+      Math.round(
+        pack.cost *
+          (1 - repDiscount(this.rep('market'))) *
+          (1 - roleMarketDiscount(this.data.role)),
+      ),
+    );
   }
 
   discountFor(faction: FactionId): number {
@@ -1324,7 +1393,13 @@ export class Profile {
     if (base <= 0) return 0;
     return Math.max(
       1,
-      Math.round(base * (1 - this.discountFor('helix')) * (1 - this.data.perks.technophile * 0.08)),
+      Math.round(
+        base *
+          (1 - this.discountFor('helix')) *
+          (1 - this.data.perks.technophile * 0.08) *
+          (1 - roleClinicDiscount(this.data.role)) *
+          (1 - ventureClinicDiscount(this.data.ventures)),
+      ),
     );
   }
 
@@ -1337,6 +1412,9 @@ export class Profile {
       Math.round(
         def.cost *
           (1 - this.discountFor('market')) *
+          (1 - roleMarketDiscount(this.data.role)) *
+          (1 - ventureMarketDiscount(this.data.ventures)) *
+          (1 - ventureCourierDiscount(this.data.ventures)) *
           (1 - this.data.perks.gunsmith * 0.1) *
           (1 + this.priceDrift(stockKey('attachment', id))),
       ),
@@ -1352,9 +1430,24 @@ export class Profile {
       Math.round(
         def.cost *
           (1 - this.discountFor('market')) *
+          (1 - roleSupplyDiscount(this.data.role)) *
+          (1 - ventureClinicDiscount(this.data.ventures)) *
           (1 + this.priceDrift(stockKey('supply', id))),
       ),
     );
+  }
+
+  buyVenture(id: VentureId): string | null {
+    const def = VENTURE_MAP[id];
+    if (!def) return 'UNKNOWN VENTURE';
+    const rank = this.data.ventures[id] ?? 0;
+    if (rank >= def.maxLevel) return 'MAX LEVEL';
+    const cost = ventureCost(def, rank);
+    if (this.data.money < cost) return 'NOT ENOUGH CREDITS';
+    this.data.money -= cost;
+    this.data.ventures[id] = rank + 1;
+    this.save();
+    return null;
   }
 
   spendAttribute(id: keyof Attributes): string | null {

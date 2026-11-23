@@ -21,11 +21,11 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~277 kB | 300 kB |
+| App JS | ~284 kB | 300 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~818 kB | 860 kB |
-| CSS | ~48 kB | 60 kB |
-| Initial gzip (JS + CSS + HTML) | ~231 kB | 250 kB |
+| Total JS | ~825 kB | 860 kB |
+| CSS | ~50 kB | 60 kB |
+| Initial gzip (JS + CSS + HTML) | ~233 kB | 250 kB |
 | Largest single chunk | ~344 kB | 360 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
@@ -64,7 +64,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 83 unit tests + build + budget)
+- `npm run verify` (typecheck + 88 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`

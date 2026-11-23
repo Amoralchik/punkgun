@@ -8,6 +8,15 @@ import { MODIFIER_MAP } from '../game/modifiers';
 import { BOSSES } from '../game/bosses';
 import { chapterProgress } from '../game/campaign';
 import { ENDINGS } from '../game/endings';
+import { ROLES, ROLE_MAP, type RoleId } from '../game/roles';
+import {
+  VENTURES,
+  VENTURE_MAP,
+  ventureCost,
+  ventureIncome,
+  venturePayMult,
+  type VentureId,
+} from '../game/ventures';
 import {
   CYBERWARE_DEFS,
   CyberwareId,
@@ -83,6 +92,7 @@ export class Safehouse {
   private readonly augMsgEl = document.getElementById('aug-msg')!;
   private readonly augCloseEl = document.getElementById('aug-close')!;
   private readonly workbenchBtn = document.getElementById('sh-workbench')!;
+  private readonly venturesBtn = document.getElementById('sh-ventures')!;
   private readonly contractsEl = document.getElementById('sh-contracts')!;
   private readonly contractDetailEl = document.getElementById('sh-contract-detail')!;
   private readonly deployEl = document.getElementById('sh-deploy') as HTMLButtonElement;
@@ -130,7 +140,8 @@ export class Safehouse {
     | 'supplies'
     | 'archive'
     | 'fabricator'
-    | 'operator' = 'contracts';
+    | 'operator'
+    | 'ventures' = 'contracts';
   private stationOnly = false;
   private archiveId: string | null = null;
 
@@ -213,6 +224,20 @@ export class Safehouse {
     this.root.classList.add('hidden');
     this.stationOnly = false;
     this.stationView = 'deploy';
+    this.stationMode = true;
+    this.stationRoot.classList.remove('hidden');
+    this.render();
+    this.stationPanel.scrollTop = 0;
+  }
+
+  openVentures(): void {
+    this.message = '';
+    this.messageError = false;
+    this.augRoot.classList.add('hidden');
+    this.workbench.hide();
+    this.root.classList.add('hidden');
+    this.stationOnly = false;
+    this.stationView = 'ventures';
     this.stationMode = true;
     this.stationRoot.classList.remove('hidden');
     this.render();
@@ -531,6 +556,7 @@ export class Safehouse {
       archive: { kicker: '// THE ARCHIVE', title: t('station.title.archive') },
       fabricator: { kicker: '// FABRICATOR', title: t('station.title.fabricator') },
       operator: { kicker: '// OPERATOR', title: t('station.title.operator') },
+      ventures: { kicker: '// STREET BUSINESS', title: 'VENTURES' },
     } as const;
     const { kicker, title } = meta[this.stationView];
     this.stationKickerEl.textContent = kicker;
@@ -742,6 +768,16 @@ export class Safehouse {
         .map((id) => `${BOSSES[id].name.split(' ')[0]} ${data.bossesCleared[id] ? '✓' : '×'}`)
         .join(' · ');
       const ending = data.ending ? ENDINGS[data.ending] : null;
+      const roleRows = ROLES.map((role) => {
+        const active = data.role === role.id;
+        return `<button class="op-role${active ? ' selected' : ''}" style="--role:${role.color}"
+          data-act="role" data-id="${role.id}">
+          <span class="op-role-code">${role.code}</span>
+          <b>${role.name}</b>
+          <small>${role.blurb}</small>
+          <span class="op-role-state">${active ? 'ACTIVE' : 'SELECT'}</span>
+        </button>`;
+      }).join('');
       const presetRows = data.presets
         .map((preset, index) => {
           const label = preset
@@ -784,6 +820,8 @@ export class Safehouse {
             <div class="kicker">// STANDING</div>
             <h2>FACTIONS</h2>
             <div class="op-reps">${repRows}</div>
+            <h2>OPERATOR ROLE</h2>
+            <div class="op-roles">${roleRows}</div>
             <h2>PROGRESS</h2>
             <div class="op-progress">
               <span>CHAPTER <b>${chapterName}</b></span>
@@ -810,6 +848,45 @@ export class Safehouse {
               <button type="button" data-act="import-save">IMPORT SAVE</button>
             </div>
             <p class="sh-note">Export a validated v2 JSON snapshot, or import a v1/v2 save. Import replaces current progress.</p>
+          </section>
+        </div>`;
+    } else if (this.stationView === 'ventures') {
+      const ranks = this.profile.data.ventures;
+      const income = ventureIncome(ranks);
+      const pay = Math.round((venturePayMult(ranks) - 1) * 100);
+      const cards = VENTURES.map((venture) => {
+        const rank = ranks[venture.id] ?? 0;
+        const maxed = rank >= venture.maxLevel;
+        const cost = maxed ? 0 : ventureCost(venture, rank);
+        return `<div class="venture-card${maxed ? ' maxed' : ''}" style="--venture:${venture.color}">
+          <div class="venture-top">
+            <span>${venture.name}</span>
+            <b>${rank}/${venture.maxLevel}</b>
+          </div>
+          <small>${venture.tagline}</small>
+          <p>${venture.desc}</p>
+          <div class="venture-effect">${venture.effect}</div>
+          <button data-act="venture" data-id="${venture.id}" ${maxed ? 'disabled' : ''}>${
+            maxed ? 'MAX LEVEL' : `INVEST $${cost}`
+          }</button>
+        </div>`;
+      }).join('');
+      this.stationBodyEl.innerHTML = `
+        <div class="station-grid">
+          <section class="station-col">
+            <div class="kicker">// STREET BUSINESS</div>
+            <h2>FRONTS &amp; INCOME</h2>
+            <div class="venture-grid">${cards}</div>
+          </section>
+          <section class="station-col">
+            <div class="kicker">// LEDGER</div>
+            <h2>MONTHLY TAKE</h2>
+            <div class="op-progress">
+              <span>PASSIVE PER CLEAR <b>$${income}</b></span>
+              <span>CONTRACT BONUS <b>+${pay}%</b></span>
+            </div>
+            <p class="sh-note">Businesses pay after every clean extraction. Upgrades compound through three ranks.</p>
+            <p class="sh-note">Bars move faction standing. Clinics cut prices. Chop shops feed the fabricator.</p>
           </section>
         </div>`;
     } else if (this.stationView === 'market') {
@@ -999,6 +1076,26 @@ export class Safehouse {
         this.hooks.onClick();
         this.openWorkbench();
         return;
+      case 'open-ventures':
+        this.hooks.onClick();
+        this.openVentures();
+        return;
+      case 'venture': {
+        const id = target.dataset.id as VentureId | undefined;
+        if (!id || !VENTURE_MAP[id]) return;
+        const error = this.profile.buyVenture(id);
+        if (error) {
+          this.message = error;
+          this.messageError = true;
+          this.hooks.onError();
+        } else {
+          this.message = `${VENTURE_MAP[id].name} UPGRADED`;
+          this.messageError = false;
+          this.hooks.onClick();
+        }
+        this.render();
+        return;
+      }
       case 'close-panel':
         this.hooks.onClick();
         this.hooks.onClose();
@@ -1072,6 +1169,16 @@ export class Safehouse {
         error = this.profile.equip(id);
         success = 'LOADOUT UPDATED';
         break;
+      }
+      case 'role': {
+        const id = target.dataset.id as RoleId | undefined;
+        if (!id || !ROLE_MAP[id]) return;
+        this.profile.setRole(id);
+        this.message = `ROLE: ${ROLE_MAP[id].name}`;
+        this.messageError = false;
+        this.hooks.onClick();
+        this.render();
+        return;
       }
       case 'preset-save': {
         const index = Number(target.dataset.index);

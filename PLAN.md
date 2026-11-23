@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 83 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 88 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -22,6 +22,8 @@ working checklist.
 | Bosses | 1 | **4** | optional boss-rush/NG+ variants |
 | Guns / named | 6 / 4 | **12 / 8** | optional more named paths |
 | Cyberware | 10 | **22** | active-ability VFX polish |
+| Operator roles | 0 | **5 roles with distinct economy/combat identity** | role-specific dialogue checks |
+| Ventures | 0 | **6 businesses × 3 ranks** | room visuals and event chains |
 | Perks | 4 | **15** | mutually exclusive capstones |
 | Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
@@ -68,7 +70,7 @@ working checklist.
 2. Continue the split: World player/AI/bullets/doors and Safehouse station views.
 3. Extract remaining station/manual/dialogue strings and add a second locale fixture.
 4. Install Firefox/WebKit binaries and run the Playwright certification harnesses.
-5. Add long-session memory sampling and more consequence payoffs.
+5. Add role-specific dialogue checks, venture room visuals/event chains, long-session memory sampling.
 
 ## Non-goals (unchanged)
 

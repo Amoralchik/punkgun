@@ -281,6 +281,24 @@ async function main() {
     })()`);
     if (!workbench) throw new Error('Workbench station failed to open.');
 
+    const ventures = await cdp.evaluate(`(() => {
+      document.getElementById('sh-ventures').click();
+      const open = !document.getElementById('overlay-station').classList.contains('hidden')
+        && document.getElementById('station-body').textContent.includes('NOODLE STAND');
+      document.querySelector('[data-act="close-station"]')?.click();
+      return open;
+    })()`);
+    if (!ventures) throw new Error('Ventures station failed to render.');
+
+    const role = await cdp.evaluate(`(() => {
+      window.__game.safehouse.openStation('operator');
+      document.querySelector('[data-act="role"][data-id="solo"]')?.click();
+      const value = window.__game.profile.data.role;
+      document.querySelector('[data-act="close-station"]')?.click();
+      return value;
+    })()`);
+    if (role !== 'solo') throw new Error(`Role selection failed: ${role}`);
+
     const armed = await cdp.evaluate(`(() => {
       const g = window.__game;
       g.profile.data.money = 999;
@@ -319,6 +337,8 @@ async function main() {
           paused: true,
           returned: hub.state,
           workbench: true,
+          ventures: true,
+          role,
           newGame: fresh,
           screenshot: join(OUT, 'smoke.png'),
         },
