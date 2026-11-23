@@ -31,6 +31,7 @@ describe('run settlement', () => {
         { kind: 'chip', collected: false },
       ],
       player: { weapon: 'smg', ammo: 6, clip: 18, attachment: null, variant: null },
+      boons: [],
     } as unknown as World;
 
     const beforeMoney = profile.data.money;
@@ -46,5 +47,34 @@ describe('run settlement', () => {
     expect(profile.data.reputation[contract.faction]).toBe(1);
     expect(profile.data.contraband.shard).toBe(1);
     expect(profile.data.stash.some((item) => item.weapon === 'smg')).toBe(true);
+  });
+});
+
+describe('dialogue boons in settlement', () => {
+  it('adds the fixer bonus and salvage components', () => {
+    const profile = new Profile(2, new MemoryStorage());
+    const contract = rollContracts(3, 123)[0];
+    const world = {
+      time: 60,
+      shotsFired: 0,
+      shotsHit: 0,
+      peakHeat: 0,
+      stealthKills: 0,
+      aliveEnemies: 0,
+      kills: 0,
+      loot: [],
+      player: { weapon: 'fists', ammo: 0, clip: 0, attachment: null, variant: null },
+      boons: ['pay', 'components'],
+    } as unknown as World;
+    const beforeComponents = Object.values(profile.data.components).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+    const { reward } = settleRun(profile, world, contract, 'standard');
+    expect(reward.boonBonus).toBeGreaterThan(0);
+    expect(reward.payout).toBe(reward.base + reward.bonus + reward.rankBonus + reward.boonBonus!);
+    expect(
+      Object.values(profile.data.components).reduce((sum, value) => sum + value, 0),
+    ).toBe(beforeComponents + 3);
   });
 });

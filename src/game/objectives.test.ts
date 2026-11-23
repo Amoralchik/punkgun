@@ -89,6 +89,17 @@ describe('mission objectives', () => {
     expect(world.defenseT).toBeGreaterThanOrEqual(45);
   });
 
+  it('applies dialogue boons to the run', () => {
+    const world = makeWorld({
+      objective: 'purge',
+      requiredLoot: 0,
+      boons: ['armor', 'quiet'],
+    });
+    expect(world.player.maxArmor).toBe(1);
+    expect(world.player.armor).toBe(1);
+    expect(world.modifierVision).toBeCloseTo(0.85);
+  });
+
   it('spawns each boss archetype in a reachable arena tile', () => {
     for (const id of ['psycho', 'grin', 'crane', 'board'] as const) {
       const layoutId = BOSSES[id].layoutId;

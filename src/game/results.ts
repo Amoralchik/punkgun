@@ -24,6 +24,8 @@ export interface RewardSummary {
   perkPoints: number;
   rank: string;
   rankBonus: number;
+  /** Dialogue/fixer bonus folded into payout. */
+  boonBonus?: number;
   accuracy: number | null;
   stealthKills: number;
   peakHeat: number;
@@ -62,7 +64,8 @@ export function deathResult(input: DeathResultInput): ResultText {
 }
 
 export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
-  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
+  const boonLine = (r.boonBonus ?? 0) > 0 ? `\nFIXER BONUS   $${r.boonBonus}` : '';
+  const stats = `CONTRACT      ${r.contractTitle}\nCONTRACT PAY  $${r.base}\nTIME BONUS    $${r.bonus}\nRANK          ${r.rank}  +$${r.rankBonus}${boonLine}\nBANKED        $${r.payout}\nXP GAIN       +${r.xpGain}`;
   const ex = r.extracted;
   const extracted = ex
     ? `${ex.variant ? NAMED_MAP[ex.variant].name : WEAPONS[ex.weapon].name} · ${

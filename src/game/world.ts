@@ -11,6 +11,7 @@ import { APPROACH_MAP, ApproachId } from './attributes';
 import { ModifierId } from './modifiers';
 import { ENEMY_TRAITS, pickEnemyKind, rollEnemyLoadout } from './enemy-data';
 import { BOSSES, BossId } from './bosses';
+import type { RunBoon } from './boons';
 import {
   addBlood as emitBlood,
   addCasing as emitCasing,
@@ -107,6 +108,7 @@ export class World {
   hackMultiplier = 1;
   readonly mission: MissionSpec;
   readonly bossId: BossId | null;
+  readonly boons: RunBoon[];
   private readonly mods: RunMods;
   private approachVision = 1;
   hitstop = 0;
@@ -136,6 +138,7 @@ export class World {
     this.mission = mission;
     this.mods = mods;
     this.bossId = mission.bossId ?? null;
+    this.boons = mission.boons ?? [];
     this.rand = mulberry32(seed);
     this.pathfinder = new Pathfinder(level.w, level.h);
 
@@ -319,7 +322,16 @@ export class World {
       });
     }
     this.applyModifiers(mission.modifiers ?? []);
+    this.applyBoons();
     this.setupObjectives();
+  }
+
+  private applyBoons(): void {
+    if (this.boons.includes('armor')) {
+      this.player.armor++;
+      this.player.maxArmor++;
+    }
+    if (this.boons.includes('quiet')) this.modifierVision *= 0.85;
   }
 
   private findBossSpawn(level: Level): { x: number; y: number } {

@@ -1,5 +1,9 @@
 import type { LayoutId } from './map';
 import type { EndingId } from './endings';
+import type { AttributeId, Attributes } from './attributes';
+import type { RunBoon } from './boons';
+import type { Contract } from './missions';
+import type { Reputation } from './reputation';
 
 export type FactionId = 'helix' | 'teeth' | 'orbit' | 'sublevel' | 'market';
 
@@ -294,11 +298,159 @@ export function handlerLine(faction: FactionId, seed = 0): string {
 }
 
 
-export type SpeakerId = 'MOTH' | 'KESTREL';
+export type SpeakerId = 'MOTH' | 'KESTREL' | 'GRIN' | 'CUTTER' | 'VESPER';
+
+export type DialogueCheck =
+  | { kind: 'attribute'; attribute: AttributeId; value: number }
+  | { kind: 'reputation'; faction: FactionId; value: number };
+
+export interface DialogueChoice {
+  id: string;
+  label: string;
+  check?: DialogueCheck;
+  boon?: RunBoon;
+  reply?: string;
+}
 
 export interface DialogueLine {
   speaker: SpeakerId;
   text: string;
+  choices?: DialogueChoice[];
+}
+
+export function dialogueCheckLabel(check: DialogueCheck): string {
+  if (check.kind === 'attribute') {
+    return `${check.attribute.toUpperCase()} ${check.value}`;
+  }
+  return `${FACTIONS[check.faction].name} ${check.value} REP`;
+}
+
+export function dialogueCheckMet(
+  check: DialogueCheck | undefined,
+  attributes: Attributes,
+  reputation: Reputation,
+): boolean {
+  if (!check) return true;
+  if (check.kind === 'attribute') return attributes[check.attribute] >= check.value;
+  return (reputation[check.faction] ?? 0) >= check.value;
+}
+
+export interface FactionStoryline {
+  title: string;
+  kicker: string;
+  contact: SpeakerId;
+  beats: string[];
+}
+
+/** Four street arcs plus the Sublevel through-line, mapped onto campaign chapters. */
+export const FACTION_STORYLINES: Record<FactionId, FactionStoryline> = {
+  helix: {
+    title: 'THE LEDGER',
+    kicker: 'HELIX DYNAMICS',
+    contact: 'KESTREL',
+    beats: [
+      'The first ledger entry is a hab-block eviction with a body count filed as maintenance. Helix wants it gone before the audit.',
+      'The second entry is a Sublevel transfer order. Your name is on it twice. KESTREL laughs once and stops.',
+      'The third entry is the board resolution that created PUNKGUN. It is signed in your handwriting.',
+    ],
+  },
+  teeth: {
+    title: 'PORCELAIN',
+    kicker: 'THE CHROME TEETH',
+    contact: 'GRIN',
+    beats: [
+      'The Teeth pay rent in favors. GRIN wants the first floor to remember who owns the water.',
+      'A porcelain courier is carrying the second half of the ledger through the tenements. He bites.',
+      'GRIN stops smiling when you mention the Sublevel. That is the first honest thing he has done.',
+    ],
+  },
+  orbit: {
+    title: 'MANIFEST',
+    kicker: 'LOW ORBIT',
+    contact: 'CUTTER',
+    beats: [
+      'The manifest says machine parts. The manifest is warm. CUTTER wants the discrepancy to disappear.',
+      'A crane operator saw the container open. Low Orbit wants him to forget, or to stop being able to.',
+      'The last manifest points at the Spire freight lift. CUTTER says the syndicate is done being a delivery service.',
+    ],
+  },
+  sublevel: {
+    title: 'SUBJECT 06',
+    kicker: 'HELIX BLACK SITE',
+    contact: 'MOTH',
+    beats: [
+      'The Sublevel is still awake. It has been awake since before you had a name.',
+      'Subject 06 remembers the same handler protocol you do. That is not a coincidence.',
+      'The arena floor is a file folder. The board kept every version of you on paper.',
+    ],
+  },
+  market: {
+    title: 'NO RECEIPTS',
+    kicker: 'NIGHT MARKET',
+    contact: 'VESPER',
+    beats: [
+      'No receipts, no refunds, no witnesses. VESPER wants a quiet hand on three of the market contracts.',
+      'The second buyer is Helix. The third buyer is Helix pretending to be someone else.',
+      'VESPER offers you a way out that does not require a body count. You both know it is a test.',
+    ],
+  },
+};
+
+export function authoredDialogue(contract: Contract): DialogueLine[] {
+  const story = FACTION_STORYLINES[contract.faction] ?? FACTION_STORYLINES.market;
+  const chapterIndex =
+    typeof contract.chapter === 'number' ? Math.min(2, Math.max(0, contract.chapter - 1)) : 0;
+  const beat = story.beats[chapterIndex] ?? story.beats[0];
+  const attribute: AttributeId =
+    contract.faction === 'teeth'
+      ? 'body'
+      : contract.faction === 'orbit'
+        ? 'cool'
+        : contract.faction === 'market'
+          ? 'tech'
+          : 'tech';
+  return [
+    {
+      speaker: story.contact,
+      text: beat,
+    },
+    {
+      speaker: 'MOTH',
+      text: `${contract.tagline} The payout is real. The method is yours.`,
+    },
+    {
+      speaker: 'MOTH',
+      text: 'Pick the angle. I will keep the channel open.',
+      choices: [
+        {
+          id: 'attribute',
+          label: `Use the ${attribute} route`,
+          check: { kind: 'attribute', attribute, value: 4 },
+          boon: 'quiet',
+          reply: 'Clean access. The sector will be quieter than it has any right to be.',
+        },
+        {
+          id: 'faction',
+          label: 'Call in the faction favor',
+          check: { kind: 'reputation', faction: contract.faction, value: 5 },
+          boon: 'pay',
+          reply: 'The fixer moves a number. Your cut grows before you step out the door.',
+        },
+        {
+          id: 'armor',
+          label: 'Bring the heavy plates',
+          boon: 'armor',
+          reply: 'Two plates, no questions. Walk it off if you can.',
+        },
+        {
+          id: 'components',
+          label: 'Claim the salvage upfront',
+          boon: 'components',
+          reply: 'Three components are already in the bag. Do not lose the bag.',
+        },
+      ],
+    },
+  ];
 }
 
 /** Pre-boss briefing. MOTH and Kestrel, before the Sublevel deployment. */

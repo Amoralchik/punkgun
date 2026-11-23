@@ -211,11 +211,24 @@ async function main() {
       g.startRun(contract.id, 'standard');
       return { title: contract.title, objective: contract.objective };
     })()`);
+    // Authored contracts open a dialogue with attribute/reputation choices.
+    for (let i = 0; i < 20; i++) {
+      const snapshot = await cdp.evaluate(
+        `(() => ({ dialogue: !!window.__game.dialogueOpen, state: window.__game.state }))()`,
+      );
+      if (!snapshot.dialogue || snapshot.state === 'playing') break;
+      await cdp.evaluate(`(() => {
+        const choice = document.querySelector('.dialogue-choice:not([disabled])');
+        if (choice) { choice.click(); return; }
+        document.querySelector('[data-act="dialogue-next"]')?.click();
+      })()`);
+      await sleep(120);
+    }
     const playing = await (async () => {
       const startedAt = Date.now();
       while (Date.now() - startedAt < 30000) {
         const state = await cdp.evaluate(
-          `(() => { const g = window.__game; return { state: g.state, time: g.world?.time ?? 0, objective: g.world?.objectiveText?.() ?? '', nodes: g.world?.objectives?.length ?? 0, hud: !document.getElementById('hud').classList.contains('off') }; })()`,
+          `(() => { const g = window.__game; return { state: g.state, time: g.world?.time ?? 0, objective: g.world?.objectiveText?.() ?? '', nodes: g.world?.objectives?.length ?? 0, boons: g.world?.boons ?? [], hud: !document.getElementById('hud').classList.contains('off') }; })()`,
         );
         if (state.state === 'playing' && state.time > 0.05) return state;
         await sleep(150);
@@ -262,7 +275,7 @@ async function main() {
           boot: true,
           contracts: boot.contracts.length,
           started,
-          playing: { time: Number(playing.time.toFixed(2)), objective: playing.objective, nodes: playing.nodes },
+          playing: { time: Number(playing.time.toFixed(2)), objective: playing.objective, nodes: playing.nodes, boons: playing.boons },
           memory: { heapMb: Number(heapMb.toFixed(1)), nodes: metric('Nodes') },
           paused: true,
           returned: hub.state,

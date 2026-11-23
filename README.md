@@ -37,7 +37,7 @@ The production build is an installable PWA with a service-worker app shell and o
 - One-hit combat, armor plates, Second Heart, 22 cyberware implants, 15 perks, neural-load/cyberpsychosis risk
 - 12 firearm families, 8 named variants, attachments, crafting, loadout presets
 - Safehouse stations: contracts, market, supplies, workbench, clinic, fabricator, archive, operator, deploy
-- 12 contract modifiers, 8 objectives (purge, target, recover, sabotage, extraction, hunt, defense, boss), insertion approaches, faction reputation, seeded market stock and price drift
+- 12 contract modifiers, 8 objectives (purge, target, recover, sabotage, extraction, hunt, defense, boss), faction storylines with attribute/reputation dialogue checks and run boons, insertion approaches, faction reputation, seeded market stock and price drift
 - Four bosses across three campaign chapters plus a branching three-ending finale
 - Stealth takedowns, body discovery, enemy vision cones, alert propagation
 - Hazards: explosive barrels, security cameras, turrets, laser grids
@@ -47,7 +47,7 @@ The production build is an installable PWA with a service-worker app shell and o
 
 ## Tests
 
-`npm test` runs the Vitest suite (68 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run smoke` exercises the production shell and one live deployment.
+`npm test` runs the Vitest suite (72 tests). Coverage includes save migration/recovery, market stock/drift, economy, inventory, seeding, campaign gates, dialogue checks/boons, objectives, bosses, progression/humanity, modifiers, effects, combat helpers, hazards, and run settlement. `npm run smoke` exercises the production shell, authored dialogue choice, and one live deployment.
 
 ## Status
 

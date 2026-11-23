@@ -2766,6 +2766,46 @@ body.no-scanlines #scanlines {
   letter-spacing: 0.06em;
   color: rgba(223, 252, 255, 0.72);
 }
+.dialogue-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 14px;
+}
+.dialogue-choices:empty {
+  display: none;
+}
+.dialogue-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  background: rgba(94, 241, 255, 0.035);
+  border: 1px solid rgba(94, 241, 255, 0.22);
+  color: var(--paper);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+.dialogue-choice:hover:not(:disabled),
+.dialogue-choice:focus-visible {
+  background: rgba(94, 241, 255, 0.1);
+  border-color: var(--cyan);
+  outline: none;
+}
+.dialogue-choice:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.dialogue-choice small {
+  color: var(--amber);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+}
 .dialogue-foot {
   display: flex;
   align-items: center;

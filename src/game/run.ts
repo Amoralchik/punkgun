@@ -1,4 +1,5 @@
 import type { ApproachId } from './attributes';
+import type { RunBoon } from './boons';
 import type { Contract } from './missions';
 import type { RunLoadout } from './profile';
 
@@ -8,4 +9,5 @@ export interface RunConfig {
   approach: ApproachId;
   seed: number;
   loadout: RunLoadout;
+  boons: RunBoon[];
 }

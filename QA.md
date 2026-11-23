@@ -30,7 +30,7 @@ changes.
 
 - no fatal overlay, canvas present, hub visible;
 - board has at least three contracts and save export is v2;
-- deploy a non-boss contract, simulation advances, HUD objective renders;
+- deploy a non-boss contract, authored dialogue choice, simulation advance, HUD objective render;
 - Escape opens the pause overlay and resume returns to play;
 - return to safehouse restores the hub;
 - no page exceptions or console errors along the path;
@@ -58,6 +58,8 @@ types.
 - [ ] Archive unlocks dossiers and ending files.
 
 ### Contract / combat
+- [ ] Authored contracts open faction dialogue; attribute/reputation choices show READY/LOCKED and apply boons.
+- [ ] PAY, ARMOR, QUIET and COMPONENTS boons show in the brief and affect settlement/vision/plates.
 - [ ] Purge, target, recover, sabotage, extraction, hunt, defense all complete.
 - [ ] Sabotage terminals and extraction case are visible and interactable.
 - [ ] Defense timer only advances inside the marked zone; waves spawn.

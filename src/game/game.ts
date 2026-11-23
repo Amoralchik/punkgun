@@ -11,8 +11,9 @@ import { CONSUMABLE_MAP } from './consumables';
 import { Contract, objectiveText } from './missions';
 import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
-import { BOSS_DIALOGUE, DialogueLine, FACTIONS, handlerLine } from './lore';
+import { BOSS_DIALOGUE, DialogueLine, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine } from './lore';
 import { ENDING_ORDER, ENDINGS, type EndingId } from './endings';
+import { BOONS, type RunBoon } from './boons';
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
 import { xpForNext } from './progression';
@@ -48,10 +49,12 @@ export class Game {
   private readonly briefObjective = document.getElementById('brief-objective')!;
   private readonly briefHandler = document.getElementById('brief-handler')!;
   private readonly dialogueRoot = document.getElementById('overlay-dialogue')!;
+  private readonly dialogueKickerEl = document.getElementById('dialogue-kicker')!;
   private readonly dialogueSpeakerEl = document.getElementById('dialogue-speaker')!;
   private readonly dialogueTextEl = document.getElementById('dialogue-text')!;
   private readonly dialogueProgressEl = document.getElementById('dialogue-progress')!;
   private readonly dialogueNextEl = document.getElementById('dialogue-next') as HTMLButtonElement;
+  private readonly dialogueChoicesEl = document.getElementById('dialogue-choices')!;
   private readonly endingRoot = document.getElementById('overlay-ending')!;
   private readonly endingOptions = document.getElementById('ending-options')!;
   private readonly abandonBtn = document.querySelector<HTMLButtonElement>(
@@ -89,7 +92,12 @@ export class Game {
   private overlayShown = false;
   private briefT = 0;
   private currentApproach: ApproachId = 'standard';
-  private pendingRun: { contract: Contract; approachId: ApproachId } | null = null;
+  private pendingRun: {
+    contract: Contract;
+    approachId: ApproachId;
+    boons: RunBoon[];
+  } | null = null;
+  private currentBoons: RunBoon[] = [];
   private dialogueOpen = false;
   private dialogueLines: DialogueLine[] = [];
   private dialogueIndex = 0;
@@ -254,6 +262,7 @@ export class Game {
         approach,
         modifiers: contract.modifiers,
         bossId: contract.bossId,
+        boons: config.boons,
       },
       this.profile.runMods(),
       seed,
@@ -277,9 +286,11 @@ export class Game {
     }
 
     this.dialogueRoot.addEventListener('click', (ev) => {
-      const act = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      const target = (ev.target as HTMLElement).closest<HTMLElement>('[data-act], [data-choice]');
+      const act = target?.dataset.act;
       if (act === 'dialogue-next') this.advanceDialogue();
       else if (act === 'dialogue-cancel') this.cancelDialogue();
+      else if (target?.dataset.choice) this.chooseDialogue(target.dataset.choice);
     });
     this.endingRoot.addEventListener('click', (ev) => {
       const id = (ev.target as HTMLElement).closest<HTMLElement>('[data-ending]')?.dataset
@@ -315,9 +326,16 @@ export class Game {
         return;
       }
       if (this.dialogueOpen) {
+        const choiceIndex = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
         if (e.code === 'Escape') {
           e.preventDefault();
           this.cancelDialogue();
+        } else if (choiceIndex >= 0) {
+          const choice = this.dialogueLines[this.dialogueIndex]?.choices?.[choiceIndex];
+          if (choice) {
+            e.preventDefault();
+            this.chooseDialogue(choice.id);
+          }
         } else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') {
           e.preventDefault();
           this.advanceDialogue();
@@ -512,7 +530,7 @@ export class Game {
     if (!contract || contract.locked) return;
     this.audio.unlock();
     if (contract.objective === 'boss') {
-      this.pendingRun = { contract, approachId };
+      this.pendingRun = { contract, approachId, boons: [] };
       const boss = contract.bossId ? BOSSES[contract.bossId] : null;
       this.dialogueLines =
         contract.bossId === 'psycho' || !boss
@@ -535,6 +553,18 @@ export class Game {
               },
             ];
       this.dialogueIndex = 0;
+      this.dialogueKickerEl.textContent = `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`;
+      this.dialogueOpen = true;
+      this.dialogueRoot.classList.remove('hidden');
+      this.renderDialogue();
+      this.input.endFrame();
+      return;
+    }
+    if (contract.authored) {
+      this.pendingRun = { contract, approachId, boons: [] };
+      this.dialogueLines = authoredDialogue(contract);
+      this.dialogueIndex = 0;
+      this.dialogueKickerEl.textContent = `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`;
       this.dialogueOpen = true;
       this.dialogueRoot.classList.remove('hidden');
       this.renderDialogue();
@@ -544,30 +574,57 @@ export class Game {
     this.commitRun(contract, approachId);
   }
 
-  private commitRun(contract: Contract, approachId: ApproachId): void {
+  private commitRun(
+    contract: Contract,
+    approachId: ApproachId,
+    boons: RunBoon[] = [],
+  ): void {
     this.currentContract = contract;
     this.currentApproach = approachId;
+    this.currentBoons = boons;
     this.audio.unlock();
     const loadout = this.profile.beginRun();
     this.startedWithWeapon = loadout.weapon !== 'fists';
-    this.beginMission({ contract, approach: approachId, seed: contract.seed, loadout });
+    this.beginMission({ contract, approach: approachId, seed: contract.seed, loadout, boons });
   }
 
   private renderDialogue(): void {
     const line = this.dialogueLines[this.dialogueIndex];
     if (!line) return;
     this.dialogueSpeakerEl.textContent = line.speaker;
-    this.dialogueSpeakerEl.style.color = line.speaker === 'MOTH' ? 'var(--cyan)' : 'var(--magenta)';
+    this.dialogueSpeakerEl.style.color =
+      line.speaker === 'MOTH' ? 'var(--cyan)' : 'var(--magenta)';
     this.dialogueTextEl.textContent = line.text;
     this.dialogueProgressEl.textContent = `${this.dialogueIndex + 1} / ${this.dialogueLines.length}`;
+    const hasChoices = (line.choices?.length ?? 0) > 0;
+    this.dialogueNextEl.style.display = hasChoices ? 'none' : '';
     this.dialogueNextEl.textContent =
       this.dialogueIndex === this.dialogueLines.length - 1 ? 'DEPLOY' : 'CONTINUE';
+    this.dialogueChoicesEl.innerHTML = hasChoices
+      ? line.choices!
+          .map((choice) => {
+            const met = dialogueCheckMet(
+              choice.check,
+              this.profile.data.attributes,
+              this.profile.data.reputation,
+            );
+            const checkLabel = choice.check
+              ? `<small>${dialogueCheckLabel(choice.check)}${met ? ' · READY' : ' · LOCKED'}</small>`
+              : '';
+            return `<button class="dialogue-choice" data-choice="${choice.id}" ${
+              met ? '' : 'disabled'
+            }><span>${choice.label}</span>${checkLabel}</button>`;
+          })
+          .join('')
+      : '';
     this.hud.logLine(`${line.speaker}: ${line.text}`);
     this.hud.subtitle(`${line.speaker}: ${line.text}`, 4200);
   }
 
   private advanceDialogue(): void {
     if (!this.dialogueOpen) return;
+    const line = this.dialogueLines[this.dialogueIndex];
+    if (line?.choices?.length) return;
     this.audio.uiClick();
     if (this.dialogueIndex < this.dialogueLines.length - 1) {
       this.dialogueIndex++;
@@ -576,7 +633,37 @@ export class Game {
     }
     const pending = this.pendingRun;
     this.closeDialogue();
-    if (pending) this.commitRun(pending.contract, pending.approachId);
+    if (pending) this.commitRun(pending.contract, pending.approachId, pending.boons);
+  }
+
+  private chooseDialogue(choiceId: string): void {
+    if (!this.dialogueOpen || !this.pendingRun) return;
+    const line = this.dialogueLines[this.dialogueIndex];
+    const choice = line?.choices?.find((entry) => entry.id === choiceId);
+    if (!choice) return;
+    if (
+      !dialogueCheckMet(
+        choice.check,
+        this.profile.data.attributes,
+        this.profile.data.reputation,
+      )
+    ) {
+      this.audio.uiError();
+      return;
+    }
+    this.audio.uiClick();
+    if (choice.boon && !this.pendingRun.boons.includes(choice.boon)) {
+      this.pendingRun.boons.push(choice.boon);
+      this.hud.logLine(`BOON: ${BOONS[choice.boon].label} — ${BOONS[choice.boon].desc}`);
+    }
+    if (choice.reply) {
+      this.dialogueLines.splice(this.dialogueIndex + 1, 0, {
+        speaker: line!.speaker,
+        text: choice.reply,
+      });
+    }
+    this.dialogueIndex++;
+    this.renderDialogue();
   }
 
   private closeDialogue(): void {
@@ -598,7 +685,13 @@ export class Game {
     this.audio.unlock();
     const loadout = this.profile.recordAttempt();
     this.startedWithWeapon = false;
-    this.beginMission({ contract, approach: this.currentApproach, seed: contract.seed, loadout });
+    this.beginMission({
+      contract,
+      approach: this.currentApproach,
+      seed: contract.seed,
+      loadout,
+      boons: this.currentBoons,
+    });
   }
 
   private beginMission(config: RunConfig): void {
@@ -645,10 +738,11 @@ export class Game {
     const faction = FACTIONS[contract.faction];
     const approach = APPROACH_MAP[this.currentApproach];
     const mods = contract.modifiers.map((id) => MODIFIER_MAP[id].name).join(' · ');
+    const boons = this.currentBoons.map((id) => BOONS[id].label).join(' · ');
     const seed = seedLabel(contract.seed);
     this.briefKicker.textContent = `// ${contract.risk} RISK · ${contract.layoutName} · ${approach.name}${
       mods ? ` · ${mods}` : ''
-    } · SEED ${seed}`;
+    }${boons ? ` · ${boons}` : ''} · SEED ${seed}`;
     this.briefRoot.dataset.seed = seed;
     this.briefTitle.textContent = contract.title;
     this.briefFaction.textContent = faction.name;
@@ -665,6 +759,7 @@ export class Game {
     this.audio.setBossMode(false);
     this.audio.setFaction('market');
     this.audio.setIntensity(0);
+    this.currentBoons = [];
     this.hud.setHacked(false);
     this.state = 'safehouse';
     this.pauseRoot.classList.add('hidden');

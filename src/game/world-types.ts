@@ -5,6 +5,7 @@ import type { AttachmentId } from './attachments';
 import type { ObjectiveKind } from './missions';
 import type { ModifierId } from './modifiers';
 import type { BossId } from './bosses';
+import type { RunBoon } from './boons';
 import type { PathPoint } from './path';
 import type { NamedWeaponId } from './weapons';
 import type { WeaponId } from './weapons';
@@ -17,6 +18,7 @@ export interface MissionSpec {
   approach?: ApproachId;
   modifiers?: ModifierId[];
   bossId?: BossId;
+  boons?: RunBoon[];
 }
 
 export type ObjectiveNodeKind = 'terminal' | 'case' | 'zone';

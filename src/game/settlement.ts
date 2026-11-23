@@ -42,7 +42,8 @@ export function settleRun(
   score = Math.max(0, Math.min(150, score));
   const rank = score >= 95 ? 'S' : score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';
   const rankBonus = rank === 'S' ? 120 : rank === 'A' ? 60 : rank === 'B' ? 20 : 0;
-  const payout = base + bonus + rankBonus;
+  const boonBonus = world.boons.includes('pay') ? Math.round((base + bonus + rankBonus) * 0.12) : 0;
+  const payout = base + bonus + rankBonus + boonBonus;
 
   let extractionAmmo = player.ammo + player.clip;
   if (player.attachment && player.weapon !== 'bat' && player.weapon !== 'fists') {
@@ -75,6 +76,7 @@ export function settleRun(
 
   const collected = world.loot.filter((item) => item.collected);
   const contrabandValue = profile.addLoot(collected.map((item) => item.kind));
+  if (world.boons.includes('components')) profile.addComponent(3);
 
   const riskXp = contract?.risk === 'HIGH' ? 120 : contract?.risk === 'MED' ? 80 : 50;
   const objectiveXp =
@@ -112,6 +114,7 @@ export function settleRun(
     perkPoints: profile.data.perkPoints,
     rank,
     rankBonus,
+    boonBonus,
     accuracy,
     stealthKills: world.stealthKills,
     peakHeat: world.peakHeat,

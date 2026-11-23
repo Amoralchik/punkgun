@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 68 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 72 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -26,6 +26,7 @@ working checklist.
 | Attributes + checks | 4 | 4 + derived checks | dialogue/skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 4 bosses** | more faction-specific voice |
+| Dialogue | linear boss briefing | **faction beats + choices + attribute/reputation checks + run boons** | branching consequences and more checks |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
 | Endings | 1 | **3** (burn, broadcast, vanish) | branch epilogue scenes |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
@@ -60,16 +61,14 @@ working checklist.
 
 ## Next sequence
 
-1. Add 3 layouts (transit line, arcology atrium, dockside freighter) with one
-   new hazard grammar each.
-2. Add 3 archetypes (netwatch hound, breacher, drone mother) and a combat gym.
-3. Faction storylines + dialogue choices/checks + branching archive entries.
+1. Add 1–2 more layouts (dockside freighter, nightclub) with distinct hazard grammar.
+2. Build a combat gym for the 14 archetypes and tune threat tells/clear rates.
+3. Add branching dialogue consequences, more checks, and archive entries per path.
 4. Split `World` into player/AI/bullets/doors/objectives modules behind the
    existing `World` facade, then repeat for `Safehouse` and `Game`.
-5. Extract user-visible strings to a typed message catalog and add a second
+5. Extract remaining user-visible strings to the typed catalog and add a second
    locale fixture.
-6. Add positional SFX panning, fog volumes, runtime memory sampling, and
-   Firefox/Safari smoke certification.
+6. Add Firefox/Safari smoke certification and long-session memory sampling.
 
 ## Non-goals (unchanged)
 
