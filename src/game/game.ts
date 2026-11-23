@@ -770,51 +770,13 @@ export class Game {
         this.hud.subtitle(t('event.bossPhase'));
         this.hud.logLine('BOSS: plate shattered');
         break;
-      case 'bossWeakHit':
-        this.audio.bossHit();
-        this.audio.explosion();
-        break;
-      case 'stim':
-        this.audio.stim();
-        break;
-      case 'smoke':
-        this.audio.smoke();
-        break;
       case 'flash':
         this.audio.flash();
         this.hud.flashDamage('flash');
         break;
-      case 'fragThrow':
-        this.audio.fragThrow();
-        break;
-      case 'explosion':
-        this.audio.explosion();
-        break;
-      case 'sniperShot':
-        this.audio.sniperShot();
-        break;
-      case 'sandevistan':
-        this.audio.sandevistan();
-        break;
-      case 'camo':
-        this.audio.camo();
-        break;
-      case 'emp':
-      case 'deck':
-        this.audio.emp();
-        break;
-      case 'berserk':
-        this.audio.berserk();
-        break;
-      case 'overclock':
-        this.audio.overclock();
-        break;
       case 'kerenzikov':
         this.audio.kerenzikov();
         this.hud.subtitle(t('event.kerenzikov'));
-        break;
-      case 'camoBreak':
-        this.audio.camoBreak();
         break;
       case 'breachStart':
         if (this.state === 'playing' && e.nodeId !== undefined) {

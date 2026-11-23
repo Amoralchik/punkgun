@@ -90,6 +90,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 - Every non-psycho boss has a distinct three-line briefing with Spanish text.
 - Contract launch, dialogue deferral and deferred commit live in `game/run-launcher.ts`.
 - Audio-only, HUD-only, combat-feedback and death/win events dispatch from dedicated modules; HUD projection, fixed-step advancement, phase transitions, mission/dead/win timing and frame input/render finalization are split out.
+- Audio-only coverage includes loot, doors, pickups, suppressed fire, stims, explosives, sniper fire, cyberware and EMP feedback.
 - Ghost run: zero detections adds the ghost payout line and breaks on any enemy/camera/turret detection.
 - Contract risk scales baseline enemies: +1 on MED, +2 on HIGH, before boss/add modifiers.
   HIGH adds a heavy or stalker tactical unit; extras use separate spawn points.

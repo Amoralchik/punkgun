@@ -87,6 +87,44 @@ export function playWorldEventAudio(event: WorldEvent, audio: AudioEngine): bool
     case 'empty':
       audio.empty();
       return true;
+    case 'bossWeakHit':
+      audio.bossHit();
+      audio.explosion();
+      return true;
+    case 'stim':
+      audio.stim();
+      return true;
+    case 'smoke':
+      audio.smoke();
+      return true;
+    case 'fragThrow':
+      audio.fragThrow();
+      return true;
+    case 'explosion':
+      audio.explosion();
+      return true;
+    case 'sniperShot':
+      audio.sniperShot();
+      return true;
+    case 'sandevistan':
+      audio.sandevistan();
+      return true;
+    case 'camo':
+      audio.camo();
+      return true;
+    case 'emp':
+    case 'deck':
+      audio.emp();
+      return true;
+    case 'berserk':
+      audio.berserk();
+      return true;
+    case 'overclock':
+      audio.overclock();
+      return true;
+    case 'camoBreak':
+      audio.camoBreak();
+      return true;
     case 'dash':
       audio.dash();
       return true;
