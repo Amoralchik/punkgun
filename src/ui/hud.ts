@@ -60,6 +60,8 @@ export class Hud {
   private readonly timeEl = document.getElementById('hud-time')!;
   private readonly promptEl = document.getElementById('hud-prompt')!;
   private readonly subtitleEl = document.getElementById('hud-subtitle')!;
+  private readonly monologueEl = document.getElementById('hud-monologue')!;
+  private monologueTimer: number | null = null;
   private readonly tipEl = document.getElementById('hud-tip')!;
   private readonly logEl = document.getElementById('hud-log')!;
   private readonly approachEl = document.getElementById('hud-approach')!;
@@ -321,6 +323,19 @@ export class Hud {
     this.subtitleTimer = window.setTimeout(() => {
       this.subtitleEl.classList.remove('on');
       this.subtitleTimer = null;
+    }, holdMs);
+  }
+
+  /** The operative's inner voice: a fading italic line, kept in the log too. */
+  monologue(text: string, holdMs = 4200): void {
+    this.logLine(`— ${text}`);
+    if (!this.subtitlesEnabled) return;
+    this.monologueEl.textContent = text;
+    this.monologueEl.classList.add('on');
+    if (this.monologueTimer !== null) window.clearTimeout(this.monologueTimer);
+    this.monologueTimer = window.setTimeout(() => {
+      this.monologueEl.classList.remove('on');
+      this.monologueTimer = null;
     }, holdMs);
   }
 

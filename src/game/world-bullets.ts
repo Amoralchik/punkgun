@@ -159,6 +159,8 @@ export function updateBullets(host: BulletHost, dt: number, enemyScale = 1): voi
               if ((e.kind === 'heavy' || e.kind === 'breacher') && e.armor > 0) {
                 if (b.ownerKind === 'player') host.shotsHit++;
                 host.damageHeavy(e, from);
+                // Steadied shot finds the seam: a second plate goes.
+                if (b.precise && e.armor > 0) host.damageHeavy(e, from);
                 hit = true;
                 break;
               }

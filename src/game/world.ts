@@ -3,6 +3,19 @@ import { angleDelta, clamp, dist, mulberry32, randomSeed, turnToward } from '../
 import { Level, TILE, isWall, tileCenter, worldToTile } from './map';
 import { offsetSpawn, pickSpawnPoints } from './level-spawns';
 import {
+  bark,
+  barkForEvent,
+  createBarkState,
+  tickBarks,
+  type BarkState,
+} from './world-barks';
+import {
+  advanceSearch,
+  predictLostPosition,
+  recordSighting,
+  type SearchHost,
+} from './world-search';
+import {
   panicCivilians,
   spawnCivilians,
   updateCivilians,
@@ -195,6 +208,9 @@ export class World {
   private readonly objectivePressureHost: ObjectivePressureHost;
   private readonly missionHost: MissionCompletionHost;
   private nextId = 1;
+  /** Enemy callouts currently on screen (read by the renderer). */
+  readonly barkState: BarkState = createBarkState();
+  private readonly searchHost: SearchHost;
 
   constructor(
     readonly level: Level,
@@ -212,6 +228,12 @@ export class World {
     mods: RunMods = baseMods(),
     readonly seed: number = randomSeed(),
   ) {
+    // Single event funnel: enemy callouts react to what the world reports.
+    const out = emit;
+    this.emit = (event: WorldEvent) => {
+      barkForEvent(this.barkState, this.enemies, event, this.player, this.rand);
+      out(event);
+    };
     this.mission = mission;
     this.setpiece = mission.setpiece ?? null;
     this.mods = mods;
@@ -356,6 +378,12 @@ export class World {
     };
 
     const world = this;
+    this.searchHost = {
+      level,
+      enemies: this.enemies,
+      rand: () => this.rand(),
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+    };
     this.civilianHost = {
       level,
       player: this.player,
@@ -744,6 +772,7 @@ export class World {
       e.lastSeenY = this.level.exit.y;
       e.searchT = 4;
       this.exitGuardIds.add(e.id);
+      if (i === 0) bark(this.barkState, e, 'exitHold', this.rand, true);
     });
     assignSquads(this.enemies);
     this.emit({ type: 'siren', x: this.level.exit.x, y: this.level.exit.y, angle: 0 });
@@ -1246,6 +1275,7 @@ export class World {
       }
     }
 
+    tickBarks(this.barkState, dt);
     this.shake = Math.max(0, this.shake - dt * 2.4);
     this.heat = Math.max(0, this.heat - dt * 1.4);
     this.quickhackFxT = Math.max(0, this.quickhackFxT - dt);
@@ -2223,10 +2253,22 @@ export class World {
       noticeCorpse(this.perceptionHost, e);
       const sees = this.player.alive && canSee(this.perceptionHost, e);
       if (e.kind === 'netrunner' && !sees) e.hackT = 0;
+      // Woken by noise rather than sight: say so.
+      if (e.prevState === 'idle' && e.state === 'chase' && !sees) {
+        bark(this.barkState, e, 'heard', this.rand);
+      }
+      e.prevState = e.state;
       if (sees) {
-        e.lastSeenX = this.player.x;
-        e.lastSeenY = this.player.y;
+        recordSighting(e, this.player.x, this.player.y, this.player.vx, this.player.vy);
         e.searchT = 10;
+        e.sawLast = true;
+        e.searchLookT = undefined;
+      } else if (e.sawLast && e.state === 'chase') {
+        // Contact just broke: chase where they were heading, not where they were.
+        e.sawLast = false;
+        predictLostPosition(this.searchHost, e);
+        e.path = [];
+        e.pathT = 0;
       }
 
       if (e.state === 'idle') {
@@ -2293,7 +2335,11 @@ export class World {
         e.angle = turnToward(e.angle, aim, dt * (e.kind === 'shield' ? 3.2 : 11));
       }
 
-      if (runSquadMovement(this.squadHost, e, dt)) continue;
+      const flankBefore = e.flankT;
+      if (runSquadMovement(this.squadHost, e, dt)) {
+        if (flankBefore <= 0 && e.flankT > 1) bark(this.barkState, e, 'flanking', this.rand);
+        continue;
+      }
 
       if (runBossCharge(this.bossHost, e, dt, sees, dToPlayer)) continue;
 
@@ -2396,6 +2442,7 @@ export class World {
         this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * (e.kind === 'stalker' ? 1.7 : 1.5), dt);
         if (dToPlayer < 62 && e.meleeCd <= 0) this.enemyPunch(e);
       } else {
+        if (!sees && this.runSearchBeat(e, dt)) continue;
         // Close the distance, through doors if needed.
         if (e.pathT <= 0 || e.path.length === 0) {
           const from = worldToTile(e.x, e.y, this.level.h);
@@ -2426,11 +2473,7 @@ export class World {
             );
             e.markT = Math.max(e.markT, 0.2);
           }
-          if (e.searchT <= 0) {
-            e.state = 'idle';
-            e.baseAngle = e.angle;
-            e.scanT = 0.4 + this.rand() * 1.2;
-          }
+          if (e.searchT <= 0) this.endSearch(e);
         }
       }
 
@@ -2440,6 +2483,63 @@ export class World {
     }
 
     this.separateEnemies();
+  }
+
+  /**
+   * Arrival at a search target: pause, sweep the flashlight across the room,
+   * call it, then move to the next unclaimed room. Returns true while the
+   * searcher is busy looking (no pathing this frame).
+   */
+  private runSearchBeat(e: Enemy, dt: number): boolean {
+    if (e.kind === 'boss') return false;
+    if (dist(e.x, e.y, e.lastSeenX, e.lastSeenY) > 36 && e.searchLookT === undefined) return false;
+    if (e.searchLookT === undefined) {
+      e.searchLookT = 0.9 + this.rand() * 0.5;
+      e.baseAngle = e.angle;
+    }
+    e.vx = 0;
+    e.vy = 0;
+    e.searchLookT -= dt;
+    e.searchT -= dt;
+    // Flashlight sweep: left, right, back.
+    const phase = 1 - e.searchLookT / 1.2;
+    e.angle = turnToward(e.angle, e.baseAngle + Math.sin(phase * Math.PI * 2) * 1.1, dt * 5);
+    if (e.searchT <= 0) {
+      this.endSearch(e);
+      return true;
+    }
+    if (e.searchLookT > 0) return true;
+    e.searchLookT = undefined;
+    const firstMiss = e.searchLeg !== 'sweep';
+    if (firstMiss) {
+      e.searchT = Math.max(e.searchT, 12);
+      e.searchOriginX = e.lastSeenX;
+      e.searchOriginY = e.lastSeenY;
+      e.searchVisited = [];
+    }
+    const next = advanceSearch(this.searchHost, e);
+    bark(this.barkState, e, firstMiss ? 'lost' : 'clear', this.rand);
+    if (!next) {
+      this.endSearch(e);
+      return true;
+    }
+    e.path = [];
+    e.pathT = 0;
+    return false;
+  }
+
+  private endSearch(e: Enemy): void {
+    if (e.state === 'chase' && e.searchLeg === 'sweep' && this.rand() < 0.6) {
+      bark(this.barkState, e, 'giveUp', this.rand);
+    }
+    e.state = 'idle';
+    e.prevState = 'idle';
+    e.baseAngle = e.angle;
+    e.scanT = 0.4 + this.rand() * 1.2;
+    e.searchLeg = undefined;
+    e.searchRoom = undefined;
+    e.searchLookT = undefined;
+    e.searchVisited = [];
   }
 
   private enemyPickupWeapon(e: Enemy): void {

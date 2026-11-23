@@ -172,6 +172,44 @@ working checklist.
 - Budget: app JS cap revised 450 -> 475 KB (456.8 KB now).
 - Verification: 309 unit tests, verify + budget, Chrome smoke PASS.
 
+## Sound pings, precise shots, inner monologue (2026-11-23)
+
+- `render/pings.ts`: unseen enemies leak noise through the darkness —
+  footsteps within 440px as faint grey rings (louder/faster when closer),
+  gunfire as a wide red ring, a guard going hot as an amber ring. Static
+  rings under reduced motion.
+- Precise shot: a round fired at full steadiness cracks two armor plates;
+  the laser dot locks white when it is ready.
+- `game/narration.ts`: the operative's inner voice on ten run beats
+  (insertion, first kill, plate lost, last stand, stealth kill, body found,
+  case secured, exit open, overtime, civilian down), English + Spanish,
+  12s cooldown (urgent beats cut through), no repeats per run. Shown as a
+  boxless italic line under the subtitles and kept in the log.
+- Verification: 314 unit tests, verify + budget (app JS 462/475 KB), smoke PASS.
+
+## AI search + barks, flashlights, wet neon (2026-11-23)
+
+- `world-search.ts`: on losing contact a chaser first tracks where the
+  player was heading (last position + 0.9s of last velocity, only through
+  open space), then sweeps: each searcher claims a different nearby room,
+  pauses on arrival for a flashlight sweep, calls it, moves on; the window
+  extends to 12s on the first miss, then they stand down. Drones/hounds/
+  netrunners keep their archetype loops (drones still never stand down —
+  pre-existing).
+- `world-barks.ts` + `render/bark-labels.ts`: callouts (CONTACT, WHAT WAS
+  THAT?, MAN DOWN, FRAG OUT, FLANKING, LOST HIM, CLEAR, BACK TO POST,
+  PLATE'S GONE, HOLD THE EXIT) driven from one event funnel in World plus
+  search/flank/exit-guard hooks; per-enemy 3.5s and global 0.45s
+  cooldowns, max 3 on screen, en+es. Unseen speakers show bracketed and
+  dimmed ("heard through the wall").
+- Vision cones are now flashlight beams: additive, vertex-alpha falloff
+  from the guard, brighter alerted and on blackout floors; hidden guards
+  keep a dimmed beam.
+- Baked neon signage casts colored floor light; in rain districts every
+  sizeable light source gets a long vertical wet-floor reflection streak.
+- Verification: 318 unit tests, verify + budget (app JS 469.7/475 KB —
+  near cap), smoke PASS x2 after one flaky gamepad-focus failure.
+
 ## Non-goals (unchanged)
 
 Multiplayer, open world, mobile/console-first controls, full voice acting,

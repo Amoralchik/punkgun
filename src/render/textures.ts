@@ -763,6 +763,8 @@ export class TextureBank {
   readonly grate: THREE.Texture;
   readonly holo: THREE.Texture[];
   private readonly mapCache = new Map<string, THREE.Texture>();
+  /** World-space neon signs baked into each level (they also cast light). */
+  readonly signLights = new Map<string, { x: number; y: number; color: string }[]>();
 
   constructor() {
     this.playerWalk = [0, 1, 2, 3].map((f) => texture(this.buildBody('player', 0, f), true));
@@ -1735,6 +1737,8 @@ export class TextureBank {
       }
     }
 
+    const signs: { x: number; y: number; color: string }[] = [];
+    this.signLights.set(level.id, signs);
     // Rooftop dressing on wall caps (solid tiles only, so nothing walkable
     // ever looks blocked): AC units, pipe runs, signage boxes.
     const theme = district.theme;
@@ -1786,6 +1790,7 @@ export class TextureBank {
           // signage box: a lit panel with glyph bars in the district neon
           const col = palette[Math.floor(rnd() * palette.length)];
           const sw = theme === 'corporate' ? 34 : 26;
+          signs.push({ x: x + 14 + sw / 2, y: h * TILE - (y + 18), color: col });
           ctx.fillStyle = '#0b0f16';
           ctx.fillRect(x + 14, y + 10, sw, 16);
           ctx.shadowColor = col;

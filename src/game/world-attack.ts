@@ -92,6 +92,7 @@ export function playerAttack(host: PlayerAttackHost): void {
     (attachment?.cooldownMult ?? 1) *
     (p.overclockT > 0 ? 0.65 : 1);
   p.flashT = 0.06;
+  const precise = (p.steady ?? 0) >= 0.95;
   // Recoil knocks the aim off a little; follow-ups must re-steady.
   p.steady = Math.max(0, (p.steady ?? 0) - 0.22);
   const variantSpread = p.variant ? NAMED_MAP[p.variant].spreadMult : 1;
@@ -126,6 +127,7 @@ export function playerAttack(host: PlayerAttackHost): void {
       ownerId: p.id,
       ownerKind: 'player',
       pierce: def.pierce + host.mods.pierce + (attachment?.pierceBonus ?? 0),
+      precise,
     });
   }
 

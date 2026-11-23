@@ -170,6 +170,18 @@ export interface Enemy {
   stunT: number;
   /** Visible stagger from a armor/shield hit: frozen and executable. */
   staggerT?: number;
+  /** Lost-contact search (world-search.ts). */
+  lostVX?: number;
+  lostVY?: number;
+  searchOriginX?: number;
+  searchOriginY?: number;
+  searchVisited?: number[];
+  searchLeg?: 'track' | 'sweep';
+  searchRoom?: number;
+  searchLookT?: number;
+  sawLast?: boolean;
+  /** State at the start of last update, for transition barks. */
+  prevState?: EnemyState;
   shieldT: number;
   speedMult: number;
   visionMult: number;
@@ -216,6 +228,8 @@ export interface Bullet {
   attack?: string;
   /** Remaining enemies this round can pass through. */
   pierce: number;
+  /** Fired fully steadied: cracks two armor plates instead of one. */
+  precise?: boolean;
 }
 
 export interface Pickup {

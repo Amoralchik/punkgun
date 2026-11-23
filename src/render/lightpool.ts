@@ -9,10 +9,13 @@ export interface LightSpec {
   intensity: number;
   /** 0 = steady, otherwise sin-pulse amplitude relative to intensity. */
   pulse?: number;
+  /** Non-uniform footprint (reflection streaks); defaults to size x size. */
+  sx?: number;
+  sy?: number;
 }
 
 const QUAD = new THREE.PlaneGeometry(1, 1);
-const MAX_STATIC = 64;
+const MAX_STATIC = 160;
 const MAX_FLASH = 80;
 
 interface StaticSlot {
@@ -88,7 +91,7 @@ export class LightPool {
       slot.spec = specs[i];
       slot.mesh.visible = true;
       slot.mesh.position.set(specs[i].x, specs[i].y, 0.06);
-      slot.mesh.scale.set(specs[i].size, specs[i].size, 1);
+      slot.mesh.scale.set(specs[i].sx ?? specs[i].size, specs[i].sy ?? specs[i].size, 1);
       slot.mat.color.setHex(specs[i].color);
       slot.mat.opacity = specs[i].intensity;
     }

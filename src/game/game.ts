@@ -37,6 +37,7 @@ import type { RewardSummary } from './results';
 import { buildResult } from './result-flow';
 import { playWorldEventAudio } from './world-event-audio';
 import { WorldEventHud } from './world-event-hud';
+import { Narrator, beatForEvent, type NarrationBeat } from './narration';
 import { CombatEventFeedback } from './combat-event-feedback';
 import { RunStateEvents } from './run-state-events';
 import { BossEventFeedback } from './boss-event-feedback';
@@ -98,6 +99,8 @@ export class Game {
   private overlayT = 0;
   private overlayShown = false;
   private briefT = 0;
+  private narrator: Narrator | null = null;
+  private insertionPending = false;
   private currentApproach: ApproachId = 'standard';
   private currentChallenge: ChallengeId = 'standard';
   private currentBoons: RunBoon[] = [];
@@ -623,6 +626,8 @@ export class Game {
     );
     this.hud.logLine(`MOTH: ${line}`);
     this.briefT = 1.5;
+    this.narrator = new Narrator(contract.seed ^ this.profile.data.runs);
+    this.insertionPending = true;
   }
 
   private returnToSafehouse(): void {
@@ -673,8 +678,20 @@ export class Game {
     this.screenTransition.classList.add('active');
   }
 
+  private narrate(beat: NarrationBeat): void {
+    const line = this.narrator?.line(beat, this.settings.data.locale);
+    if (line) this.hud.monologue(line);
+  }
+
   private onEvent(e: WorldEvent): void {
     this.fieldTips.observe(e);
+    if (this.state === 'playing' && this.world) {
+      const beat = beatForEvent(e.type, {
+        kills: this.world.kills,
+        armor: this.world.player.armor,
+      });
+      if (beat) this.narrate(beat);
+    }
     if (this.state === 'playing' || this.state === 'dead' || this.state === 'win') {
       const screen = this.renderer.worldToScreen(e.x, e.y);
       this.audio.setSfxPan(
@@ -824,6 +841,11 @@ export class Game {
 
     if (this.state === 'playing') {
       this.fieldTips.tick(this.world, dt, this.briefT <= 0);
+      this.narrator?.tick(dt);
+      if (this.insertionPending && this.briefT <= 0) {
+        this.insertionPending = false;
+        this.narrate('insertion');
+      }
     }
 
     if (this.state !== 'safehouse') {

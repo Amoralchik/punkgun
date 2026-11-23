@@ -4,7 +4,10 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { LightPool, type LightSpec } from './lightpool';
+import { districtFor } from '../game/districts';
 import { SightMask } from './sight';
+import { SoundPings } from './pings';
+import { BarkLabels } from './bark-labels';
 import { FilmPass } from './film-pass';
 import { TextureBank } from './textures';
 import { WeatherField, weatherForLevel } from './weather';
@@ -54,6 +57,10 @@ interface UnitView {
   spawnT: number;
   /** 0..1 fade for line-of-sight hiding. */
   seenK: number;
+  /** Footstep ping cadence and last-known state for sound pings. */
+  pingT: number;
+  lastState: string;
+  flashPinged: boolean;
 }
 
 interface WeaponVisual {
@@ -162,6 +169,8 @@ export class Renderer {
   private bloomScale = 1;
   private conesVisible = true;
   private readonly sight = new SightMask();
+  private readonly pings = new SoundPings();
+  private readonly barkLabels = new BarkLabels();
   private laserLine!: THREE.Mesh;
   private laserDot!: THREE.Mesh;
   private laserLineMat!: THREE.MeshBasicMaterial;
@@ -196,6 +205,8 @@ export class Renderer {
     this.lights = new LightPool(this.textures.dot);
     this.scene.add(this.lights.group);
     this.scene.add(this.sight.mesh);
+    this.scene.add(this.pings.group);
+    this.scene.add(this.barkLabels.group);
     this.buildCombatAids();
     this.buildPools();
     this.slashMat = new THREE.MeshBasicMaterial({
@@ -528,6 +539,8 @@ export class Renderer {
     this.camX = world.player.x;
     this.camY = world.player.y;
     this.updateCamera(world, 1, true);
+    this.pings.clear();
+    this.barkLabels.clear();
     this.lights.clear();
     this.lights.setStatics(this.buildLightSpecs(world));
   }
@@ -564,6 +577,29 @@ export class Renderer {
       push(n.x, n.y, n.kind === 'zone' ? n.radius * 1.5 : 130, color, 0.2, 0.3);
     }
     if (level.boss) push(level.boss.x, level.boss.y, 290, this.palette.amber, 0.25, 0.3);
+    // Baked neon signage spills colour onto the street below it.
+    const signs = this.textures.signLights.get(level.id) ?? [];
+    for (const sign of signs) {
+      push(sign.x, sign.y - 30, 120, new THREE.Color(sign.color).getHex(), 0.13, 0.12);
+    }
+    // Wet streets: every coloured source smears a long vertical reflection.
+    if (level.id !== 'safehouse' && districtFor(level.id).weather === 'rain') {
+      const sources = specs.length;
+      for (let i = 0; i < sources; i++) {
+        const src = specs[i];
+        if (src.size < 90) continue;
+        specs.push({
+          x: src.x,
+          y: src.y - src.size * 0.5,
+          size: src.size,
+          sx: src.size * 0.16,
+          sy: src.size * 1.25,
+          color: src.color,
+          intensity: src.intensity * 0.55,
+          pulse: src.pulse,
+        });
+      }
+    }
     return specs;
   }
 
@@ -703,14 +739,22 @@ export class Renderer {
         'position',
         new THREE.BufferAttribute(new Float32Array((CONE_SEGMENTS + 2) * 3), 3),
       );
+      // Flashlight falloff: bright at the guard, fading to nothing at the
+      // edge of their sight range.
+      const colors = new Float32Array((CONE_SEGMENTS + 2) * 4);
+      colors.set([1, 1, 1, 1], 0);
+      for (let i = 1; i < CONE_SEGMENTS + 2; i++) colors.set([1, 1, 1, 0], i * 4);
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 4));
       const indices: number[] = [];
       for (let i = 0; i < CONE_SEGMENTS; i++) indices.push(0, i + 1, i + 2);
       geo.setIndex(indices);
       visionMat = new THREE.MeshBasicMaterial({
         color: 0x5ef1ff,
+        vertexColors: true,
         transparent: true,
-        opacity: 0.02,
+        opacity: 0.14,
         depthWrite: false,
+        blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
       });
       vision = new THREE.Mesh(geo, visionMat);
@@ -749,6 +793,9 @@ export class Renderer {
       weaponSwapT: 0,
       deathT: 0,
       seenK: 1,
+      pingT: 0,
+      lastState: 'idle',
+      flashPinged: false,
       spawnT: kind === 'enemy' ? 0.4 : 0,
     };
   }
@@ -880,6 +927,13 @@ export class Renderer {
     this.syncCones(world);
     this.syncSightFade(world, dt);
     this.syncCombatAids(world);
+    this.pings.update(dt);
+    this.barkLabels.sync(world.barkState.barks, (id) => {
+      const e = world.enemies.find((en) => en.id === id);
+      if (!e || !e.alive) return null;
+      const view = this.unitViews.get(id);
+      return { x: e.x, y: e.y, seen: (view?.seenK ?? 1) > 0.3 };
+    });
     this.syncDoors(world);
     this.syncGlass(world);
     this.syncSteam(world);
@@ -1232,7 +1286,9 @@ export class Renderer {
       const active = enemy.state === 'alert' || enemy.state === 'chase' || enemy.markT > 0;
       view.vision.visible = true;
       view.visionMat.color.setHex(active ? this.palette.magenta : this.palette.cyan);
-      view.visionMat.opacity = active ? 0.028 : 0.015;
+      const torch = world.setpiece === 'blackoutFloor' ? 1.6 : 1;
+      const hidden = view.seenK < 0.5 ? 0.45 : 1;
+      view.visionMat.opacity = (active ? 0.16 : 0.09) * torch * hidden;
 
       const pos = view.vision.geometry.getAttribute('position') as THREE.BufferAttribute;
       pos.setXYZ(0, 0, 0, 0);
@@ -1257,6 +1313,29 @@ export class Renderer {
    * Telegraphs (laser aims, charge rings, intent chevrons) and muzzle flashes
    * stay on top of the darkness: you hear and see the threat, not the body.
    */
+  /** Noise from an enemy the operative can't see becomes a ring in the dark. */
+  private pingHidden(world: World, e: Enemy, view: UnitView, dt: number): void {
+    const p = world.player;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (e.flashT > 0 && !view.flashPinged) {
+      view.flashPinged = true;
+      this.pings.emit(e.x, e.y, 120, this.palette.red, 0.55, 0.7);
+      return;
+    }
+    if (e.state === 'chase' && view.lastState !== 'chase' && d < 900) {
+      this.pings.emit(e.x, e.y, 90, this.palette.amber, 0.8, 0.6);
+      return;
+    }
+    view.pingT -= dt;
+    const moving = Math.hypot(e.vx, e.vy) > 40;
+    if (moving && d < 440 && view.pingT <= 0) {
+      // Closer footsteps are louder: brighter and more frequent.
+      const near = 1 - d / 440;
+      view.pingT = 0.75 - near * 0.3;
+      this.pings.emit(e.x, e.y, 34 + near * 16, 0xa9c2d6, 0.6, 0.18 + near * 0.32);
+    }
+  }
+
   private syncSightFade(world: World, dt: number): void {
     const allSeen = world.level.id === 'safehouse' || !world.player.alive || world.state !== 'playing';
     const k = Math.min(1, dt * 7);
@@ -1267,7 +1346,11 @@ export class Renderer {
         view.seenK = 1;
         continue;
       }
-      const seen = allSeen || e.flashT > 0 || world.playerSees(e.x, e.y);
+      const inSight = allSeen || world.playerSees(e.x, e.y);
+      const seen = inSight || e.flashT > 0;
+      if (!inSight) this.pingHidden(world, e, view, dt);
+      view.lastState = e.state;
+      if (e.flashT <= 0) view.flashPinged = false;
       view.seenK += ((seen ? 1 : 0) - view.seenK) * (seen ? 1 : k);
       const vis = view.seenK > 0.04;
       const bodyMat = view.body.material as THREE.MeshBasicMaterial;
@@ -1282,7 +1365,6 @@ export class Renderer {
         view.bossRing.visible = false;
         view.weakRing.visible = false;
         view.reloadRing.visible = false;
-        if (view.vision) view.vision.visible = false;
       }
     }
     for (const c of world.civilians) {
@@ -1341,7 +1423,10 @@ export class Renderer {
       this.laserDot.position.set(sx + ca * len, sy + sa * len, 1.86);
       this.laserDot.scale.set(dot, dot, 1);
       this.laserDotMat.opacity = 0.45 + steady * 0.5;
-      this.laserDotMat.color.setHex(onBody ? 0xff6fb0 : 0x9ffcff);
+      // Fully steadied = precise round ready: the dot locks white.
+      const locked = steady >= 0.95;
+      this.laserDotMat.color.setHex(locked ? 0xffffff : onBody ? 0xff6fb0 : 0x9ffcff);
+      if (locked) this.laserDot.scale.setScalar(12 + Math.sin(performance.now() * 0.02) * 1.5);
     }
 
     const t = performance.now() * 0.001;
@@ -1879,6 +1964,7 @@ export class Renderer {
   setReducedMotion(value: boolean): void {
     this.reducedMotion = value;
     this.film.setReducedMotion(value);
+    this.pings.setReducedMotion(value);
   }
 
   setPalette(palette: Palette): void {

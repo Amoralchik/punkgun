@@ -74,4 +74,20 @@ describe('combat weight', () => {
     expect(w.overtimeWaves).toBe(1);
     expect(w.enemies.filter((e) => e.alive).map((e) => e.kind).sort()).toEqual(['rusher', 'stalker']);
   });
+
+  it('a fully steadied round cracks two armor plates', () => {
+    const w = makeWorld();
+    const e = w.enemies[0];
+    e.kind = 'heavy';
+    e.armor = 3;
+    e.maxArmor = 3;
+    e.stunT = 0;
+    w.bullets.push({
+      x: e.x - 30, y: e.y, px: e.x - 30, py: e.y, vx: 1600, vy: 0,
+      life: 1, ownerId: w.player.id, ownerKind: 'player', pierce: 0, precise: true,
+    });
+    w.update(1 / 60, { x: e.x, y: e.y }, false);
+    expect(e.armor).toBe(1);
+    expect(e.alive).toBe(true);
+  });
 });
