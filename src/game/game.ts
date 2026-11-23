@@ -1,7 +1,7 @@
 import { AudioEngine } from '../core/audio';
 import { districtFor } from './districts';
 import type { LifepathId } from './lifepath';
-import { CHALLENGE_MAP, type ChallengeId } from './challenges';
+import type { ChallengeId } from './challenges';
 import { Input } from '../core/input';
 import { Settings } from '../core/settings';
 import { randomSeed, seedLabel } from '../core/math';
@@ -10,6 +10,7 @@ import { resolveKeymap } from '../core/settings';
 import { Hub } from '../ui/hub';
 import { BossIntro } from '../ui/boss-intro';
 import { BossPhaseOverlay } from '../ui/boss-phase';
+import { MissionBrief } from '../ui/mission-brief';
 import { SettingsPanel } from '../ui/settings-panel';
 import { BreachController } from '../ui/breach-controller';
 import { DialogueController } from '../ui/dialogue-controller';
@@ -20,13 +21,13 @@ import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
 import { LayoutId, Level, loadLevel, Station, StationKind } from './map';
 import { CONSUMABLE_MAP } from './consumables';
-import { Contract, objectiveText } from './missions';
+import type { Contract } from './missions';
 import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
 import { DialogueSession } from './dialogue-session';
-import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, handlerLine, localizeDialogue, type DialogueLine } from './lore';
+import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, localizeDialogue, type DialogueLine } from './lore';
 import { availableEndings, type EndingId } from './endings';
-import { BOONS, type RunBoon } from './boons';
+import type { RunBoon } from './boons';
 
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { MODIFIER_MAP } from './modifiers';
@@ -50,17 +51,12 @@ export class Game {
   private readonly audio = new AudioEngine();
   private readonly renderer: Renderer;
   private readonly hud = new Hud();
-  private readonly briefRoot = document.getElementById('overlay-brief')!;
   private readonly approachVignette = document.getElementById('approach-vignette')!;
   private readonly screenTransition = document.getElementById('screen-transition')!;
-  private readonly briefKicker = document.getElementById('brief-kicker')!;
-  private readonly briefTitle = document.getElementById('brief-title')!;
-  private readonly briefFaction = document.getElementById('brief-faction')!;
-  private readonly briefObjective = document.getElementById('brief-objective')!;
-  private readonly briefHandler = document.getElementById('brief-handler')!;
   private readonly hub = new Hub();
   private readonly bossIntro = new BossIntro();
   private readonly bossPhase = new BossPhaseOverlay();
+  private readonly brief = new MissionBrief();
   private readonly settingsPanel = new SettingsPanel(this.settings, () => this.applySettings());
   private readonly breach = new BreachController(this.input, {
     onFinish: (success, nodeId, hazard, reward) =>
@@ -755,25 +751,14 @@ export class Game {
   }
 
   private showBrief(contract: Contract): void {
-    const faction = FACTIONS[contract.faction];
-    const approach = APPROACH_MAP[this.currentApproach];
-    const mods = contract.modifiers.map((id) => MODIFIER_MAP[id].name).join(' · ');
-    const boons = this.currentBoons.map((id) => BOONS[id].label).join(' · ');
-    const seed = seedLabel(contract.seed);
-    const challenge = contract.challenge && contract.challenge !== 'standard'
-      ? CHALLENGE_MAP[contract.challenge].name
-      : '';
-    this.briefKicker.textContent = `// ${contract.risk} RISK · ${contract.layoutName} · ${approach.name}${
-      this.profile.data.ngPlus > 0 ? ` · NG+${this.profile.data.ngPlus}` : ''
-    }${challenge ? ` · ${challenge}` : ''}${mods ? ` · ${mods}` : ''}${boons ? ` · ${boons}` : ''} · SEED ${seed}`;
-    this.briefRoot.dataset.seed = seed;
-    this.briefTitle.textContent = contract.title;
-    this.briefFaction.textContent = faction.name;
-    this.briefFaction.style.color = faction.color;
-    this.briefObjective.textContent = objectiveText(contract);
-    this.briefHandler.textContent = `MOTH: ${handlerLine(contract.faction, contract.title.length, this.settings.data.locale)}`;
-    this.hud.logLine(`MOTH: ${handlerLine(contract.faction, contract.title.length, this.settings.data.locale)}`);
-    this.briefRoot.classList.remove('hidden');
+    const line = this.brief.show(
+      contract,
+      this.currentApproach,
+      this.currentBoons,
+      this.profile.data.ngPlus,
+      this.settings.data.locale,
+    );
+    this.hud.logLine(`MOTH: ${line}`);
     this.briefT = 1.5;
   }
 
@@ -792,7 +777,7 @@ export class Game {
     this.hud.hideResults();
     this.hud.setVisible(false);
     this.hud.exitPointer(0, 0, false);
-    this.briefRoot.classList.add('hidden');
+    this.brief.hide();
     this.briefT = 0;
     this.approachVignette.className = 'approach-vignette';
     document.body.classList.remove('contract-fog', 'contract-blackout', 'finale');
@@ -1240,7 +1225,7 @@ export class Game {
 
     if (this.state === 'playing' && this.briefT > 0) {
       this.briefT = Math.max(0, this.briefT - dt);
-      if (this.briefT === 0) this.briefRoot.classList.add('hidden');
+      if (this.briefT === 0) this.brief.hide();
       this.acc = 0;
       edgesConsumed = true;
     } else if (this.state === 'playing' || this.state === 'dead') {
