@@ -225,7 +225,7 @@ async function main() {
     const started = await cdp.evaluate(`(() => {
       const g = window.__game;
       const contract = g.contracts.find(c => !c.locked && c.objective !== 'boss') ?? g.contracts[0];
-      g.startRun(contract.id, 'standard');
+      g.launcher.start(contract.id, 'standard');
       return { title: contract.title, objective: contract.objective };
     })()`);
     // Authored contracts open a dialogue with attribute/reputation choices.
@@ -451,7 +451,7 @@ async function main() {
       game.returnToSafehouse();
       const contract = game.contracts.find((entry) => entry.bossRush);
       if (!contract) return { found: false };
-      game.startRun(contract.id, 'standard');
+      game.launcher.start(contract.id, 'standard');
       for (let i = 0; i < 12 && game.dialogueOpen; i++) {
         if (game.dialogueSession?.hasChoices) game.chooseDialogue('sublevel-remember');
         else game.advanceDialogue();

@@ -80,7 +80,7 @@ async function main() {
         const contract =
           game.contracts.find((entry) => !entry.locked && entry.objective !== 'boss') ??
           game.contracts[0];
-        game.startRun(contract.id, 'standard');
+        game.launcher.start(contract.id, 'standard');
       });
       for (let i = 0; i < 12; i++) {
         const dialogue = await page.evaluate(() => ({

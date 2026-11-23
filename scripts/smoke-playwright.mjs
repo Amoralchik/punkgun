@@ -75,7 +75,7 @@ async function main() {
       const contract =
         game.contracts.find((entry) => !entry.locked && entry.objective !== 'boss') ??
         game.contracts[0];
-      game.startRun(contract.id, 'standard');
+      game.launcher.start(contract.id, 'standard');
       return { title: contract.title, objective: contract.objective };
     });
     for (let i = 0; i < 20; i++) {

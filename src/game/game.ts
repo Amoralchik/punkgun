@@ -16,6 +16,7 @@ import { BreachController } from '../ui/breach-controller';
 import { DialogueController } from '../ui/dialogue-controller';
 import { EndingController } from '../ui/ending-controller';
 import { PauseController } from '../ui/pause-controller';
+import { RunLauncher } from './run-launcher';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
@@ -67,6 +68,7 @@ export class Game {
   private readonly dialogue: DialogueController;
   private readonly ending: EndingController;
   private readonly pause: PauseController;
+  private readonly launcher: RunLauncher;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
   private contracts: Contract[] = [];
@@ -79,11 +81,6 @@ export class Game {
   private briefT = 0;
   private currentApproach: ApproachId = 'standard';
   private currentChallenge: ChallengeId = 'standard';
-  private pendingRun: {
-    contract: Contract;
-    approachId: ApproachId;
-    challenge: ChallengeId;
-  } | null = null;
   private currentBoons: RunBoon[] = [];
   private lastShotsHit = 0;
   private lastKills = 0;
@@ -115,16 +112,26 @@ export class Game {
       onFinish: () => this.showResultOverlay(),
     });
     this.dialogue = new DialogueController(this.profile, {
-      onDeploy: (boons) => this.deployPending(boons),
+      onDeploy: (boons) => this.launcher.deploy(boons),
       onLog: (text) => this.hud.logLine(text),
       onSubtitle: (text, duration) => this.hud.subtitle(text, duration),
       onClick: () => this.audio.uiClick(),
       onError: () => this.audio.uiError(),
     });
+    this.launcher = new RunLauncher({
+      contracts: () => this.contracts,
+      currentContract: () => this.currentContract,
+      dialogue: this.dialogue,
+      audio: this.audio,
+      profile: this.profile,
+      locale: () => this.settings.data.locale,
+      onCommit: (contract, approach, challenge, boons) =>
+        this.commitRun(contract, approach, boons, challenge),
+    });
     this.recoveryNote = this.profile.recoveryNote();
     this.safehouse = new Safehouse(this.profile, {
       onDeploy: (contractId, approachId, challenge) =>
-        this.startRun(contractId, approachId, challenge),
+        this.launcher.start(contractId, approachId, challenge),
       onClick: () => {
         this.audio.unlock();
         this.audio.uiClick();
@@ -533,43 +540,6 @@ export class Game {
     this.pause.closeTour();
   }
 
-  private startRun(
-    contractId: string,
-    approachId: ApproachId = 'standard',
-    challenge: ChallengeId = 'standard',
-  ): void {
-    const contract = this.contracts.find((c) => c.id === contractId) ?? this.currentContract;
-    if (!contract || contract.locked) return;
-    this.audio.unlock();
-    if (contract.objective === 'boss') {
-      this.pendingRun = { contract, approachId, challenge };
-      this.dialogue.start(
-        localizeDialogue(bossBriefing(contract.bossId), this.settings.data.locale),
-        `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`,
-        contract.faction,
-      );
-      this.input.endFrame();
-      return;
-    }
-    if (contract.authored) {
-      this.pendingRun = { contract, approachId, challenge };
-      this.dialogue.start(
-        authoredDialogue(
-          contract,
-          this.profile.data.story,
-          this.profile.data.role,
-          this.profile.data.lifepath,
-          this.settings.data.locale,
-        ),
-        `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`,
-        contract.faction,
-      );
-      this.input.endFrame();
-      return;
-    }
-    this.commitRun(contract, approachId, [], challenge);
-  }
-
   private finishBreach(
     success: boolean,
     nodeId: number,
@@ -637,16 +607,7 @@ export class Game {
 
   private cancelDialogue(): void {
     this.dialogue.cancel();
-    this.pendingRun = null;
-  }
-
-  private deployPending(boons: RunBoon[]): void {
-    const pending = this.pendingRun;
-    this.pendingRun = null;
-    if (pending) {
-      this.commitRun(pending.contract, pending.approachId, boons, pending.challenge);
-    }
-    this.input.endFrame();
+    this.launcher.cancel();
   }
 
   private quickRetry(): void {
@@ -750,7 +711,7 @@ export class Game {
     this.approachVignette.className = 'approach-vignette';
     document.body.classList.remove('contract-fog', 'contract-blackout', 'finale');
     this.dialogue.close();
-    this.pendingRun = null;
+    this.launcher.cancel();
     this.profile.clearInsurance();
     this.contracts = this.rollBoard();
     this.currentContract = this.contracts[0] ?? null;
