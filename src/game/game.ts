@@ -17,7 +17,7 @@ import { CONSUMABLE_MAP } from './consumables';
 import { Contract, objectiveText } from './missions';
 import { buildBoard } from './campaign';
 import { BOSSES } from './bosses';
-import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine, type DialogueLine } from './lore';
+import { BOSS_DIALOGUE, FACTIONS, authoredDialogue, dialogueCheckLabel, dialogueCheckMet, handlerLine, localizeDialogue, type DialogueLine } from './lore';
 import { DialogueSession } from './dialogue-session';
 import { availableEndings, endingUnlocked, ENDINGS, type EndingId } from './endings';
 import { BOONS, type RunBoon } from './boons';
@@ -695,27 +695,39 @@ export class Game {
     if (contract.objective === 'boss') {
       this.pendingRun = { contract, approachId, challenge };
       const boss = contract.bossId ? BOSSES[contract.bossId] : null;
+      const es = this.settings.data.locale === 'es';
       const dialogueLines: DialogueLine[] =
         contract.bossId === 'psycho' || !boss
           ? BOSS_DIALOGUE
           : [
-              { speaker: 'MOTH', text: `${boss.name}. ${boss.blurb}` },
+              {
+                speaker: 'MOTH',
+                text: es ? `${boss.name}. ${boss.blurbEs}` : `${boss.name}. ${boss.blurb}`,
+              },
               {
                 speaker: 'KESTREL',
-                text:
-                  contract.chapter === 'final'
+                text: es
+                  ? contract.chapter === 'final'
+                    ? '¿Y después del consejo, qué queda?'
+                    : '¿Y la salida?'
+                  : contract.chapter === 'final'
                     ? 'And after the board, what is left?'
                     : 'And the exit?',
               },
               {
                 speaker: 'MOTH',
-                text:
-                  contract.chapter === 'final'
+                text: es
+                  ? contract.chapter === 'final'
+                    ? 'Lo que decidas. La correa termina aquí.'
+                    : 'Hay una salida. Llega. Mantendré las luces encendidas.'
+                  : contract.chapter === 'final'
                     ? 'Whatever you decide. The leash ends here.'
                     : 'There is an exit. Reach it. I will keep the lights on.',
               },
             ];
-      this.dialogueSession = new DialogueSession(dialogueLines);
+      this.dialogueSession = new DialogueSession(
+        localizeDialogue(dialogueLines, this.settings.data.locale),
+      );
       this.dialogueKickerEl.textContent = `// BOSS BRIEFING · ${FACTIONS[contract.faction].name}`;
       this.dialogueOpen = true;
       this.dialogueRoot.classList.remove('hidden');
@@ -731,6 +743,7 @@ export class Game {
           this.profile.data.story,
           this.profile.data.role,
           this.profile.data.lifepath,
+          this.settings.data.locale,
         ),
       );
       this.dialogueKickerEl.textContent = `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`;

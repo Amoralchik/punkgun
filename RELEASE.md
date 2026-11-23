@@ -21,12 +21,12 @@ the manifest/SW URLs.
 
 | Artifact | Current | Budget |
 |---|---:|---:|
-| App JS | ~372 kB | 450 kB |
+| App JS | ~377 kB | 450 kB |
 | Vendor JS | ~541 kB across 3 chunks | 620 kB total |
-| Total JS | ~913 kB | 1120 kB |
+| Total JS | ~918 kB | 1120 kB |
 | CSS | ~63 kB | 90 kB |
-| Initial gzip (JS + CSS + HTML) | ~262 kB | 340 kB |
-| Largest single chunk | ~372 kB | 480 kB |
+| Initial gzip (JS + CSS + HTML) | ~264 kB | 340 kB |
+| Largest single chunk | ~377 kB | 480 kB |
 | Smoke JS heap (headless) | ~9 MB | 160 MB |
 | Worst-case runtime | 60 fps target | 1080p |
 
@@ -65,7 +65,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## QA Checklist
 
-- `npm run verify` (typecheck + 142 unit tests + build + budget)
+- `npm run verify` (typecheck + 144 unit tests + build + budget)
 - `npm run smoke` (Chrome production preview boot/deploy/pause/boss rush/new game)
 - `npm run smoke:edge` (same flow in Edge)
 - `npm run smoke:firefox` / `smoke:webkit` after `npx playwright install firefox webkit`
@@ -88,10 +88,11 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 - Document language is `en`; manifest declares `en`.
 - English and Spanish catalogs cover objectives, station labels/titles, boon copy,
-  HUD events, the full manual and the safehouse tour.
-- Generated station body copy is localized where catalogued; authored dialogue and
-  long-form station prose remain inline. Route those through the catalog before claiming
-  full locale coverage. Do not machine-translate them in place.
+  HUD events, the full manual, the safehouse tour, authored dialogue, boss briefings
+  and dialogue choices.
+- Contract taglines, handler lines and long-form station prose remain inline. Route
+  those through the catalog before claiming full locale coverage. Do not machine-translate
+  them in place.
 
 ## Credits
 

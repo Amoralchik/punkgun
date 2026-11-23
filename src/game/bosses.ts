@@ -11,6 +11,7 @@ export interface BossDef {
   layoutId: LayoutId;
   faction: FactionId;
   blurb: string;
+  blurbEs: string;
   armor: number;
   speedMult: number;
   charge: boolean;
@@ -29,6 +30,7 @@ export const BOSSES: Record<BossId, BossDef> = {
     layoutId: 'sublevel',
     faction: 'sublevel',
     blurb: 'Subject 06. Three plates, a stolen voice, and a hook where a hand should be.',
+    blurbEs: 'Sujeto 06. Tres placas, una voz robada y un gancho donde debería haber una mano.',
     armor: 3,
     speedMult: 0.95,
     charge: true,
@@ -45,6 +47,7 @@ export const BOSSES: Record<BossId, BossDef> = {
     layoutId: 'tenements',
     faction: 'teeth',
     blurb: 'The Teeth landlord. Porcelain veneers, a chrome jaw, and a body count filed as rent.',
+    blurbEs: 'El casero de los Dientes. Carillas de porcelana, mandíbula de cromo y un recuento de cuerpos archivado como alquiler.',
     armor: 4,
     speedMult: 1.12,
     charge: true,
@@ -61,6 +64,7 @@ export const BOSSES: Record<BossId, BossDef> = {
     layoutId: 'docks',
     faction: 'orbit',
     blurb: 'Low Orbit enforcer. Half forklift, half man, fully convinced the manifest is scripture.',
+    blurbEs: 'Ejecutor de Low Orbit. Mitad montacargas, mitad hombre, totalmente convencido de que el manifiesto es sagrado.',
     armor: 4,
     speedMult: 0.9,
     charge: true,
@@ -77,6 +81,7 @@ export const BOSSES: Record<BossId, BossDef> = {
     layoutId: 'neon_alley',
     faction: 'market',
     blurb: 'A rogue netrunner wearing a dead woman’s face. It has been inside the alley since before the district had a name.',
+    blurbEs: 'Una netrunner renegada con la cara de una mujer muerta. Está dentro del callejón desde antes de que el distrito tuviera nombre.',
     armor: 4,
     speedMult: 1.18,
     charge: false,
@@ -93,6 +98,7 @@ export const BOSSES: Record<BossId, BossDef> = {
     layoutId: 'rooftops',
     faction: 'helix',
     blurb: 'A memory broker with a server for a heart. It remembers every version of you and calls them inventory.',
+    blurbEs: 'Un corredor de memorias con un servidor por corazón. Recuerda cada versión de ti y las llama inventario.',
     armor: 5,
     speedMult: 0.86,
     charge: true,
@@ -109,6 +115,7 @@ export const BOSSES: Record<BossId, BossDef> = {
     layoutId: 'spire',
     faction: 'helix',
     blurb: 'The signature at the bottom of Project PUNKGUN. It wears an executive chassis and a committee of voices.',
+    blurbEs: 'La firma al pie del Proyecto PUNKGUN. Viste un chasis ejecutivo y una comitiva de voces.',
     armor: 5,
     speedMult: 1.02,
     charge: true,

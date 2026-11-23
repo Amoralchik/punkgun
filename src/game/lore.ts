@@ -395,16 +395,19 @@ export type DialogueCheck =
 export interface DialogueChoice {
   id: string;
   label: string;
+  labelEs?: string;
   check?: DialogueCheck;
   boon?: RunBoon;
   /** Reputation deltas applied immediately when chosen. */
   reputation?: Partial<Record<FactionId, number>>;
   reply?: string;
+  replyEs?: string;
 }
 
 export interface DialogueLine {
   speaker: SpeakerId;
   text: string;
+  textEs?: string;
   choices?: DialogueChoice[];
 }
 
@@ -492,6 +495,74 @@ export const FACTION_STORYLINES: Record<FactionId, FactionStoryline> = {
   },
 };
 
+export type DialogueLocale = 'en' | 'es';
+
+const FACTION_STORYLINES_ES: Record<FactionId, string[]> = {
+  helix: [
+    'La primera entrada del libro es un desalojo de bloque con un recuento de cuerpos archivado como mantenimiento. Helix quiere que desaparezca antes de la auditoría.',
+    'La segunda entrada es una orden de traslado al Subnivel. Tu nombre aparece dos veces. KESTREL ríe una vez y se detiene.',
+    'La tercera entrada es la resolución del consejo que creó PUNKGUN. Está firmada con tu letra.',
+  ],
+  teeth: [
+    'Los Dientes pagan el alquiler en favores. GRIN quiere que el primer piso recuerde quién controla el agua.',
+    'Un mensajero de porcelana lleva la segunda mitad del libro por los inquilinatos. Muerde.',
+    'GRIN deja de sonreír cuando mencionas el Subnivel. Es lo primero honesto que ha hecho.',
+  ],
+  orbit: [
+    'El manifiesto dice piezas de máquina. El manifiesto está caliente. CUTTER quiere que la discrepancia desaparezca.',
+    'Un operador de grúa vio abrirse el contenedor. Low Orbit quiere que lo olvide, o que deje de poder recordarlo.',
+    'El último manifiesto apunta al montacargas de carga de la Aguja. CUTTER dice que el sindicato ya no es un servicio de reparto.',
+  ],
+  sublevel: [
+    'El Subnivel sigue despierto. Ha estado despierto desde antes de que tuvieras nombre.',
+    'El Sujeto 06 recuerda el mismo protocolo de manejador que tú. No es casualidad.',
+    'El suelo de la arena es una carpeta. El consejo guardó cada versión de ti en papel.',
+  ],
+  market: [
+    'Sin recibos, sin reembolsos, sin testigos. VESPER quiere una mano silenciosa en tres contratos del mercado.',
+    'El segundo comprador es Helix. El tercer comprador es Helix fingiendo ser otro.',
+    'VESPER te ofrece una salida que no exige un recuento de cuerpos. Ambos sabéis que es una prueba.',
+  ],
+};
+
+const ATTRIBUTE_ES: Record<AttributeId, string> = {
+  body: 'CUERPO',
+  reflexes: 'REFLEJOS',
+  cool: 'SANGRE FRÍA',
+  tech: 'TÉCNICA',
+};
+
+const ROLE_DIALOGUE_ES: Record<RoleId, string> = {
+  solo: 'Tomas la línea dura. El bloque respeta una pelea directa.',
+  netrunner: 'Fantasma el mesh local. Las cámaras olvidan tu cara.',
+  techie: 'Desmontas el panel y haces que el edificio mienta por ti.',
+  fixer: 'Llamas al marcador. Otro paga los intereses.',
+  medtech: 'Lees los signos vitales y mantienes viva a la tripulación.',
+};
+
+const LIFEPATH_REPLY_ES: Record<LifepathId, string> = {
+  street: 'El bloque abre una puerta que no abre para extraños.',
+  corp: 'Tu vieja placa todavía abre un ascensor.',
+  nomad: 'El convoy deja un hueco en el horario de patrullas.',
+};
+
+/** Replace optional Spanish dialogue fields; English remains the source. */
+export function localizeDialogue(
+  lines: DialogueLine[],
+  locale: DialogueLocale,
+): DialogueLine[] {
+  if (locale !== 'es') return lines;
+  return lines.map((line) => ({
+    ...line,
+    text: line.textEs ?? line.text,
+    choices: line.choices?.map((choice) => ({
+      ...choice,
+      label: choice.labelEs ?? choice.label,
+      reply: choice.replyEs ?? choice.reply,
+    })),
+  }));
+}
+
 const ROLE_DIALOGUE: Record<RoleId, string> = {
   solo: 'You take the hard line. The block respects a straight fight.',
   netrunner: 'You ghost the local mesh. The cameras forget your face.',
@@ -523,11 +594,15 @@ export function authoredDialogue(
   story: Record<string, string> = {},
   role: RoleId | null = null,
   lifepath: LifepathId | null = null,
+  locale: DialogueLocale = 'en',
 ): DialogueLine[] {
+  const es = locale === 'es';
   const storyline = FACTION_STORYLINES[contract.faction] ?? FACTION_STORYLINES.market;
   const chapterIndex =
     typeof contract.chapter === 'number' ? Math.min(2, Math.max(0, contract.chapter - 1)) : 0;
-  const beat = storyline.beats[chapterIndex] ?? storyline.beats[0];
+  const beat = es
+    ? (FACTION_STORYLINES_ES[contract.faction]?.[chapterIndex] ?? storyline.beats[chapterIndex] ?? storyline.beats[0])
+    : (storyline.beats[chapterIndex] ?? storyline.beats[0]);
   const priorChoice = story[`faction:${contract.faction}`];
   const attribute: AttributeId =
     contract.faction === 'teeth'
@@ -540,7 +615,7 @@ export function authoredDialogue(
   const roleChoice: DialogueChoice | null = role
     ? {
         id: `role-${role}`,
-        label: `ROLE: ${ROLE_MAP[role].name} angle`,
+        label: es ? `ÁNGULO: ${ROLE_MAP[role].name}` : `ROLE: ${ROLE_MAP[role].name} angle`,
         check: { kind: 'role', role },
         boon:
           role === 'netrunner'
@@ -551,17 +626,17 @@ export function authoredDialogue(
                 ? 'pay'
                 : 'armor',
         reputation: { [contract.faction]: 1 },
-        reply: ROLE_DIALOGUE[role],
+        reply: es ? ROLE_DIALOGUE_ES[role] : ROLE_DIALOGUE[role],
       }
     : null;
   const lifepathChoice: DialogueChoice | null = lifepath
     ? {
         id: `path-${lifepath}`,
-        label: `LIFEPATH: ${LIFEPATH_MAP[lifepath].name}`,
+        label: es ? `CAMINO: ${LIFEPATH_MAP[lifepath].name}` : `LIFEPATH: ${LIFEPATH_MAP[lifepath].name}`,
         check: { kind: 'lifepath', lifepath },
         boon: LIFEPATH_BOON[lifepath],
         reputation: { [LIFEPATH_REP[lifepath]]: 1 },
-        reply: LIFEPATH_REPLY[lifepath],
+        reply: es ? LIFEPATH_REPLY_ES[lifepath] : LIFEPATH_REPLY[lifepath],
       }
     : null;
   return [
@@ -571,40 +646,50 @@ export function authoredDialogue(
     },
     {
       speaker: 'MOTH',
-      text: `${contract.tagline} The payout is real. The method is yours.`,
+      text: es
+        ? `${contract.tagline} El pago es real. El método es tuyo.`
+        : `${contract.tagline} The payout is real. The method is yours.`,
     },
     {
       speaker: 'MOTH',
-      text: 'Pick the angle. I will keep the channel open.',
+      text: es ? 'Elige el ángulo. Mantendré el canal abierto.' : 'Pick the angle. I will keep the channel open.',
       choices: [
         {
           id: 'attribute',
-          label: `Use the ${attribute} route`,
+          label: es ? `Usa la ruta de ${ATTRIBUTE_ES[attribute]}` : `Use the ${attribute} route`,
           check: { kind: 'attribute', attribute, value: 4 },
           boon: 'quiet',
           reputation: { [contract.faction]: 1 },
-          reply: 'Clean access. The sector will be quieter than it has any right to be.',
+          reply: es
+            ? 'Acceso limpio. El sector estará más silencioso de lo que debería.'
+            : 'Clean access. The sector will be quieter than it has any right to be.',
         },
         {
           id: 'faction',
-          label: 'Call in the faction favor',
+          label: es ? 'Usa el favor de la facción' : 'Call in the faction favor',
           check: { kind: 'reputation', faction: contract.faction, value: 5 },
           boon: 'pay',
           reputation: { [contract.faction]: 1 },
-          reply: 'The fixer moves a number. Your cut grows before you step out the door.',
+          reply: es
+            ? 'El fixer mueve un número. Tu corte crece antes de salir.'
+            : 'The fixer moves a number. Your cut grows before you step out the door.',
         },
         {
           id: 'armor',
-          label: 'Bring the heavy plates',
+          label: es ? 'Trae las placas pesadas' : 'Bring the heavy plates',
           boon: 'armor',
-          reply: 'Two plates, no questions. Walk it off if you can.',
+          reply: es
+            ? 'Dos placas, sin preguntas. Aguanta si puedes.'
+            : 'Two plates, no questions. Walk it off if you can.',
         },
         {
           id: 'components',
-          label: 'Claim the salvage upfront',
+          label: es ? 'Reclama la chatarra por adelantado' : 'Claim the salvage upfront',
           boon: 'components',
           reputation: { market: 1 },
-          reply: 'Three components are already in the bag. Do not lose the bag.',
+          reply: es
+            ? 'Tres componentes ya están en la bolsa. No la pierdas.'
+            : 'Three components are already in the bag. Do not lose the bag.',
         },
         ...(roleChoice ? [roleChoice] : []),
         ...(lifepathChoice ? [lifepathChoice] : []),
@@ -612,10 +697,14 @@ export function authoredDialogue(
           ? [
               {
                 id: 'leverage',
-                label: `Call in the ${contract.faction} marker`,
+                label: es
+                  ? `Usa la marca de ${contract.faction}`
+                  : `Call in the ${contract.faction} marker`,
                 boon: 'pay' as const,
                 reputation: { [contract.faction]: 1 },
-                reply: 'The marker clears. The faction remembers that you used it.',
+                reply: es
+                  ? 'La marca se limpia. La facción recuerda que la usaste.'
+                  : 'The marker clears. The faction remembers that you used it.',
               },
             ]
           : []),
@@ -629,48 +718,60 @@ export const BOSS_DIALOGUE: DialogueLine[] = [
   {
     speaker: 'MOTH',
     text: 'The Sublevel is awake. It has been awake since the last crew went in.',
+    textEs: 'El Subnivel está despierto. Ha estado despierto desde que entró la última cuadrilla.',
   },
   {
     speaker: 'KESTREL',
     text: 'You said this was a containment job. Clean room, cold floor, no witnesses.',
+    textEs: 'Dijiste que era un trabajo de contención. Sala limpia, suelo frío, sin testigos.',
   },
   {
     speaker: 'MOTH',
     text: 'It was. Before Helix put Subject 06 in the arena and taught it to hunt. It was PUNKGUN before you. The same chassis. A different ghost.',
+    textEs: 'Lo era. Antes de que Helix metiera al Sujeto 06 en la arena y le enseñara a cazar. Era PUNKGUN antes que tú. El mismo chasis. Un fantasma distinto.',
   },
   {
     speaker: 'KESTREL',
     text: 'And the board still signs off on it.',
+    textEs: 'Y el consejo sigue firmándolo.',
   },
   {
     speaker: 'MOTH',
     text: 'The board signs off on everything. That is why the Sublevel matters. Break it, and the tower has to look at what it buried. Break it, and the next contract can go upstairs.',
+    textEs: 'El consejo firma todo. Por eso importa el Subnivel. Rómpelo y la torre tendrá que mirar lo que enterró. Rómpelo y el próximo contrato sube.',
   },
   {
     speaker: 'KESTREL',
     text: 'No extraction. No leash.',
+    textEs: 'Sin extracción. Sin correa.',
   },
   {
     speaker: 'MOTH',
     text: 'No leash. Bring the plates down and come back up. I will keep the lights on.',
+    textEs: 'Sin correa. Baja las placas y vuelve a subir. Mantendré las luces encendidas.',
   },
   {
     speaker: 'MOTH',
     text: 'Before the arena: what do I keep in the file?',
+    textEs: 'Antes de la arena: ¿qué guardo en el expediente?',
     choices: [
       {
         id: 'sublevel-remember',
         label: 'REMEMBER SUBJECT 06',
+        labelEs: 'RECORDAR AL SUJETO 06',
         boon: 'quiet',
         reputation: { sublevel: 1 },
         reply: 'Log it as a person. The arena is still a grave.',
+        replyEs: 'Regístralo como persona. La arena sigue siendo una tumba.',
       },
       {
         id: 'sublevel-erase',
         label: 'ERASE THE FILE',
+        labelEs: 'BORRAR EL EXPEDIENTE',
         boon: 'armor',
         reputation: { helix: 1 },
         reply: 'Log it as a weapon. Helix prefers clean paperwork.',
+        replyEs: 'Regístralo como arma. Helix prefiere el papeleo limpio.',
       },
     ],
   },

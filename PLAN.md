@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 142 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 144 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -43,7 +43,7 @@ working checklist.
 | Browser matrix / QA | manual | **Chrome, Edge, Firefox and WebKit smokes pass** | native Safari remains uncertified |
 | Performance budgets | manual | **enforced budget + smoke heap + `npm run soak`** | longer 30-minute soak |
 | Accessibility | partial | **reduced motion, palettes, subtitles, log, presets, arbitrary key remap, gamepad** | gamepad menu navigation |
-| Localization readiness | none | **English/Spanish catalog for objectives, stations, boons, HUD, manual and tour** | dialogue body copy |
+| Localization readiness | none | **English/Spanish catalog for objectives, stations, boons, HUD, manual, tour and dialogue** | contract/station prose, handler lines |
 | Deep module splits | partial | **world player/bullets/objectives/AI/doors/geometry/gym; all Safehouse station views; hub; Game dialogue** | Game boot/flow split |
 | Multi-frame animation | 2-frame sway | **4-frame walk** + reload/death | boss-specific choreography |
 | Weather / holo ads / lighting | weather | **weather + animated holo ads + contract palettes** | fog volumes, dynamic lights |
@@ -94,7 +94,7 @@ working checklist.
   faction sell/clinic consequences.
 - Presentation: glass/steam/dash/quickhack VFX, combo HUD, new station CSS,
   manual/README controls.
-- Verification: 142 unit tests, 16-archetype gym, three-build balance matrix,
+- Verification: 144 unit tests, 16-archetype gym, three-build balance matrix,
   Chrome/Edge/Firefox/WebKit smoke, budget updated to app 450 KB / total 1120 KB.
 - Hacking: Breach Protocol minigame on sabotage terminals; solvable seeded grids,
   row/column turn rules, timer, security shutdown, failure heat and rewards.
