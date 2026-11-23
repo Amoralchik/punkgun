@@ -3,7 +3,7 @@ import type { Input } from '../core/input';
 import { gymLevel } from './gym';
 import { baseMods } from './progression';
 import { World } from './world';
-import { assignSquads, flankPoint, grenadeThreat, isFlanker, squadLeader } from './world-ai';
+import { assignSquads, flankPoint, grenadeThreat, isFlanker, squadIntent, squadLeader } from './world-ai';
 
 function fakeInput() {
   return {
@@ -49,6 +49,20 @@ describe('squad coordination', () => {
     expect(leader?.id).toBe(world.enemies[0].id);
     expect(isFlanker(world.enemies, world.enemies[0])).toBe(false);
     expect(isFlanker(world.enemies, world.enemies[1])).toBe(true);
+  });
+
+  it('reports one visual intent, with cover ahead of flank', () => {
+    const world = worldWithThree();
+    const e = world.enemies[1];
+    expect(squadIntent(e)).toBeNull();
+    e.flankT = 1;
+    expect(squadIntent(e)).toBe('flank');
+    e.coverT = 1;
+    expect(squadIntent(e)).toBe('cover');
+    e.coverT = 0;
+    expect(squadIntent(e)).toBe('flank');
+    e.flankT = 0;
+    expect(squadIntent(e)).toBeNull();
   });
 
   it('places the flank point on the requested side of the player', () => {

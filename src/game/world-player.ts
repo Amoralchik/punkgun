@@ -3,6 +3,8 @@ import type { Player } from './world-types';
 import type { RunMods } from './progression';
 
 export const PLAYER_SPEED = 252;
+export const SWING_DURATION = 0.24;
+export const SWING_HIT_AT = 0.065;
 
 export interface PlayerInputAxes {
   x: number;

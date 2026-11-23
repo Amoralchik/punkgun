@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import archiveRaw from './archive.json?raw';
 import { DialogueSession } from './dialogue-session';
 import { availableEndings, endingUnlocked } from './endings';
-import { authoredDialogue, BOSS_DIALOGUE, dialogueCheckMet, dossierUnlocked, DOSSIERS } from './lore';
+import { authoredDialogue, BOSS_DIALOGUE, dialogueCheckMet, dossierUnlocked } from './lore';
+import { parseArchive } from './archive';
 import { Profile } from './profile';
 import type { Contract } from './missions';
+
+const DOSSIERS = parseArchive(JSON.parse(archiveRaw));
 
 const contract: Contract = {
   id: 'authored-test',

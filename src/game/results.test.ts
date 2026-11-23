@@ -50,6 +50,25 @@ describe('run result text', () => {
     expect(withoutContract.note).toBe('NO PAYOUT · LOOT LOST');
   });
 
+  it('reports the responsible source and an actionable hint', () => {
+    const out = deathResult({
+      contractTitle: 'NIGHT SHIFT',
+      time: 42,
+      kills: 3,
+      lootValue: 0,
+      deathCause: 'GUNFIRE',
+      carriedWeapon: false,
+      report: {
+        label: 'SNIPER',
+        detail: 'PRECISION SHOT · FROM THE NORTH-EAST · LONG RANGE',
+        hint: 'PRECISION SHOTS PAINT A RED LINE FIRST. NEVER STAND IN IT.',
+      },
+    });
+    expect(out.stats).toContain('KILLED BY SNIPER');
+    expect(out.source).toContain('FROM THE NORTH-EAST');
+    expect(out.hint).toContain('RED LINE');
+  });
+
   it('formats extraction, modifiers, finale and balance', () => {
     const out = winResult(reward, {
       approachName: 'GHOST',

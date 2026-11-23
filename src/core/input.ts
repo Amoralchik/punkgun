@@ -1,4 +1,5 @@
 import { readGamepad } from './gamepad';
+import { DEFAULT_SCROLL_KEYS, isHiddenOverlayTarget, isInteractiveTarget } from './focus';
 
 /** Keyboard / gamepad / mouse state with per-frame edge detection. */
 export class Input {
@@ -18,8 +19,11 @@ export class Input {
 
   constructor() {
     window.addEventListener('keydown', (e) => {
+      // Native controls own Space/Enter activation and Tab traversal. Only
+      // suppress page-level defaults while focus is outside those controls.
       if (
-        ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)
+        (!isInteractiveTarget(e.target) || isHiddenOverlayTarget(e.target)) &&
+        DEFAULT_SCROLL_KEYS[e.code]
       ) {
         e.preventDefault();
       }

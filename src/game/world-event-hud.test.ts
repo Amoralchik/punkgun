@@ -17,6 +17,8 @@ describe('world event HUD', () => {
     const handler = new WorldEventHud(hud, audio);
     expect(handler.handle(event('exitOpen'))).toBe(true);
     expect(handler.handle(event('secondHeart'))).toBe(true);
+    expect(handler.handle(event('netrunnerChannel'))).toBe(true);
+    expect(handler.handle(event('bossCharge'))).toBe(true);
     expect(handler.handle(event('playerDeath'))).toBe(false);
     expect(audio.exitOpen).toHaveBeenCalled();
     expect(hud.subtitle).toHaveBeenCalled();

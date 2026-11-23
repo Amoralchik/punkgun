@@ -2,7 +2,8 @@ import { fmtTime } from '../core/math';
 import { AMMO_PACKS, LOOT_DEFS, LootKind, WEAPON_ECONOMY } from '../game/economy';
 import { StationKind } from '../game/map';
 import { Contract, objectiveDetail, objectiveText } from '../game/missions';
-import { DOSSIERS, contractTagline, dossierUnlocked, FACTIONS, unlockText } from '../game/lore';
+import { contractTagline, dossierUnlocked, FACTIONS, unlockText, type Dossier } from '../game/lore';
+import { loadDossiers } from '../game/archive';
 import { MODIFIER_MAP } from '../game/modifiers';
 import { BOSSES } from '../game/bosses';
 import { ROLE_MAP, type RoleId } from '../game/roles';
@@ -38,14 +39,16 @@ import {
   CONSUMABLE_MAP,
   ConsumableId,
 } from '../game/consumables';
-import { GunId, NAMED_MAP, NAMED_WEAPONS, NamedWeaponId, WEAPONS, WeaponId, isGun } from '../game/weapons';
+import { GunId, NAMED_MAP, NAMED_WEAPONS, NamedWeaponId, WEAPONS, WeaponId } from '../game/weapons';
 import { CaseView } from './case-view';
 import { Workbench } from './workbench';
 import { renderVentures } from './station-ventures';
 import { renderMarket } from './station-market';
 import { renderContracts, renderDeploy } from './station-contracts';
 import { renderOperator } from './station-operator';
+import { describeModChanges } from '../game/purchase-preview';
 import { getLocale, t } from '../core/i18n';
+import { SETPIECES, setpieceFor } from '../game/setpieces';
 
 export interface SafehouseHooks {
   onDeploy: (contractId: string, approachId: ApproachId, challenge: ChallengeId) => void;
@@ -54,6 +57,7 @@ export interface SafehouseHooks {
   onClick: () => void;
   onError: () => void;
   onManual: () => void;
+  onTour: () => void;
   onClose: () => void;
 }
 
@@ -91,7 +95,6 @@ export class Safehouse {
   private readonly augMsgEl = document.getElementById('aug-msg')!;
   private readonly augCloseEl = document.getElementById('aug-close')!;
   private readonly workbenchBtn = document.getElementById('sh-workbench')!;
-  private readonly venturesBtn = document.getElementById('sh-ventures')!;
   private readonly contractsEl = document.getElementById('sh-contracts')!;
   private readonly contractDetailEl = document.getElementById('sh-contract-detail')!;
   private readonly deployEl = document.getElementById('sh-deploy') as HTMLButtonElement;
@@ -149,6 +152,8 @@ export class Safehouse {
     | 'exchange' = 'contracts';
   private stationOnly = false;
   private archiveId: string | null = null;
+  private dossiers: Dossier[] | null = null;
+  private archiveFailed = false;
 
   constructor(
     private readonly profile: Profile,
@@ -218,8 +223,25 @@ export class Safehouse {
     this.stationView = kind;
     this.stationMode = true;
     this.stationRoot.classList.remove('hidden');
+    if (kind === 'archive') {
+      this.archiveFailed = false;
+      this.ensureDossiers();
+    }
     this.render();
     this.stationPanel.scrollTop = 0;
+  }
+
+  private ensureDossiers(): void {
+    if (this.dossiers || this.archiveFailed) return;
+    void loadDossiers()
+      .then((dossiers) => {
+        this.dossiers = dossiers;
+        if (this.stationView === 'archive') this.render();
+      })
+      .catch(() => {
+        this.archiveFailed = true;
+        if (this.stationView === 'archive') this.render();
+      });
   }
 
   openDeploy(): void {
@@ -396,6 +418,12 @@ export class Safehouse {
               `<span class="cmod" style="color:${MODIFIER_MAP[id].color};border-color:${MODIFIER_MAP[id].color}">${MODIFIER_MAP[id].name}</span>`,
           )
           .join('');
+        const sp = setpieceFor(c);
+        const spTag = sp
+          ? `<span class="cmod csetpiece" style="color:${SETPIECES[sp].color};border-color:${SETPIECES[sp].color}">${
+              getLocale() === 'es' ? SETPIECES[sp].nameEs : SETPIECES[sp].name
+            }</span>`
+          : '';
         return `<button class="sh-contract${c.id === this.selectedId ? ' selected' : ''}${
           c.objective === 'boss' ? ' boss' : ''
         }${locked ? ' locked' : ''}" data-act="select-contract" data-id="${c.id}">
@@ -410,7 +438,7 @@ export class Safehouse {
               ? `${BOSSES[c.bossId].name}<br>${objectiveText(c)}`
               : `${c.layoutName}<br>${objectiveText(c)}`
           }</span>
-          ${mods ? `<span class="cmods">${mods}</span>` : ''}
+          ${mods || spTag ? `<span class="cmods">${spTag}${mods}</span>` : ''}
           ${locked ? `<span class="clock">REQUIRES ${required} CLEARS · ${clears}/${required}</span>` : ''}
           <span class="creward">$${c.reward} + TIME</span>
         </button>`;
@@ -433,7 +461,15 @@ export class Safehouse {
           selected.challenge && selected.challenge !== 'standard'
             ? `<br><span class="daily-badge">${CHALLENGE_MAP[selected.challenge].name}</span>`
             : ''
-        }${selectedMods ? `<span class="cmods detail-mods">${selectedMods}</span>` : ''}${
+        }${selectedMods ? `<span class="cmods detail-mods">${selectedMods}</span>` : ''}${(() => {
+          const sp = setpieceFor(selected);
+          if (!sp) return '';
+          const def = SETPIECES[sp];
+          const es = getLocale() === 'es';
+          return `<br><span class="setpiece-detail" style="--sp:${def.color}"><b>${
+            es ? def.nameEs : def.name
+          }</b> — ${es ? def.descEs : def.desc}</span>`;
+        })()}${
           selectedLocked
             ? `<br><span class="clock">BOSS ACCESS LOCKED — ${this.profile.data.regularClears}/${selected.requiredClears ?? 3} REGULAR CLEARS</span>`
             : ''
@@ -673,47 +709,64 @@ export class Safehouse {
         summary,
       });
     } else if (this.stationView === 'archive') {
-      const progress = this.profile.data;
-      const unlocked = DOSSIERS.filter((d) => dossierUnlocked(d, progress));
-      if (!this.archiveId || !unlocked.some((d) => d.id === this.archiveId)) {
-        this.archiveId = unlocked[0]?.id ?? null;
+      const dossiers = this.dossiers;
+      if (!dossiers) {
+        this.stationBodyEl.innerHTML = `
+          <div class="station-grid archive-grid">
+            <section class="station-col">
+              <div class="kicker">// STORY ARCHIVE</div>
+              <h2>CHRONICLES</h2>
+              <p class="sh-note">${
+                this.archiveFailed
+                  ? 'ARCHIVE UNAVAILABLE — RECONNECT AND RETRY'
+                  : 'DECRYPTING ARCHIVE...'
+              }</p>
+            </section>
+          </div>`;
+        this.ensureDossiers();
+      } else {
+        const progress = this.profile.data;
+        const unlocked = dossiers.filter((d) => dossierUnlocked(d, progress));
+        if (!this.archiveId || !unlocked.some((d) => d.id === this.archiveId)) {
+          this.archiveId = unlocked[0]?.id ?? null;
+        }
+        const dossier = unlocked.find((d) => d.id === this.archiveId) ?? null;
+        const faction = dossier ? FACTIONS[dossier.faction] : null;
+        const list = dossiers.map((d) => {
+          const open = dossierUnlocked(d, progress);
+          return `<button class="archive-entry${open ? '' : ' locked'}${d.id === this.archiveId ? ' selected' : ''}"
+            data-act="archive-entry" data-id="${d.id}" ${open ? '' : 'disabled'}>
+            <span class="archive-num">${String(d.order).padStart(2, '0')}</span>
+            <span class="archive-name">${open ? d.title : '/// REDACTED'}</span>
+            <span class="archive-meta">${open ? d.kicker.replace('// ', '') : unlockText(d)}</span>
+          </button>`;
+        }).join('');
+        this.stationBodyEl.innerHTML = `
+          <div class="station-grid archive-grid">
+            <section class="station-col">
+              <div class="kicker">// STORY ARCHIVE</div>
+              <h2>CHRONICLES</h2>
+              <div class="archive-list">${list}</div>
+            </section>
+            <section class="station-col">
+              ${
+                dossier
+                  ? `<div class="archive-kicker">${dossier.kicker}</div>
+                     <div class="archive-title">${dossier.title}</div>
+                     <div class="archive-body">${(es ? dossier.bodyEs : dossier.body).map((p) => `<p>${p}</p>`).join('')}</div>
+                     ${
+                       faction
+                         ? `<div class="archive-faction" style="border-color:${faction.color}">
+                              <span style="color:${faction.color}">${faction.name}</span>
+                              <p>${faction.blurb}</p>
+                            </div>`
+                         : ''
+                     }`
+                  : `<p class="sh-note">NO FILES UNLOCKED. CLEAR CONTRACTS TO EARN THE REST.</p>`
+              }
+            </section>
+          </div>`;
       }
-      const dossier = unlocked.find((d) => d.id === this.archiveId) ?? null;
-      const faction = dossier ? FACTIONS[dossier.faction] : null;
-      const list = DOSSIERS.map((d) => {
-        const open = dossierUnlocked(d, progress);
-        return `<button class="archive-entry${open ? '' : ' locked'}${d.id === this.archiveId ? ' selected' : ''}"
-          data-act="archive-entry" data-id="${d.id}" ${open ? '' : 'disabled'}>
-          <span class="archive-num">${String(d.order).padStart(2, '0')}</span>
-          <span class="archive-name">${open ? d.title : '/// REDACTED'}</span>
-          <span class="archive-meta">${open ? d.kicker.replace('// ', '') : unlockText(d)}</span>
-        </button>`;
-      }).join('');
-      this.stationBodyEl.innerHTML = `
-        <div class="station-grid archive-grid">
-          <section class="station-col">
-            <div class="kicker">// STORY ARCHIVE</div>
-            <h2>CHRONICLES</h2>
-            <div class="archive-list">${list}</div>
-          </section>
-          <section class="station-col">
-            ${
-              dossier
-                ? `<div class="archive-kicker">${dossier.kicker}</div>
-                   <div class="archive-title">${dossier.title}</div>
-                   <div class="archive-body">${(es ? dossier.bodyEs : dossier.body).map((p) => `<p>${p}</p>`).join('')}</div>
-                   ${
-                     faction
-                       ? `<div class="archive-faction" style="border-color:${faction.color}">
-                            <span style="color:${faction.color}">${faction.name}</span>
-                            <p>${faction.blurb}</p>
-                          </div>`
-                       : ''
-                   }`
-                : `<p class="sh-note">NO FILES UNLOCKED. CLEAR CONTRACTS TO EARN THE REST.</p>`
-            }
-          </section>
-        </div>`;
     } else if (this.stationView === 'fabricator') {
       const comps = COMPONENT_IDS.map((id) => {
         const d = COMPONENTS[id];
@@ -886,7 +939,7 @@ export class Safehouse {
         return;
       case 'archive-entry': {
         const id = target.dataset.id;
-        const dossier = DOSSIERS.find((d) => d.id === id);
+        const dossier = this.dossiers?.find((d) => d.id === id);
         if (!dossier || !dossierUnlocked(dossier, this.profile.data)) return;
         this.archiveId = dossier.id;
         this.hooks.onClick();
@@ -1126,6 +1179,10 @@ export class Safehouse {
         this.hooks.onClick();
         this.hooks.onManual();
         return;
+      case 'tour':
+        this.hooks.onClick();
+        this.hooks.onTour();
+        return;
       case 'select-contract': {
         const id = target.dataset.id;
         if (!id) return;
@@ -1279,6 +1336,7 @@ export class Safehouse {
 
     const humanity = this.profile.humanityInfo();
     const strainPct = Math.min(100, (humanity.used / Math.max(1, humanity.max)) * 100);
+    const baseMods = this.profile.runMods();
     this.augAttrsEl.innerHTML += `
       <div class="aug-humanity stage-${humanity.stage}">
         <div class="aug-humanity-head">
@@ -1297,15 +1355,18 @@ export class Safehouse {
       const info = this.profile.humanityInfo(def.id);
       const overCapacity = !maxed && info.used + info.nextCost > info.max;
       const riskPct = Math.round(info.risk * 100);
+      const preview = maxed ? null : this.profile.previewCyberware(def.id, baseMods);
+      const changes = preview ? describeModChanges(preview.before, preview.after) : [];
       return `<div class="aug-item${overCapacity ? ' locked' : ''}">
         <div class="aug-info">
           <span class="aug-name">${def.name}</span>
           <span class="aug-desc">${es ? def.descEs : def.desc}</span>
           <span class="aug-rank">RANK ${rank}/${def.maxRank} · LOAD ${
-            maxed ? '—' : `+${info.nextCost}`
+            maxed ? '—' : `+${info.nextCost} (${info.used}→${info.used + info.nextCost}/${info.max})`
           }${!maxed && riskPct > 0 ? ` · RISK ${riskPct}%` : ''}${
             overCapacity ? ' · CAPACITY BLOCKED' : ''
           }</span>
+          ${changes.length ? `<span class="aug-delta">${changes.join(' · ')}</span>` : ''}
         </div>
         <div class="sh-actions aug-action">
           <span class="aug-cost">${maxed ? 'MAX' : `$${cost}`}</span>
@@ -1320,11 +1381,14 @@ export class Safehouse {
       const rank = perks[def.id];
       const maxed = rank >= def.maxRank;
       const blocked = maxed ? null : this.profile.perkBlockReason(def.id);
+      const preview = maxed ? null : this.profile.previewPerk(def.id, baseMods);
+      const changes = preview ? describeModChanges(preview.before, preview.after) : [];
       return `<div class="aug-item">
         <div class="aug-info">
           <span class="aug-name">${def.name}</span>
           <span class="aug-desc">${es ? def.descEs : def.desc}</span>
           <span class="aug-rank">RANK ${rank}/${def.maxRank}${blocked ? ` · ${blocked}` : ''}</span>
+          ${changes.length ? `<span class="aug-delta">${changes.join(' · ')}</span>` : ''}
         </div>
         <div class="sh-actions aug-action">
           <span class="aug-cost">${maxed ? 'MAX' : '1 PT'}</span>

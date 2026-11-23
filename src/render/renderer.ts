@@ -11,6 +11,8 @@ import { Level, TILE, tileCenter } from '../game/map';
 import { World } from '../game/world';
 import type { Enemy, EnemyKind, ObjectiveNode, Player } from '../game/world-types';
 import { WEAPONS, WeaponId } from '../game/weapons';
+import { ENEMY_AIM_WINDUP } from '../game/enemy-data';
+import { squadIntent } from '../game/world-ai';
 import { LOOT_DEFS, LootKind } from '../game/economy';
 import type { Palette } from '../core/settings';
 
@@ -32,11 +34,13 @@ interface UnitView {
   flash: THREE.Mesh;
   shadow: THREE.Mesh;
   mark: THREE.Mesh;
+  intentMark: THREE.Mesh;
   targetMark: THREE.Mesh;
   shieldMesh: THREE.Mesh;
   laserMesh: THREE.Mesh;
   bossRing: THREE.Mesh;
   weakRing: THREE.Mesh;
+  chargeRing: THREE.Mesh;
   reloadRing: THREE.Mesh;
   vision: THREE.Mesh | null;
   visionMat: THREE.MeshBasicMaterial | null;
@@ -132,6 +136,14 @@ export class Renderer {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
+  private readonly chargeMat = new THREE.MeshBasicMaterial({
+    color: 0xff3b4e,
+    transparent: true,
+    opacity: 0.7,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
   private readonly matCache = new Map<string, THREE.MeshBasicMaterial>();
   private readonly weaponMats = new Map<WeaponId, THREE.MeshBasicMaterial>();
   private readonly ray = new THREE.Raycaster();
@@ -146,6 +158,10 @@ export class Renderer {
   private shakeScale = 1;
   private bloomScale = 1;
   private conesVisible = true;
+  private readonly civilianViews = new Map<
+    number,
+    { root: THREE.Group; body: THREE.Mesh; mat: THREE.MeshBasicMaterial; dead: boolean; tex: THREE.Texture | null }
+  >();
   private reducedMotion = false;
   private palette = { cyan: 0x5ef1ff, magenta: 0xff2f8e, red: 0xff3b4e, amber: 0xffc46b };
 
@@ -360,6 +376,14 @@ export class Renderer {
       this.mapLevel = level;
     }
     this.dynamic.add(this.mapMesh);
+    // Runs sit a stop darker than the safehouse so light pools carve the
+    // space (noir: light is information, darkness is the default). A
+    // blackout floor drops another stop: only flashlights and neon remain.
+    (this.mapMesh.material as THREE.MeshBasicMaterial).color.setScalar(
+      level.id === 'safehouse' ? 1 : world.setpiece === 'blackoutFloor' ? 0.52 : 0.8,
+    );
+    for (const view of this.civilianViews.values()) this.dynamic.remove(view.root);
+    this.civilianViews.clear();
 
     for (const d of world.doors) {
       const group = new THREE.Group();
@@ -549,6 +573,14 @@ export class Renderer {
     targetMark.visible = false;
     targetMark.position.z = 2.1;
 
+    const intentMark = new THREE.Mesh(
+      QUAD,
+      this.mat(this.textures.intent, true, 0.9, 0x5ef1ff),
+    );
+    intentMark.scale.set(26, 26, 1);
+    intentMark.visible = false;
+    intentMark.position.z = 2.12;
+
     const shieldMesh = new THREE.Mesh(QUAD, this.mat(this.textures.shield));
     shieldMesh.scale.set(24, 54, 1);
     shieldMesh.position.set(31, 0, 1.3);
@@ -591,7 +623,10 @@ export class Renderer {
     );
     weakRing.position.z = 0.72;
     weakRing.visible = false;
-    root.add(shieldMesh, laserMesh, bossRing, weakRing, reloadRing);
+    const chargeRing = new THREE.Mesh(RELOAD_RING_GEO, this.chargeMat);
+    chargeRing.position.z = 0.74;
+    chargeRing.visible = false;
+    root.add(shieldMesh, laserMesh, bossRing, weakRing, chargeRing, reloadRing);
     if (enemyKind === 'boss') root.scale.setScalar(1.4);
     else if (enemyKind === 'heavy') root.scale.setScalar(1.12);
     else if (enemyKind === 'hound') root.scale.setScalar(0.78);
@@ -623,6 +658,7 @@ export class Renderer {
 
     this.dynamic.add(root);
     this.dynamic.add(mark);
+    this.dynamic.add(intentMark);
     this.dynamic.add(targetMark);
 
     return {
@@ -632,11 +668,13 @@ export class Renderer {
       flash,
       shadow,
       mark,
+      intentMark,
       targetMark,
       shieldMesh,
       laserMesh,
       bossRing,
       weakRing,
+      chargeRing,
       reloadRing,
       vision,
       visionMat,
@@ -766,12 +804,14 @@ export class Renderer {
       if (seen.has(id)) continue;
       this.dynamic.remove(view.root);
       this.dynamic.remove(view.mark);
+      this.dynamic.remove(view.intentMark);
       this.dynamic.remove(view.targetMark);
       if (view.vision) this.dynamic.remove(view.vision);
       this.unitViews.delete(id);
     }
     this.syncUnit(world.player, 0, true, dt);
     world.enemies.forEach((e, i) => this.syncUnit(e, i % 2, false, dt));
+    if (world.civilians.length > 0) this.syncCivilians(world);
     this.syncCones(world);
     this.syncDoors(world);
     this.syncGlass(world);
@@ -829,7 +869,14 @@ export class Renderer {
       this.lights.flash(world.quickhackX, world.quickhackY, 160, this.palette.cyan, 0.35, 0.07);
     }
     if (world.exitOpen) {
-      this.lights.flash(world.level.exit.x, world.level.exit.y, 300, this.palette.cyan, 0.3, 0.12);
+      this.lights.flash(
+        world.level.exit.x,
+        world.level.exit.y,
+        300,
+        world.exitContested ? this.palette.red : this.palette.cyan,
+        0.3,
+        0.12,
+      );
     }
     this.lights.sync(dt, t);
     this.film.setTime(this.reducedMotion ? 0 : t);
@@ -870,6 +917,7 @@ export class Renderer {
         view.laserMesh.visible = false;
         view.bossRing.visible = false;
         view.weakRing.visible = false;
+        view.chargeRing.visible = false;
         view.reloadRing.visible = false;
         if (k >= 1) {
           view.corpse = true;
@@ -993,14 +1041,43 @@ export class Renderer {
 
     const enemyKind = !isPlayer && 'kind' in ent ? ent.kind : null;
     view.shieldMesh.visible = enemyKind === 'shield';
-    // Every armed enemy paints a laser while lining up a shot.
-    view.laserMesh.visible = 'aiming' in ent && ent.aiming;
+    // The laser is a tell, not a permanent combat light: it only ignites in
+    // the final aim window and thickens until the shot.
+    const aiming = 'aiming' in ent && ent.aiming;
+    view.laserMesh.visible = aiming;
+    if (aiming) {
+      const windup = (enemyKind && ENEMY_AIM_WINDUP[enemyKind]) || 0.32;
+      const fireCd = 'fireCd' in ent ? ent.fireCd : 0;
+      const charge = Math.max(0, Math.min(1, 1 - fireCd / windup));
+      view.laserMesh.scale.set(620, 1.6 + charge * 3.4, 1);
+    }
 
     const heavyArmor = enemyKind === 'heavy' && 'armor' in ent ? ent.armor : 0;
     view.bossRing.visible = enemyKind === 'boss' || (enemyKind === 'heavy' && heavyArmor > 0);
     if (view.bossRing.visible) {
       const ring = enemyKind === 'boss' ? 112 : 86;
-      view.bossRing.scale.set(ring, ring, 1);
+      const phase =
+        enemyKind === 'boss' && 'maxArmor' in ent && 'armor' in ent
+          ? Math.max(1, ent.maxArmor - ent.armor + 1)
+          : 1;
+      const pulse =
+        1 +
+        Math.sin(performance.now() * (0.003 + phase * 0.0012)) *
+          (0.03 + phase * 0.018);
+      view.bossRing.scale.set(ring * pulse, ring * pulse, 1);
+    }
+    const charging =
+      enemyKind === 'boss' &&
+      'bossChargeT' in ent &&
+      ent.bossChargeT > 0 &&
+      ent.alive;
+    view.chargeRing.visible = charging;
+    if (charging) {
+      const t = performance.now();
+      const pulse = 1 + Math.sin(t * 0.024) * 0.1;
+      view.chargeRing.scale.set(pulse, pulse, 1);
+      (view.chargeRing.material as THREE.MeshBasicMaterial).opacity =
+        0.45 + Math.sin(t * 0.032) * 0.3;
     }
     const weakOn =
       enemyKind === 'boss' && 'bossWeakT' in ent && ent.bossWeakT > 0 && ent.alive;
@@ -1020,6 +1097,27 @@ export class Renderer {
       view.targetMark.rotation.z = Math.sin(t * 0.8) * 0.12;
       const pulse = 34 + Math.sin(t * 2.2) * 3;
       view.targetMark.scale.set(pulse, pulse, 1);
+    }
+    const intent =
+      !isPlayer && ent.alive && 'coverT' in ent && 'flankT' in ent
+        ? squadIntent(ent)
+        : null;
+    view.intentMark.visible = intent !== null;
+    if (intent && !isPlayer && 'coverT' in ent && 'flankT' in ent && ent.alive) {
+      const cover = intent === 'cover';
+      const tx = cover ? ent.coverX : ent.flankX;
+      const ty = cover ? ent.coverY : ent.flankY;
+      const material = this.mat(
+        this.textures.intent,
+        true,
+        0.9,
+        cover ? 0x7dffcf : 0x5ef1ff,
+      );
+      if (view.intentMark.material !== material) view.intentMark.material = material;
+      view.intentMark.position.set(ent.x, ent.y + 64, 2.12);
+      view.intentMark.rotation.z = Math.atan2(ty - ent.y, tx - ent.x);
+      const pulse = 26 + Math.sin(performance.now() * 0.008 + ent.id) * 2.4;
+      view.intentMark.scale.set(pulse, pulse, 1);
     }
   }
 
@@ -1356,6 +1454,14 @@ export class Renderer {
         this.grenadeViews.set(grenade.id, mesh);
       }
       mesh.position.set(grenade.x, grenade.y, 2);
+      const hostile = grenade.owner === 'enemy';
+      const base = hostile ? 18 : 14;
+      const urgency = hostile
+        ? Math.max(0, Math.min(1, 1 - grenade.life / 0.85))
+        : 0;
+      const pulse =
+        1 + Math.sin(performance.now() * (0.01 + urgency * 0.05)) * (0.06 + urgency * 0.24);
+      mesh.scale.set(base * pulse, base * pulse, 1);
     }
     for (const [id, mesh] of this.grenadeViews) {
       if (grenadeIds.has(id)) continue;
@@ -1473,12 +1579,63 @@ export class Renderer {
     }
   }
 
+  /** Market bystanders: umbrellas and hoods, no neon ring — never read as hostiles. */
+  private syncCivilians(world: World): void {
+    const now = performance.now();
+    for (const c of world.civilians) {
+      const look = c.look % this.textures.civilianWalk.length;
+      let view = this.civilianViews.get(c.id);
+      if (!view) {
+        const root = new THREE.Group();
+        const shadow = new THREE.Mesh(QUAD, this.mat(this.textures.shadow, false, 0.8));
+        shadow.scale.set(64, 32, 1);
+        shadow.position.z = 0.2;
+        const mat = this.mat(this.textures.civilianWalk[look][0]).clone();
+        mat.transparent = true;
+        const body = new THREE.Mesh(QUAD, mat);
+        body.scale.set(80, 80, 1);
+        body.position.z = 0.95;
+        root.add(shadow, body);
+        this.dynamic.add(root);
+        view = { root, body, mat, dead: false, tex: null };
+        this.civilianViews.set(c.id, view);
+      }
+      view.root.position.set(c.x, c.y, 0);
+      if (!c.alive) {
+        if (!view.dead) {
+          view.dead = true;
+          view.mat.map = this.textures.civilianCorpse[look];
+          view.mat.needsUpdate = true;
+          view.mat.opacity = 0.92;
+          view.body.scale.set(92, 92, 1);
+          view.root.rotation.z = c.corpseAngle;
+        }
+        continue;
+      }
+      view.root.rotation.z = c.angle;
+      const moving = Math.hypot(c.vx, c.vy) > 20;
+      const frames = this.textures.civilianWalk[look];
+      const tex = moving
+        ? frames[Math.floor(now * (c.fleeT > 0 ? 0.016 : 0.008) + c.id) % frames.length]
+        : frames[0];
+      if (view.tex !== tex) {
+        view.tex = tex;
+        view.mat.map = tex;
+        view.mat.needsUpdate = true;
+      }
+    }
+  }
+
   private syncExit(world: World): void {
     if (!this.exitMesh || !this.exitMat) return;
     const t = performance.now() * 0.002;
     const open = world.exitOpen;
-    this.exitMat.opacity = open ? 0.55 + Math.sin(t * 2) * 0.2 : 0.16 + Math.sin(t) * 0.03;
-    this.exitMat.color.setHex(open ? this.palette.cyan : this.palette.magenta);
+    // Defended extraction: the exit is open but held — pulse red until clear.
+    const contested = open && world.exitContested;
+    this.exitMat.opacity = open ? 0.55 + Math.sin(t * (contested ? 4 : 2)) * 0.2 : 0.16 + Math.sin(t) * 0.03;
+    this.exitMat.color.setHex(
+      contested ? this.palette.red : open ? this.palette.cyan : this.palette.magenta,
+    );
     const s = open ? 118 + Math.sin(t * 2) * 6 : 108;
     this.exitMesh.scale.set(s, s, 1);
   }

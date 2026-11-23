@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMY_TRAITS, rollEnemyLoadout } from './enemy-data';
+import { rollEnemyLoadout } from './enemy-data';
 import type { EnemyKind } from './world-types';
 import type { Input } from '../core/input';
 import { GYM_KINDS, gymLevel } from './gym';

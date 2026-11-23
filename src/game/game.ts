@@ -4,8 +4,8 @@ import type { LifepathId } from './lifepath';
 import type { ChallengeId } from './challenges';
 import { Input } from '../core/input';
 import { Settings } from '../core/settings';
-import { randomSeed, seedLabel } from '../core/math';
-import { setLocale, t } from '../core/i18n';
+import { randomSeed } from '../core/math';
+import { setLocale } from '../core/i18n';
 import { resolveKeymap } from '../core/settings';
 import { Hub } from '../ui/hub';
 import { BossIntro } from '../ui/boss-intro';
@@ -21,11 +21,10 @@ import { RunLauncher } from './run-launcher';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
-import { LayoutId, Level, loadLevel, Station, StationKind } from './map';
+import { LayoutId, Level, loadLevel, StationKind } from './map';
 import type { Contract } from './missions';
 import { buildBoard } from './campaign';
 import { DialogueSession } from './dialogue-session';
-import { FACTIONS, authoredDialogue, bossBriefing, localizeDialogue } from './lore';
 import { availableEndings, type EndingId } from './endings';
 import type { RunBoon } from './boons';
 
@@ -52,6 +51,7 @@ import { FrameShell } from './frame-shell';
 import { KeyboardController } from '../ui/keyboard-controller';
 import { stepWorld } from './frame-step';
 import { advanceFrame } from './frame-orchestrator';
+import { FieldTipController } from '../ui/field-tip-controller';
 import { settleRun } from './settlement';
 
 
@@ -72,6 +72,7 @@ export class Game {
   private readonly bossPhase = new BossPhaseOverlay();
   private readonly abilityFlash = new AbilityFlash();
   private readonly abilityEvents = new AbilityEventFeedback(this.audio, this.abilityFlash);
+  private readonly fieldTips = new FieldTipController(this.settings, this.hud);
   private readonly brief = new MissionBrief();
   private readonly settingsPanel = new SettingsPanel(this.settings, () => this.applySettings());
   private readonly breach = new BreachController(this.input, {
@@ -86,7 +87,6 @@ export class Game {
   private readonly pause: PauseController;
   private readonly menu: MenuNavigation;
   private readonly frameShell: FrameShell;
-  private readonly keyboard: KeyboardController;
   private readonly launcher: RunLauncher;
   private readonly safehouse: Safehouse;
   private readonly levelCache = new Map<LayoutId, Level>();
@@ -160,7 +160,10 @@ export class Game {
         if (!this.settings.data.tutorialSeen) this.settings.set('tutorialSeen', true);
         if (!this.settings.data.tourSeen && this.state === 'safehouse') this.showTour();
       },
-      onTourClosed: () => this.settings.set('tourSeen', true),
+      onTourClosed: () => {
+        this.settings.set('tourSeen', true);
+        if (!this.settings.data.tutorialSeen) this.settings.set('tutorialSeen', true);
+      },
     });
     this.ending = new EndingController(this.profile, {
       hideResults: () => this.hud.hideResults(),
@@ -199,14 +202,17 @@ export class Game {
       onReroll: () => this.rerollBoard(),
       onNewGame: (lifepath, plus) => this.startNewGame(lifepath, plus),
       onManual: () => this.showManual(),
+      onTour: () => this.showTour(),
       onClose: () => this.closePanel(),
     });
 
-    this.keyboard = new KeyboardController({
+    new KeyboardController({
       state: () => this.state,
       toggleMute: () => this.audio.toggleMute(),
       isTourOpen: () => this.pause.isTourOpen,
       closeTour: () => this.closeTour(),
+      tourNext: () => this.pause.advanceTour(),
+      tourPrev: () => this.pause.retreatTour(),
       finishBreach: () => this.breach.finish(false),
       isDialogueOpen: () => this.dialogueOpen,
       dialogueChoice: (index) =>
@@ -249,8 +255,7 @@ export class Game {
     this.installEvents();
     this.applySettings();
     this.settingsPanel.sync();
-    if (!this.settings.data.tutorialSeen) this.showManual();
-    else if (!this.settings.data.tourSeen) this.showTour();
+    if (!this.settings.data.tourSeen) this.showTour();
   }
 
   private rollBoard(): Contract[] {
@@ -306,6 +311,7 @@ export class Game {
     if (kind) this.safehouse.openStation(kind);
     else this.safehouse.show();
     if (notice) this.safehouse.setNotice(notice);
+    this.menu.focusTop();
     this.input.endFrame();
   }
 
@@ -343,16 +349,24 @@ export class Game {
   }
 
   private installEvents(): void {
-    for (const id of ['overlay-death', 'overlay-win']) {
-      document.getElementById(id)!.addEventListener('click', (event) => {
-        if (this.state !== 'dead' && this.state !== 'win') return;
-        const newGame = (event.target as HTMLElement).closest<HTMLElement>(
-          '[data-act="win-new-game"]',
-        );
-        this.returnToSafehouse();
-        if (newGame) this.safehouse.openNewGame();
-      });
-    }
+    document.getElementById('overlay-death')!.addEventListener('click', (event) => {
+      if (this.state !== 'dead') return;
+      const action = (event.target as HTMLElement).closest<HTMLElement>('[data-act]')
+        ?.dataset.act;
+      if (action === 'death-retry') {
+        this.quickRetry();
+        return;
+      }
+      this.returnToSafehouse();
+    });
+    document.getElementById('overlay-win')!.addEventListener('click', (event) => {
+      if (this.state !== 'win') return;
+      const newGame = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-act="win-new-game"]',
+      );
+      this.returnToSafehouse();
+      if (newGame) this.safehouse.openNewGame();
+    });
 
     document.getElementById('overlay-dialogue')!.addEventListener('click', (ev) => this.dialogue.handleClick(ev));
     document.getElementById('overlay-ending')!.addEventListener('click', (ev) => {
@@ -412,6 +426,7 @@ export class Game {
     this.hud.setFlashEnabled(this.settings.data.flash && !reduced);
     this.hud.setSubtitlesEnabled(this.settings.data.subtitles);
     this.hud.setLogEnabled(this.settings.data.dialogueLog);
+    this.hud.setTipsEnabled(this.settings.data.fieldTips);
     document.body.dataset.palette = this.settings.data.palette;
     document.body.classList.toggle('no-scanlines', !this.settings.data.scanlines);
     document.body.classList.toggle('reduced-motion', reduced);
@@ -562,6 +577,7 @@ export class Game {
     this.overlayShown = false;
     this.lastReward = null;
     this.runEvents.reset();
+    this.fieldTips.reset();
     this.state = 'playing';
     this.world.player.invulnT = 1.2;
     if (contract.challenge === 'glass') {
@@ -582,7 +598,10 @@ export class Game {
     this.lastKills = 0;
     this.setApproachVignette(approach);
     document.body.classList.toggle('contract-fog', contract.modifiers.includes('fog'));
-    document.body.classList.toggle('contract-blackout', approach === 'blackout');
+    document.body.classList.toggle(
+      'contract-blackout',
+      approach === 'blackout' || this.world?.setpiece === 'blackoutFloor',
+    );
     document.body.classList.toggle('finale', contract.chapter === 'final');
     this.showBrief(contract);
     this.playScreenTransition();
@@ -623,6 +642,7 @@ export class Game {
     this.hud.exitPointer(0, 0, false);
     this.brief.hide();
     this.briefT = 0;
+    this.hud.hideTip();
     this.approachVignette.className = 'approach-vignette';
     document.body.classList.remove('contract-fog', 'contract-blackout', 'finale');
     this.dialogue.close();
@@ -654,6 +674,7 @@ export class Game {
   }
 
   private onEvent(e: WorldEvent): void {
+    this.fieldTips.observe(e);
     if (this.state === 'playing' || this.state === 'dead' || this.state === 'win') {
       const screen = this.renderer.worldToScreen(e.x, e.y);
       this.audio.setSfxPan(
@@ -697,7 +718,19 @@ export class Game {
     const view = buildResult({
       dead: this.state === 'dead',
       contract: this.currentContract,
-      world: this.world,
+      world: {
+        time: this.world.time,
+        kills: this.world.kills,
+        lootValue: this.world.lootValue,
+        deathCause: this.world.deathCause,
+        lastDamage: this.world.lastDamage,
+        dashReady: this.world.deathDashReady,
+        player: {
+          weapon: this.world.player.weapon,
+          x: this.world.player.x,
+          y: this.world.player.y,
+        },
+      },
       carriedWeapon: this.startedWithWeapon || this.world.player.weapon !== 'fists',
       insured: this.runEvents.deathInsured,
       insuredWeapon: this.runEvents.deathInsuredWeapon,
@@ -711,7 +744,10 @@ export class Game {
       return;
     }
     if (view.kind === 'death' || view.kind === 'win') {
-      this.hud.showResult(view.kind, view.stats, view.note);
+      this.hud.showResult(view.kind, view.stats, view.note, {
+        source: view.kind === 'death' ? view.source : undefined,
+        hint: view.kind === 'death' ? view.hint : undefined,
+      });
     }
   }
 
@@ -749,6 +785,14 @@ export class Game {
       this.world.time >= 90
     ) {
       this.world.deathCause = 'TIME EXPIRED';
+      this.world.lastDamage = {
+        label: 'CONTRACT TIMER',
+        attack: 'RUSH LIMIT',
+        cause: 'timer',
+        x: null,
+        y: null,
+      };
+      this.world.deathDashReady = false;
       this.world.player.alive = false;
       this.state = 'dead';
       this.hud.flashDamage('death');
@@ -776,6 +820,10 @@ export class Game {
       edgesConsumed = edgesConsumed || frame.edges;
       if (frame.briefHidden) this.brief.hide();
       if (frame.overlayReady) this.showResultOverlay();
+    }
+
+    if (this.state === 'playing') {
+      this.fieldTips.tick(this.world, dt, this.briefT <= 0);
     }
 
     if (this.state !== 'safehouse') {

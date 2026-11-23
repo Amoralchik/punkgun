@@ -58,6 +58,14 @@ export class WorldEventHud {
         this.hud.subtitle(t('event.netrunnerHack'), 3200);
         this.hud.logLine('NETRUNNER: hack landed');
         return true;
+      case 'netrunnerChannel':
+        this.hud.subtitle(t('event.netrunnerChannel'), 2200);
+        this.hud.logLine('NETRUNNER: channeling hack');
+        return true;
+      case 'bossCharge':
+        this.hud.subtitle(t('event.bossCharge'), 1800);
+        this.hud.logLine('BOSS: charging');
+        return true;
       case 'sabotage':
         this.hud.subtitle(t('event.sabotage'));
         this.hud.logLine('SABOTAGE: terminal tapped');
@@ -68,6 +76,16 @@ export class WorldEventHud {
         return true;
       case 'caseHeavy':
         this.hud.subtitle(t('event.caseHeavy'), 1200);
+        return true;
+      case 'civilianDown':
+        this.audio.alert();
+        this.hud.subtitle(t('event.civilianDown'), 1600);
+        this.hud.logLine(`COLLATERAL: ${event.count ?? 1}`);
+        return true;
+      case 'exitDefended':
+        this.audio.alert();
+        this.hud.subtitle(t('event.exitDefended'), 2200);
+        this.hud.logLine('EXTRACTION: exit held');
         return true;
       case 'objectiveComplete':
         this.hud.subtitle(t('event.objectiveComplete'));

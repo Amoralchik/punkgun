@@ -1,8 +1,21 @@
 import { fmtTime } from '../core/math';
 import { NamedWeaponId, NAMED_MAP, WeaponId, WEAPONS, weaponFamily } from '../game/weapons';
 import { ATTACHMENT_MAP, AttachmentId } from '../game/attachments';
+import { edgeMarkerPosition } from './threat-marker';
 
 export type ResultKind = 'death' | 'win';
+
+export interface ThreatMarker {
+  x: number;
+  y: number;
+  kind: 'gun' | 'hack' | 'charge';
+}
+
+const THREAT_RANK: Record<ThreatMarker['kind'], number> = {
+  charge: 0,
+  hack: 1,
+  gun: 2,
+};
 
 export interface AbilitySlot {
   key: string;
@@ -24,6 +37,13 @@ export class Hud {
   private readonly armorEl = document.getElementById('hud-armor')!;
   private readonly damageEl = document.getElementById('damage')!;
   private readonly damageDirEl = document.getElementById('hud-damage-dir')!;
+  private readonly threatsEl = document.getElementById('hud-threats')!;
+  private readonly threatNodes = Array.from({ length: 3 }, () => {
+    const node = document.createElement('div');
+    node.className = 'hud-threat';
+    this.threatsEl.append(node);
+    return node;
+  });
   private readonly heatFillEl = document.getElementById('hud-heat-fill')!;
   private readonly abilitiesEl = document.getElementById('hud-abilities')!;
   private readonly comboEl = document.getElementById('hud-combo')!;
@@ -40,6 +60,7 @@ export class Hud {
   private readonly timeEl = document.getElementById('hud-time')!;
   private readonly promptEl = document.getElementById('hud-prompt')!;
   private readonly subtitleEl = document.getElementById('hud-subtitle')!;
+  private readonly tipEl = document.getElementById('hud-tip')!;
   private readonly logEl = document.getElementById('hud-log')!;
   private readonly approachEl = document.getElementById('hud-approach')!;
   private readonly crosshair = document.getElementById('crosshair')!;
@@ -55,8 +76,14 @@ export class Hud {
   };
   private readonly deathStats = document.getElementById('death-stats')!;
   private readonly deathNote = document.getElementById('death-note')!;
+  private readonly deathSource = document.getElementById('death-source')!;
+  private readonly deathHint = document.getElementById('death-hint')!;
+  private readonly deathSafehouse = document.getElementById(
+    'death-safehouse',
+  ) as HTMLButtonElement;
   private readonly winStats = document.getElementById('win-stats')!;
   private readonly winNote = document.getElementById('win-note')!;
+  private readonly winReturn = document.getElementById('win-return') as HTMLButtonElement;
 
   private lastEnemies = '';
   private lastLoot = '';
@@ -83,6 +110,7 @@ export class Hud {
   private hitTimer: number | null = null;
   private damageDirTimer: number | null = null;
   private subtitleTimer: number | null = null;
+  private tipTimer: number | null = null;
   private subtitlesEnabled = true;
   private logEnabled = true;
   private logLines: string[] = [];
@@ -251,6 +279,27 @@ export class Hud {
     if (value) this.renderLog();
   }
 
+  setTipsEnabled(value: boolean): void {
+    if (!value) this.hideTip();
+  }
+
+  showTip(text: string, holdMs = 4200): void {
+    this.tipEl.textContent = `TIP — ${text}`;
+    this.tipEl.classList.add('on');
+    if (this.tipTimer !== null) window.clearTimeout(this.tipTimer);
+    this.tipTimer = window.setTimeout(() => {
+      this.tipEl.classList.remove('on');
+      this.tipTimer = null;
+    }, holdMs);
+  }
+
+  hideTip(): void {
+    if (this.tipTimer !== null) window.clearTimeout(this.tipTimer);
+    this.tipTimer = null;
+    this.tipEl.classList.remove('on');
+    this.tipEl.textContent = '';
+  }
+
   private renderLog(): void {
     this.logEl.innerHTML = this.logLines
       .slice(-4)
@@ -346,6 +395,48 @@ export class Hud {
     }, 520);
   }
 
+  /** Edge pips for off-screen enemies in an aim, hack or charge window. */
+  setThreats(threats: ThreatMarker[]): void {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const shown: Array<{
+      kind: ThreatMarker['kind'];
+      x: number;
+      y: number;
+      angle: number;
+    }> = [];
+    const ordered = [...threats].sort((a, b) => THREAT_RANK[a.kind] - THREAT_RANK[b.kind]);
+    for (const threat of ordered) {
+      if (shown.length >= this.threatNodes.length) break;
+      const pos = edgeMarkerPosition(threat.x, threat.y, width, height);
+      if (!pos.visible) continue;
+      shown.push({
+        kind: threat.kind,
+        x: pos.x,
+        y: pos.y,
+        angle: pos.angle,
+      });
+    }
+    for (let i = 0; i < this.threatNodes.length; i++) {
+      const node = this.threatNodes[i];
+      const item = shown[i];
+      if (!item) {
+        if (node.dataset.key !== '') {
+          node.dataset.key = '';
+          node.className = 'hud-threat';
+        }
+        continue;
+      }
+      const key = `${item.kind}:${Math.round(item.x)}:${Math.round(item.y)}:${item.angle.toFixed(2)}`;
+      if (node.dataset.key === key) continue;
+      node.dataset.key = key;
+      node.className = `hud-threat on ${item.kind}`;
+      node.style.left = `${item.x}px`;
+      node.style.top = `${item.y}px`;
+      node.style.transform = `translate(-50%, -50%) rotate(${item.angle}rad)`;
+    }
+  }
+
   flashDamage(kind: 'armor' | 'death' | 'flash'): void {
     if (!this.flashEnabled) return;
     const el = this.damageEl;
@@ -383,22 +474,36 @@ export class Hud {
 
   setVisible(visible: boolean): void {
     this.root.classList.toggle('off', !visible);
+    if (!visible) this.setThreats([]);
   }
 
   setHacked(value: boolean): void {
     this.root.classList.toggle('hacked', value);
   }
 
-  showResult(kind: ResultKind, stats: string, note: string): void {
+  showResult(
+    kind: ResultKind,
+    stats: string,
+    note: string,
+    report?: { source?: string; hint?: string },
+  ): void {
     for (const k of Object.keys(this.overlays) as ResultKind[]) {
       this.overlays[k].classList.toggle('hidden', k !== kind);
     }
     if (kind === 'death') {
       this.deathStats.textContent = stats;
       this.deathNote.textContent = note;
+      const source = report?.source ?? '';
+      const hint = report?.hint ?? '';
+      this.deathSource.textContent = source;
+      this.deathSource.hidden = source.length === 0;
+      this.deathHint.textContent = hint ? `HINT — ${hint}` : '';
+      this.deathHint.hidden = hint.length === 0;
+      this.deathSafehouse.focus();
     } else {
       this.winStats.textContent = stats;
       this.winNote.textContent = note;
+      this.winReturn.focus();
     }
   }
 

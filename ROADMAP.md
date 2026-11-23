@@ -1,7 +1,11 @@
 # PUNKGUN — Big Plan
 
 Living development plan. Sequenced work, not calendar promises.
-Last refreshed: 2026-11-22
+Last refreshed: 2026-11-23
+
+> **Status note:** the phases below preserve the original sequencing. Shipped
+> implementation status is the baseline above and `PLAN.md`; later phases are
+> mostly complete, with remaining gaps called out in the Plan's backlog table.
 
 ## North Star
 
@@ -25,40 +29,55 @@ The city has teeth.
 
 ## Current Baseline
 
-- TypeScript + Vite + Three.js, 39 modules, 10,362 lines of source.
-- Build: ~733 kB JS / ~190 kB gzip. Vite reports the Three.js chunk warning.
-- Save: `localStorage` key `punkgun.save.v1`. No slots, no versioned schema,
-  no seed, no export.
-- Tests: none automated. Verification is `tsc --noEmit`, production build,
-  and manual browser flows.
-- Combat: one-hit kills, armor plates, Second Heart, melee, guns, throws, doors,
-  stealth takedowns, shields, snipers, rushers, gunners, marksmen, heavies, boss.
-- Content: 6 combat layouts + safehouse; 8 enemy archetypes; 6 firearms + bat;
-  4 named weapons; 10 cyberware; 4 perks; 4 attributes; 5 insertion approaches;
-  4 contract modifiers; 5 factions; 9 safehouse stations; 8 archive dossiers.
-- Meta: contracts, bounty reroll, faction rep, market discounts, attaché case,
-  fabricator recipes, components, boss gate, final contract, one epilogue.
-- Hot files: `world.ts` 1,940; `safehouse.ts` 1,399; `textures.ts` 1,303;
-  `game.ts` 1,035; `renderer.ts` 995; `profile.ts` 777.
+- TypeScript + Vite + Three.js; 24.4k non-test source lines; production build and
+  size budgets pass. `npm run verify`, `smoke`, `soak`, `test:gym` and
+  `test:balance` are the release gates.
+- Tests: 267 Vitest cases plus Chrome/Edge/Firefox/WebKit smokes.
+- Save v2 with three slots, backup/quarantine, migration, export/import.
+- Combat: one-hit lethality, armor plates, Second Heart, stealth takedowns,
+ 16 enemy archetypes, squad AI, hazards, eight objectives, six bosses;
+  attack tells now cover aim-window lasers, grenade fuse urgency, hound leaps,
+  netrunner channels, boss charges, off-screen edge pips and cyan/mint squad
+  route chevrons.
+- Content: 12 combat layouts, 12 authored contracts + 3 random + boss/final,
+  12 weapon families / 8 named, 11 attachments, 22 cyberware, 19 perks,
+  five operator roles, three lifepaths, six ventures, four endings.
+- Safehouse: ten stations, attaché case, fabricator, workbench, clinic,
+  sanctuary upgrades, exchange, ventures, archive.
+- Onboarding: seven-step replayable safehouse tour plus manual; first boot opens
+  the tour instead of a full manual dump; first-use field tips retire after one
+  showing and can be disabled.
+- Build clarity: the clinic previews the exact next-rank stat and neural-load
+  delta before a cyberware install or perk train.
+- Death legibility: structured report (killer, attack, bearing, range, dash
+  state, correction hint) with focusable retry/safehouse actions.
+- Accessibility: reduced motion, palettes, subtitles, log, remap, gamepad,
+  native Tab/Space/Enter, focus containment inside overlays.
+- Hot files: `world.ts` 2,806; `profile.ts` 2,151; `textures.ts` 1,670;
+  `renderer.ts` 1,620; `safehouse.ts` 1,460; `world-enemy-actions.ts` 202;
+  `world-abilities.ts` 145; `world-attack.ts` 144; `world-perception.ts` 112;
+  `world-squad-ai.ts` 81; `world-mission-completion.ts` 71;
+  `world-encounters.ts` 65; `world-objective-pressure.ts` 62;
+  `world-boss-ai.ts` 55; `game.ts` 843.
 
 ## Target End State
 
-| Area | Current | Target |
+| Area | Shipped (2026-11-23) | Next target |
 |---|---:|---:|
-| Combat layouts | 6 | 9-10 |
-| Enemy archetypes | 8 | 12-15 |
-| Bosses | 1 | 4-6 |
-| Guns / named | 6 / 4 | 12-16 / 10+ |
-| Cyberware | 10 | 20-24 |
-| Perks | 4 | 12-16 |
-| Attributes | 4 | 4 + skill checks |
-| Insertion approaches | 5 | 6 |
-| Contract modifiers | 4 | 12 |
-| Objectives | 4 | 7-8 |
-| Setpiece contracts | 3 random + boss + final | 12-16 + procedural |
-| Campaign chapters | 1 gate + final | 3 chapters, 3 endings |
-| Safehouse stations | 9 | 10-11 |
-| Automated tests | 0 | unit + smoke e2e |
+| Combat layouts | 12 | district-specific setpieces |
+| Enemy archetypes | 16 | tuned squads and telegraphs |
+| Bosses | 6 | ending-specific arenas |
+| Guns / named | 12 / 8 | optional named paths |
+| Cyberware | 22 | 22-24 |
+| Perks | 19 | 19 |
+| Attributes | 4 + derived/checks | broader skill checks |
+| Insertion approaches | 5 | 5-6 |
+| Contract modifiers | 12 | setpiece-only modifiers |
+| Objectives | 8 | fully bespoke authored rooms |
+| Setpiece contracts | 12 authored + 3 random + boss/final | faction-specific voice |
+| Campaign chapters | 3 + final, 4 endings | faction storyline branches |
+| Safehouse stations | 10 | 10-11 |
+| Automated tests | 267 unit + browser smokes + soak | cover every new system |
 
 Target experience: a 2-3 hour authored campaign, 10+ hours of contract play,
 seeded dailies, NG+, and several viable builds.
@@ -286,8 +305,11 @@ seeded dailies, NG+, and several viable builds.
   - Accessibility: colorblind palettes, subtitles, dialogue log, reduced motion,
     shake/flash controls, remappable input, gamepad.
 - **Onboarding**
-  - First safehouse minute teaches terminal, station, deploy, approach, case, craft.
-  - Manual and tactical glossary updated per phase.
+  - Seven-step first safehouse tour: the room, board, loadout, combat, objective,
+    extraction, and the upgrade loop. Dismissible, replayable from the TOUR button.
+  - First-use field tips: armor break, empty magazine, executable stun and opening
+    deploy; each retires permanently and respects the Settings toggle.
+  - Manual and tactical glossary remain the reference, updated per phase.
 
 ### Acceptance
 
@@ -354,10 +376,10 @@ seeded dailies, NG+, and several viable builds.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Monolithic files (`world`, `safehouse`, `game`) | Slow, regression-prone | Phase 0 split before content |
-| No automated tests | Invisible regressions | Unit + smoke CI before new systems |
-| Save v1 drift | Lost progression | Versioned schema + migration + export |
-| One-hit + ranged enemies | Unfair deaths | Range caps, lasers, damage direction, spawn grace, seed tests |
+| Monolithic files (`world`, `safehouse`, `game`) | Slow, regression-prone | Continue the incremental splits; keep behavior tests per extraction |
+| Test drift | Invisible regressions | 267 unit tests + browser smokes + soak in CI; add cases with new systems |
+| Save drift | Lost progression | Versioned v2 schema + slots + migration + export/import |
+| One-hit + ranged enemies | Unfair deaths | Range caps, laser tells, damage direction, structured death report, spawn grace |
 | Content volume | Repetition | Data-driven modifiers + authored setpieces + dailies |
 | Visual/audio scope | Endless polish | Style bible, budgets, per-phase presentation gate |
 | Three.js bundle | Load time | Vendor split, tree-shake, budget |

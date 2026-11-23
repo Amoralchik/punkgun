@@ -129,7 +129,10 @@ export function playWorldEventAudio(event: WorldEvent, audio: AudioEngine): bool
       return true;
     case 'bossCharge':
       audio.alert();
-      return true;
+      return false;
+    case 'netrunnerChannel':
+      audio.alert();
+      return false;
     case 'reloadStart':
       audio.reloadStart();
       return true;

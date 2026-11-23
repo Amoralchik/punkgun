@@ -1,5 +1,7 @@
+import { SETPIECES, type SetpieceId } from './setpieces';
 import { fmtTime } from '../core/math';
 import { ATTACHMENT_MAP, type AttachmentId } from './attachments';
+import type { DeathReport } from './damage-report';
 import { ENDINGS, type EndingId } from './endings';
 import { NAMED_MAP, WEAPONS, type NamedWeaponId, type WeaponId } from './weapons';
 
@@ -40,6 +42,10 @@ export interface RewardSummary {
   stealthKills: number;
   peakHeat: number;
   bestCombo?: number;
+  /** District setpiece the run played under. */
+  setpiece?: SetpieceId | null;
+  /** Civilians the player killed (market patrol). */
+  collateral?: number;
 }
 
 export interface DeathResultInput {
@@ -51,6 +57,7 @@ export interface DeathResultInput {
   carriedWeapon: boolean;
   insured?: boolean;
   insuredWeapon?: string | null;
+  report?: DeathReport | null;
 }
 
 export interface WinResultContext {
@@ -65,6 +72,8 @@ export interface WinResultContext {
 export interface ResultText {
   stats: string;
   note: string;
+  source?: string;
+  hint?: string;
 }
 
 export function deathResult(input: DeathResultInput): ResultText {
@@ -77,14 +86,16 @@ export function deathResult(input: DeathResultInput): ResultText {
     carriedWeapon,
     insured,
     insuredWeapon,
+    report,
   } = input;
-  const stats = `${contractTitle ? `CONTRACT ${contractTitle}\n` : ''}TIME ${fmtTime(time)}   ·   KILLS ${kills}\nLOOT LOST $${lootValue}\nKILLED BY ${deathCause}`;
+  const killer = report?.label ?? deathCause;
+  const stats = `${contractTitle ? `CONTRACT ${contractTitle}\n` : ''}TIME ${fmtTime(time)}   ·   KILLS ${kills}\nLOOT LOST $${lootValue}\nKILLED BY ${killer}`;
   const note = insured
     ? `INSURANCE PAID · ${insuredWeapon ?? 'WEAPON'} RETURNED WITH 0 RDS · NO EXTRACTION`
     : carriedWeapon
       ? 'CARRIED WEAPON LOST · NO EXTRACTION'
       : 'NO PAYOUT · LOOT LOST';
-  return { stats, note };
+  return { stats, note, source: report?.detail, hint: report?.hint };
 }
 
 export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
@@ -120,13 +131,16 @@ export function winResult(r: RewardSummary, ctx: WinResultContext): ResultText {
       : `LEVEL ${r.level} · ${r.xp}/${r.xpNext} XP · ${r.perkPoints} PP`;
   const accuracyLine = r.accuracy === null ? 'ACC —' : `ACC ${Math.round(r.accuracy * 100)}%`;
   const comboLine = (r.bestCombo ?? 0) > 0 ? ` · COMBO x${r.bestCombo}` : '';
-  const performance = `${accuracyLine} · STEALTH ${r.stealthKills}${r.ghostRun ? ' · GHOST' : ''} · PEAK HEAT ${Math.round(r.peakHeat)}${comboLine}`;
+  const collateralLine = (r.collateral ?? 0) > 0 ? ` · COLLATERAL ${r.collateral}` : '';
+  const performance = `${accuracyLine} · STEALTH ${r.stealthKills}${r.ghostRun ? ' · GHOST' : ''} · PEAK HEAT ${Math.round(r.peakHeat)}${comboLine}${collateralLine}`;
   const finale = ctx.final
     ? ctx.ending
       ? `\nENDING: ${ENDINGS[ctx.ending].title}\n${ENDINGS[ctx.ending].summary}`
       : '\nTHE LEASH IS CUT. THE CITY REMEMBERS.'
     : '';
-  const mods = ctx.modifierNames.join(' · ');
+  const mods = [r.setpiece ? SETPIECES[r.setpiece].name : '', ...ctx.modifierNames]
+    .filter(Boolean)
+    .join(' · ');
   const note = `EXTRACTED: ${extracted}\n${contraband}\n${levelLine}\n${performance}\nINSERTION: ${ctx.approachName} · ${Math.round(ctx.approachMult * 100)}% PAY${
     mods ? `\nMODIFIERS: ${mods}` : ''
   }\nBALANCE: $${ctx.money.toLocaleString('en-US')}${finale}`;

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ENEMY_AIM_WINDUP,
   ENEMY_KIND_ROLLS,
   ENEMY_TRAITS,
+  isEnemyAiming,
   pickEnemyKind,
   rollEnemyLoadout,
 } from './enemy-data';
@@ -79,6 +81,15 @@ describe('enemy archetype data', () => {
       ammo: 11,
     });
     expect(rollEnemyLoadout('grunt', seq([0.9, 0.5]))).toEqual({ weapon: 'lmg', ammo: 8 });
+  });
+
+  it('telegraphs only during the final aim window', () => {
+    expect(isEnemyAiming('sniper', 0.7)).toBe(false);
+    expect(isEnemyAiming('sniper', 0.65)).toBe(true);
+    expect(isEnemyAiming('grunt', 0.33)).toBe(false);
+    expect(isEnemyAiming('grunt', 0.3)).toBe(true);
+    expect(ENEMY_AIM_WINDUP.sniper!).toBeGreaterThan(ENEMY_AIM_WINDUP.grunt!);
+    expect(ENEMY_AIM_WINDUP.heavy!).toBeGreaterThan(ENEMY_AIM_WINDUP.gunner!);
   });
 
   it('keeps archetype traits distinct and boss-heavy', () => {

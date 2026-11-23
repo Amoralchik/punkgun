@@ -2,6 +2,8 @@ import { dist } from '../core/math';
 import { tileCenter, type Level } from './map';
 import type { Enemy, Grenade } from './world-types';
 
+export const ENEMY_SPEED = 148;
+
 /** Assign nearby enemies to the same squad without any module-global state. */
 export function assignSquads(enemies: Enemy[]): void {
   for (const enemy of enemies) {
@@ -120,4 +122,11 @@ export function grenadeThreat(
 
 export function meleeKind(kind: Enemy['kind']): boolean {
   return kind === 'blade' || kind === 'stalker' || kind === 'hound';
+}
+
+/** One visual intent per enemy; cover wins over a stale flank timer. */
+export function squadIntent(e: Enemy): 'cover' | 'flank' | null {
+  if (e.coverT > 0) return 'cover';
+  if (e.flankT > 0) return 'flank';
+  return null;
 }

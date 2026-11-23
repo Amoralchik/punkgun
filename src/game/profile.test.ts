@@ -43,6 +43,20 @@ function fresh(storage: MemoryStorage): Profile {
   return new Profile(1, storage);
 }
 
+describe('augment previews', () => {
+  it('computes the next cyberware and perk deltas from the current build', () => {
+    const profile = fresh(new MemoryStorage());
+    const cyber = profile.previewCyberware('subdermal');
+    expect(cyber).not.toBeNull();
+    expect(cyber!.after.armor).toBe(cyber!.before.armor + 1);
+    expect(cyber!.load).toBeGreaterThan(0);
+
+    const perk = profile.previewPerk('sprinter');
+    expect(perk).not.toBeNull();
+    expect(perk!.after.speed).toBeGreaterThan(perk!.before.speed);
+  });
+});
+
 describe('save slots', () => {
   it('starts fresh, writes a v2 envelope and reloads it', () => {
     const storage = new MemoryStorage();

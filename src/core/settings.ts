@@ -19,6 +19,8 @@ export interface SettingsData {
   palette: Palette;
   subtitles: boolean;
   dialogueLog: boolean;
+  fieldTips: boolean;
+  fieldTipsSeen: string[];
   controls: ControlPreset;
   locale: Locale;
   keymap: Record<string, string>;
@@ -38,6 +40,8 @@ const DEFAULTS: SettingsData = {
   palette: 'default',
   subtitles: true,
   dialogueLog: true,
+  fieldTips: true,
+  fieldTipsSeen: [],
   controls: 'wasd',
   locale: 'en',
   keymap: {},
@@ -115,6 +119,11 @@ export class Settings {
         subtitles: typeof p.subtitles === 'boolean' ? p.subtitles : DEFAULTS.subtitles,
         dialogueLog:
           typeof p.dialogueLog === 'boolean' ? p.dialogueLog : DEFAULTS.dialogueLog,
+        fieldTips:
+          typeof p.fieldTips === 'boolean' ? p.fieldTips : DEFAULTS.fieldTips,
+        fieldTipsSeen: Array.isArray(p.fieldTipsSeen)
+          ? p.fieldTipsSeen.filter((id): id is string => typeof id === 'string')
+          : [],
         controls: CONTROLS.includes(p.controls as ControlPreset)
           ? (p.controls as ControlPreset)
           : DEFAULTS.controls,

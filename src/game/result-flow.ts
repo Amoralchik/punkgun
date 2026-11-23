@@ -3,10 +3,11 @@ import type { Contract } from './missions';
 import type { EndingId } from './endings';
 import type { RewardSummary } from './results';
 import { deathResult, winResult } from './results';
+import { describeDeath, type DamageSource } from './damage-report';
 import { MODIFIER_MAP } from './modifiers';
 
 export type ResultView =
-  | { kind: 'death'; stats: string; note: string }
+  | { kind: 'death'; stats: string; note: string; source?: string; hint?: string }
   | { kind: 'win'; stats: string; note: string }
   | { kind: 'ending' }
   | { kind: 'none' };
@@ -19,7 +20,9 @@ export interface ResultInput {
     kills: number;
     lootValue: number;
     deathCause: string;
-    player: { weapon: string };
+    lastDamage?: DamageSource | null;
+    dashReady?: boolean;
+    player: { weapon: string; x?: number; y?: number };
   };
   carriedWeapon: boolean;
   insured: boolean;
@@ -33,6 +36,20 @@ export interface ResultInput {
 /** Resolve the post-run overlay from world/profile state. */
 export function buildResult(input: ResultInput): ResultView {
   if (input.dead) {
+    const { lastDamage, player } = input.world;
+    const report = describeDeath(
+      lastDamage ?? {
+        label: input.world.deathCause,
+        attack: 'CAUSE UNRECORDED',
+        cause: 'unknown',
+        x: null,
+        y: null,
+      },
+      player.x !== undefined && player.y !== undefined
+        ? { x: player.x, y: player.y }
+        : null,
+      { dashReady: input.world.dashReady },
+    );
     const { stats, note } = deathResult({
       contractTitle: input.contract?.title ?? null,
       time: input.world.time,
@@ -42,8 +59,9 @@ export function buildResult(input: ResultInput): ResultView {
       carriedWeapon: input.carriedWeapon,
       insured: input.insured,
       insuredWeapon: input.insuredWeapon,
+      report,
     });
-    return { kind: 'death', stats, note };
+    return { kind: 'death', stats, note, source: report.detail, hint: report.hint };
   }
   if (input.contract?.chapter === 'final' && !input.ending) return { kind: 'ending' };
   if (!input.reward) return { kind: 'none' };

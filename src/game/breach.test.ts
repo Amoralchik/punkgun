@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BREACH_BUFFER,
-  BREACH_SIZE,
   generateBreach,
   selectBreachCell,
   tickBreach,

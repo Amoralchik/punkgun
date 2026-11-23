@@ -31,8 +31,12 @@ export const MANUAL_SECTIONS: ManualSection[] = [
         es: 'Las unidades con <b>ESCUDO</b> bloquean el frente: flanquéalas, apuñálalas por la espalda o lánzales algo. Los <b>FRANCOTIRADORES</b> pintan un láser rojo antes de disparar. Los <b>EMBESTIDORES</b> cierran rápido a melé. Los <b>GRANADEROS</b> lanzan granadas rojas con mecha y mantienen distancia. Las <b>HOJAS</b> son cyberpsicópatas sin armas que cierran más rápido que nadie. Los <b>NETRUNNERS</b> canalizan un hack visible que altera el HUD y bloquea el ciberware activo; rompe la línea de visión o mátalos primero. Los <b>OPERADORES</b> despliegan torretas y llevan pistola.',
       },
       {
+        en: '<b>SQUAD TACTICS</b> — the second member of a close squad breaks wide: a cyan chevron points along its flank route. Suppressed troopers show a mint chevron toward cover. Break the flank or reposition before the pincer closes.',
+        es: '<b>TÁCTICAS DE ESCUADRÓN</b> — el segundo miembro de una escuadra cercana se abre: un cheurón cian señala su ruta de flanqueo. Los soldados suprimidos muestran un cheurón menta hacia la cobertura. Rompe el flanqueo o recolócate antes de que cierre la pinza.',
+      },
+      {
         en: '<b>EXPLOSIVE BARRELS</b> chain-react. Shoot one beside a group, or throw a weapon into it. <b>SECURITY CAMERAS</b> sweep corridors and alert the sector; shoot them out. <b>TURRETS</b> paint a red line before firing — break line of sight or destroy them. <b>LASER GRIDS</b> pulse across corridors; cross on the dark phase or shoot the emitter.',
-        es: 'Los <b>BARRILES EXPLOSIVOS</b> encadenan explosiones. Dispara a uno junto a un grupo o lánzale un arma. Las <b>CÁMARAS DE SEGURIDAD</b> barren los pasillos y alertan al sector; destrúyelas. Las <b>TORRETAS</b> pintan una línea roja antes de disparar: rompe la línea de visión o destrúyelas. Las <b>REDES LÁSER</b> pulsan en los pasillos; cruza en la fase oscura o dispara al emisor.',
+        es: 'Los <b>BARRILES EXPLOSIVOS</b> encadenan explosiones. Dispara a uno junto a un grupo o lánzale un arma. Las <b>CÁMARAS DE SEGURIDAD</b> barren los pasillos y alertan el sector; destrúyelas. Las <b>TORRETAS</b> pintan una línea roja antes de disparar: rompe la línea de visión o destrúyelas. Las <b>REDES LÁSER</b> pulsan en los pasillos; cruza en la fase oscura o dispara al emisor.',
       },
       {
         en: '<b>GLASS</b> blocks movement but not sight. Shoot a pane to open a route. <b>STEAM VENTS</b> pulse sight-blocking clouds; use them or wait out the cycle. <b>HOUNDS</b> leap; <b>MEDICS</b> restore ally plates; kill the medic first.',
@@ -127,26 +131,60 @@ export const MANUAL_SECTIONS: ManualSection[] = [
   },
 ];
 
-export const TOUR_ITEMS: Localized[] = [
+export interface TourStep {
+  title: Localized;
+  body: Localized;
+}
+
+export const TOUR_STEPS: TourStep[] = [
   {
-    en: '<b>01 · CONTRACTS</b><span>Read the board, then pick a contract and insertion.</span>',
-    es: '<b>01 · CONTRATOS</b><span>Lee el tablón y elige contrato e inserción.</span>',
+    title: { en: '01 · THE ROOM', es: '01 · LA SALA' },
+    body: {
+      en: 'This is your safehouse. <b>WASD</b> moves you; <b>E</b> opens a station. Every station is a station in the same room — no separate menus to hunt for.',
+      es: 'Este es tu refugio. <b>WASD</b> te mueve; <b>E</b> abre una estación. Todas las estaciones están en la misma sala: no hay menús separados que buscar.',
+    },
   },
   {
-    en: '<b>02 · MARKET</b><span>Buy gear, ammunition, insurance or faction hardware. Open the exchange for dividends.</span>',
-    es: '<b>02 · MERCADO</b><span>Compra equipo, munición, seguro o hardware de facción. Abre la bolsa para dividendos.</span>',
+    title: { en: '02 · READ THE BOARD', es: '02 · LEE EL TABLÓN' },
+    body: {
+      en: 'Open <b>CONTRACTS</b> and read the objective, risk, pay, modifiers and insertion. The board refreshes; locked contracts need chapter clears.',
+      es: 'Abre <b>CONTRATOS</b> y lee el objetivo, riesgo, pago, modificadores e inserción. El tablón se renueva; los contratos bloqueados piden capítulos limpiados.',
+    },
   },
   {
-    en: '<b>03 · SANCTUARY</b><span>Invest in the room. Upgrades change the diorama and the next run.</span>',
-    es: '<b>03 · SANTUARIO</b><span>Invierte en la sala. Las mejoras cambian el diorama y la próxima partida.</span>',
+    title: { en: '03 · PICK A LOADOUT', es: '03 · ELIGE EQUIPO' },
+    body: {
+      en: 'Carry one weapon from the case. Pack one supply charge. At <b>DEPLOY</b>, choose an approach and a challenge, then launch.',
+      es: 'Lleva un arma del maletín. Empaca una carga de suministro. En <b>DESPLIEGUE</b>, elige aproximación y desafío, y lanza.',
+    },
   },
   {
-    en: '<b>04 · DEPLOY</b><span>Choose an approach and a challenge. Fists, Glass and Rush change the rules.</span>',
-    es: '<b>04 · DESPLIEGUE</b><span>Elige aproximación y desafío. Puños, Cristal y Prisa cambian las reglas.</span>',
+    title: { en: '04 · SURVIVE THE ROOM', es: '04 · SOBREVIVE A LA SALA' },
+    body: {
+      en: '<b>MOUSE</b> aims, <b>LMB</b> shoots, <b>SPACE</b> dashes, <b>R</b> reloads. Everyone dies in one hit. Armor plates absorb one hit; <b>E</b> executes stunned targets.',
+      es: '<b>RATÓN</b> apunta, <b>CLIC IZQ</b> dispara, <b>ESPACIO</b> impulsa, <b>R</b> recarga. Todos mueren de un golpe. Las placas absorben un impacto; <b>E</b> remata objetivos aturdidos.',
+    },
   },
   {
-    en: '<b>05 · THE SECTOR</b><span>Dash, flank, execute stunned targets, break glass and extract. The city is one hit deep.</span>',
-    es: '<b>05 · EL SECTOR</b><span>Impúlsate, flanquea, ejecuta objetivos aturdidos, rompe cristales y extrae. La ciudad es de un solo golpe.</span>',
+    title: { en: '05 · THE OBJECTIVE', es: '05 · EL OBJETIVO' },
+    body: {
+      en: 'The HUD names the objective and the exit arrow points home. Press <b>E</b> to plant taps, grab caches, kick doors and secure the case.',
+      es: 'El HUD nombra el objetivo y la flecha de salida señala el camino. Pulsa <b>E</b> para colocar taps, recoger cachés, patear puertas y asegurar el maletín.',
+    },
+  },
+  {
+    title: { en: '06 · EXTRACT CLEAN', es: '06 · EXTRAE LIMPIO' },
+    body: {
+      en: 'The exit opens only when the objective is done. Reach it alive; the weapon in your hands and the loot you carry are banked on a clean exit.',
+      es: 'La salida solo se abre al cumplir el objetivo. Llega vivo; el arma en tus manos y el botín que llevas se ingresan al salir limpio.',
+    },
+  },
+  {
+    title: { en: '07 · THE LOOP', es: '07 · EL CICLO' },
+    body: {
+      en: 'Pay, XP and contraband feed the loop. Spend at the <b>CLINIC</b> for cyberware and perks, the <b>WORKBENCH</b> for attachments, and the <b>MARKET</b> for gear. Then deploy again.',
+      es: 'Pago, XP y contrabando alimentan el ciclo. Gasta en la <b>CLÍNICA</b> para ciberware y ventajas, el <b>BANCO</b> para accesorios y el <b>MERCADO</b> para equipo. Luego despliega otra vez.',
+    },
   },
 ];
 
@@ -159,6 +197,6 @@ export function renderManualSections(locale: ManualLocale): string {
   ).join('');
 }
 
-export function renderTourItems(locale: ManualLocale): string {
-  return TOUR_ITEMS.map((item) => `<div>${item[locale]}</div>`).join('');
+export function renderTourStep(step: TourStep, locale: ManualLocale): string {
+  return `<div class="tour-step"><h3>${step.title[locale]}</h3><p>${step.body[locale]}</p></div>`;
 }

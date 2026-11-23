@@ -7,9 +7,13 @@ import type { World } from './world';
 import { syncHud } from './hud-sync';
 
 function make() {
+  const setThreats = vi.fn();
   const hud = new Proxy(
-    {},
-    { get: () => vi.fn() },
+    { setThreats },
+    {
+      get: (target, prop) =>
+        prop === 'setThreats' ? target.setThreats : vi.fn(),
+    },
   ) as unknown as Hud;
   const world = {
     player: {
@@ -29,6 +33,35 @@ function make() {
       x: 10,
       y: 10,
     },
+    enemies: [
+      {
+        alive: true,
+        kind: 'boss',
+        bossChargeT: 0.4,
+        hackT: 0,
+        aiming: false,
+        x: 20,
+        y: 20,
+      },
+      {
+        alive: true,
+        kind: 'netrunner',
+        bossChargeT: 0,
+        hackT: 0.5,
+        aiming: true,
+        x: 30,
+        y: 30,
+      },
+      {
+        alive: false,
+        kind: 'gunner',
+        bossChargeT: 0,
+        hackT: 0,
+        aiming: true,
+        x: 40,
+        y: 40,
+      },
+    ],
     aliveEnemies: 2,
     time: 30,
     lootValue: 0,
@@ -52,12 +85,12 @@ function make() {
   } as unknown as Profile;
   const renderer = { worldToScreen: vi.fn(() => ({ x: 1, y: 2 })) } as unknown as Renderer;
   const audio = { setIntensity: vi.fn() } as unknown as AudioEngine;
-  return { hud, world, profile, renderer, audio };
+  return { hud, world, profile, renderer, audio, setThreats };
 }
 
 describe('HUD sync', () => {
   it('projects world state and advances hit/kill marks', () => {
-    const { hud, world, profile, renderer, audio } = make();
+    const { hud, world, profile, renderer, audio, setThreats } = make();
     const out = syncHud({
       state: 'playing',
       world,
@@ -75,5 +108,29 @@ describe('HUD sync', () => {
     });
     expect(out).toEqual({ lastShotsHit: 4, lastKills: 2 });
     expect(audio.setIntensity).toHaveBeenCalledWith(0.2);
+    expect(setThreats).toHaveBeenCalledWith([
+      { x: 1, y: 2, kind: 'charge' },
+      { x: 1, y: 2, kind: 'hack' },
+    ]);
+  });
+
+  it('clears edge threats outside an active run', () => {
+    const { hud, world, profile, renderer, audio, setThreats } = make();
+    syncHud({
+      state: 'paused',
+      world,
+      profile,
+      contract: null,
+      approach: 'standard',
+      mouseX: 5,
+      mouseY: 6,
+      lastShotsHit: 0,
+      lastKills: 0,
+      hud,
+      renderer,
+      audio,
+      setVignettePoint: vi.fn(),
+    });
+    expect(setThreats).toHaveBeenCalledWith([]);
   });
 });

@@ -1,4 +1,5 @@
 import { seedLabel } from '../core/math';
+import { SETPIECES, setpieceFor } from '../game/setpieces';
 import type { Locale } from '../core/i18n';
 import { APPROACH_MAP, type ApproachId } from '../game/attributes';
 import { BOONS, type RunBoon } from '../game/boons';
@@ -25,7 +26,11 @@ export class MissionBrief {
   ): string {
     const faction = FACTIONS[contract.faction];
     const approach = APPROACH_MAP[approachId];
-    const mods = contract.modifiers.map((id) => MODIFIER_MAP[id].name).join(' · ');
+    const sp = setpieceFor(contract);
+    const spName = sp ? (locale === 'es' ? SETPIECES[sp].nameEs : SETPIECES[sp].name) : '';
+    const mods = [spName, ...contract.modifiers.map((id) => MODIFIER_MAP[id].name)]
+      .filter(Boolean)
+      .join(' · ');
     const boonLine = boons.map((id) => BOONS[id].label).join(' · ');
     const seed = seedLabel(contract.seed);
     const challenge =
@@ -41,7 +46,7 @@ export class MissionBrief {
     this.title.textContent = contract.title;
     this.faction.textContent = faction.name;
     this.faction.style.color = faction.color;
-    this.objective.textContent = objectiveText(contract);
+    this.objective.textContent = sp ? `${objectiveText(contract)} · ${spName}` : objectiveText(contract);
     const line = handlerLine(contract.faction, contract.title.length, locale);
     this.handler.textContent = `MOTH: ${line}`;
     this.root.classList.remove('hidden');

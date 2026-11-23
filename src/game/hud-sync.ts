@@ -1,6 +1,6 @@
 import type { AudioEngine } from '../core/audio';
 import type { Renderer } from '../render/renderer';
-import type { Hud } from '../ui/hud';
+import type { Hud, ThreatMarker } from '../ui/hud';
 import { APPROACH_MAP, type ApproachId } from './attributes';
 import { CONSUMABLE_MAP } from './consumables';
 import type { Contract } from './missions';
@@ -89,5 +89,21 @@ export function syncHud(ctx: HudSyncContext): { lastShotsHit: number; lastKills:
     Math.round(Math.hypot(ex, ey) / 64),
     world.exitOpen && state === 'playing' && p.alive,
   );
+  const threats: ThreatMarker[] = [];
+  if (state === 'playing') {
+    for (const enemy of world.enemies ?? []) {
+      if (!enemy.alive) continue;
+      const charging = enemy.kind === 'boss' && enemy.bossChargeT > 0;
+      const hacking = enemy.hackT > 0;
+      if (!charging && !hacking && !enemy.aiming) continue;
+      const screen = ctx.renderer.worldToScreen(enemy.x, enemy.y);
+      threats.push({
+        x: screen.x,
+        y: screen.y,
+        kind: charging ? 'charge' : hacking ? 'hack' : 'gun',
+      });
+    }
+  }
+  hud.setThreats(threats);
   return { lastShotsHit, lastKills };
 }

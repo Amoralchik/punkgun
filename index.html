@@ -67,10 +67,12 @@
           <span id="hud-boss-label" class="hud-boss-label">ARMOR 3/3</span>
         </div>
         <div id="hud-damage-dir" class="hud-damage-dir"></div>
+        <div id="hud-threats" class="hud-threats" aria-hidden="true"></div>
         <div id="hud-consumable" class="hud-consumable off"></div>
-        <div id="hud-prompt" class="hud-prompt"></div>
-        <div id="hud-subtitle" class="hud-subtitle"></div>
-        <div id="hud-log" class="hud-log off"></div>
+        <div id="hud-prompt" class="hud-prompt" role="status" aria-live="polite"></div>
+        <div id="hud-subtitle" class="hud-subtitle" role="status" aria-live="polite"></div>
+        <div id="hud-tip" class="hud-tip" role="status" aria-live="polite"></div>
+        <div id="hud-log" class="hud-log off" role="log" aria-live="polite"></div>
         <div class="hud-keys">WASD MOVE &middot; SPACE DASH &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE/EXECUTE &middot; Z QUICKHACK &middot; M MUTE</div>
       </div>
 
@@ -150,6 +152,7 @@
               <button id="sh-ventures" class="sh-augments" type="button" data-act="open-ventures">VENTURES</button>
               <button id="sh-sanctuary" class="sh-augments" type="button" data-act="open-sanctuary">SANCTUARY</button>
               <button id="sh-augments" class="sh-augments" type="button" data-act="open-augments">AUGMENTS</button>
+              <button id="sh-tour" class="sh-augments" type="button" data-act="tour">TOUR</button>
               <button id="sh-manual" class="sh-augments" type="button" data-act="manual">MANUAL</button>
               <button id="sh-new-game" class="sh-new-game" type="button" data-act="new-game">NEW GAME</button>
               <button id="sh-reset" class="sh-reset" type="button" data-act="reset">RESET SAVE</button>
@@ -403,6 +406,7 @@
             </label>
             <label class="pause-check"><input id="set-subtitles" type="checkbox" checked /> SUBTITLES</label>
             <label class="pause-check"><input id="set-dialogue-log" type="checkbox" checked /> DIALOGUE / EVENT LOG</label>
+            <label class="pause-check"><input id="set-field-tips" type="checkbox" checked /> FIRST-USE FIELD TIPS</label>
             <div class="remap-head">KEY REMAP <small>CLICK, THEN PRESS A KEY</small></div>
             <div id="set-remap" class="remap-grid"></div>
           </div>
@@ -427,12 +431,16 @@
         </div>
       </div>
 
-      <div id="overlay-tour" class="overlay tour hidden">
+      <div id="overlay-tour" class="overlay tour hidden" role="dialog" aria-modal="true" aria-labelledby="tour-heading">
         <div class="tour-panel">
-          <div class="kicker">// SAFEHOUSE TOUR</div>
-          <h2 class="manual-title">ONE MINUTE IN THE ROOM</h2>
-          <div id="tour-grid" class="tour-grid"></div>
-          <button class="sh-deploy" type="button" data-act="tour-close">START WORKING</button>
+          <div class="kicker">// SAFEHOUSE TOUR · <span id="tour-count">1 / 7</span></div>
+          <h2 id="tour-heading" class="manual-title">ONE MINUTE IN THE ROOM</h2>
+          <div id="tour-grid" class="tour-grid" aria-live="polite"></div>
+          <div class="tour-actions">
+            <button id="tour-prev" type="button" data-act="tour-prev">BACK</button>
+            <button id="tour-next" type="button" data-act="tour-next">NEXT</button>
+            <button type="button" data-act="tour-close">SKIP TOUR</button>
+          </div>
         </div>
       </div>
 
@@ -457,25 +465,31 @@
         </div>
       </div>
 
-      <div id="overlay-death" class="overlay hidden">
+      <div id="overlay-death" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="death-title">
         <div class="ov-inner">
           <div class="kicker red">// SIGNAL LOST</div>
-          <h1 class="end-title red">WASTED</h1>
+          <h1 id="death-title" class="end-title red">WASTED</h1>
           <p id="death-stats" class="stats"></p>
+          <p id="death-source" class="death-source" hidden></p>
           <p id="death-note" class="result-note red"></p>
-          <div class="cta red">[ R ] QUICK RETRY · FISTS</div>
-          <div class="cta-sub">[ SPACE ] RETURN TO SAFEHOUSE</div>
+          <p id="death-hint" class="death-hint" hidden></p>
+          <div class="death-actions">
+            <button id="death-retry" type="button" class="cta-button red" data-act="death-retry">[ R ] QUICK RETRY · FISTS</button>
+            <button id="death-safehouse" type="button" class="cta-button" data-act="death-safehouse">[ SPACE ] RETURN TO SAFEHOUSE</button>
+          </div>
         </div>
       </div>
 
-      <div id="overlay-win" class="overlay hidden">
+      <div id="overlay-win" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="win-title">
         <div class="ov-inner">
           <div class="kicker">// SECTOR CLEARED</div>
-          <h1 class="end-title">CLEAN.</h1>
+          <h1 id="win-title" class="end-title">CLEAN.</h1>
           <p id="win-stats" class="stats"></p>
           <p id="win-note" class="result-note"></p>
-          <div class="cta">[ R ] RETURN TO SAFEHOUSE</div>
-          <button class="win-new-game" type="button" data-act="win-new-game">START NEW GAME</button>
+          <div class="death-actions">
+            <button id="win-return" type="button" class="cta-button" data-act="win-return">[ R ] RETURN TO SAFEHOUSE</button>
+            <button class="win-new-game" type="button" data-act="win-new-game">START NEW GAME</button>
+          </div>
         </div>
       </div>
 

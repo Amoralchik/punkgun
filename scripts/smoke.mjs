@@ -106,6 +106,21 @@ class Cdp {
   }
 }
 
+async function pressKey(cdp, { key, code, keyCode, text }) {
+  const base = {
+    key,
+    code,
+    windowsVirtualKeyCode: keyCode,
+    nativeVirtualKeyCode: keyCode,
+  };
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    ...base,
+    ...(text ? { text } : {}),
+  });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
+}
+
 async function main() {
   if (!existsSync('dist/index.html')) {
     throw new Error('dist missing. Run `npm run build` first.');
@@ -214,13 +229,77 @@ async function main() {
     }
     if (boot.saveVersion !== 2) throw new Error('Save export is not v2.');
 
-    const tour = await cdp.evaluate(`(() => {
-      document.querySelector('[data-act="close-manual"]')?.click();
-      const visible = !document.getElementById('overlay-tour').classList.contains('hidden');
-      document.querySelector('[data-act="tour-close"]')?.click();
-      return visible;
+    const onboarding = await cdp.evaluate(`(() => {
+      const hiddenFocus = (() => {
+        document.getElementById('death-safehouse')?.focus();
+        return document.activeElement?.id ?? '';
+      })();
+      return {
+        tour: !document.getElementById('overlay-tour').classList.contains('hidden'),
+        manual: !document.getElementById('overlay-manual').classList.contains('hidden'),
+        step: document.getElementById('tour-grid').textContent,
+        count: document.getElementById('tour-count').textContent,
+        focused: document.activeElement?.getAttribute('data-act') ?? '',
+        hiddenFocus,
+      };
     })()`);
-    if (!tour) throw new Error('First-minute safehouse tour failed to open.');
+    if (!onboarding.tour || onboarding.manual) {
+      throw new Error(`First-run onboarding should open the tour only: ${JSON.stringify(onboarding)}`);
+    }
+    if (!onboarding.step.includes('THE ROOM') || !onboarding.count.startsWith('1 /')) {
+      throw new Error(`Tour did not render its first step: ${JSON.stringify(onboarding)}`);
+    }
+    if (onboarding.focused !== 'tour-next') {
+      throw new Error(`Tour did not focus NEXT: ${JSON.stringify(onboarding)}`);
+    }
+    if (onboarding.hiddenFocus === 'death-safehouse') {
+      throw new Error('Hidden overlays expose focusable controls.');
+    }
+    const tourShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'tour.png'), Buffer.from(tourShot.data, 'base64'));
+
+    await pressKey(cdp, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    const tourTab = await cdp.evaluate(`(() => ({
+      focused: document.activeElement?.getAttribute('data-act') ?? '',
+      inside: document.getElementById('overlay-tour').contains(document.activeElement),
+    }))()`);
+    if (!tourTab.inside || tourTab.focused !== 'tour-close') {
+      throw new Error(`Tab did not stay inside the tour: ${JSON.stringify(tourTab)}`);
+    }
+    await pressKey(cdp, { key: ' ', code: 'Space', keyCode: 32, text: ' ' });
+    await sleep(120);
+    const tourClosed = await cdp.evaluate(`(() => ({
+      hidden: document.getElementById('overlay-tour').classList.contains('hidden'),
+      tourSeen: window.__game.settings.data.tourSeen,
+    }))()`);
+    if (!tourClosed.hidden || !tourClosed.tourSeen) {
+      throw new Error(`Native Space did not dismiss the tour: ${JSON.stringify(tourClosed)}`);
+    }
+
+    await pressKey(cdp, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    await sleep(180);
+    const hubPanel = await cdp.evaluate(`(() => ({
+      open: !document.getElementById('overlay-safehouse').classList.contains('hidden'),
+      inside: document.getElementById('overlay-safehouse').contains(document.activeElement),
+      tourButton: !!document.getElementById('sh-tour'),
+      active: document.activeElement?.id || document.activeElement?.tagName || '',
+      state: window.__game.state,
+    }))()`);
+    if (!hubPanel.open || !hubPanel.inside || !hubPanel.tourButton) {
+      throw new Error(`Keyboard terminal open failed: ${JSON.stringify(hubPanel)}`);
+    }
+    const replayTour = await cdp.evaluate(`(() => {
+      document.getElementById('sh-tour').click();
+      const visible = !document.getElementById('overlay-tour').classList.contains('hidden');
+      const step = document.getElementById('tour-grid').textContent;
+      document.querySelector('[data-act="tour-close"]')?.click();
+      return { visible, step, text: document.getElementById('sh-tour').textContent };
+    })()`);
+    if (!replayTour.visible || !replayTour.step.includes('THE ROOM') || replayTour.text !== 'TOUR') {
+      throw new Error(`Tour replay failed: ${JSON.stringify(replayTour)}`);
+    }
+    await cdp.evaluate(`document.querySelector('[data-act="close-panel"]')?.click()`);
+    await sleep(120);
 
     const started = await cdp.evaluate(`(() => {
       const g = window.__game;
@@ -259,6 +338,118 @@ async function main() {
       throw new Error(`Mission did not advance: ${started.title}\n${JSON.stringify({ debug, errors })}`);
     }
     if (!playing.hud) throw new Error('HUD not visible during mission.');
+    const fieldTip = await cdp.evaluate(`(async () => {
+      const g = window.__game;
+      g.settings.data.fieldTipsSeen = ['deploy', 'armor', 'execute'];
+      g.fieldTips.cooldown = 0;
+      g.world.player.clip = 0;
+      g.world.player.ammo = 10;
+      g.world.player.reloadT = 0;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let i = 0; i < 40; i++) {
+        if (document.getElementById('hud-tip').classList.contains('on')) break;
+        await wait(120);
+      }
+      const el = document.getElementById('hud-tip');
+      return { on: el.classList.contains('on'), text: el.textContent, seen: g.settings.data.fieldTipsSeen };
+    })()`);
+    if (
+      !fieldTip.on ||
+      !fieldTip.text.includes('MAGAZINE EMPTY') ||
+      !fieldTip.seen.includes('reload')
+    ) {
+      throw new Error(`Field tip failed: ${JSON.stringify(fieldTip)}`);
+    }
+    const tipShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'field-tip.png'), Buffer.from(tipShot.data, 'base64'));
+    const ability = await cdp.evaluate(`(async () => {
+      const g = window.__game;
+      g.world.mods.sandevistan = 1;
+      g.world.player.slowCd = 0;
+      g.world.player.hackedT = 0;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ShiftLeft', key: 'Shift', bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 160));
+      const active = g.world.player.slowT > 0;
+      const cooldown = g.world.player.slowCd > 0;
+      g.world.player.slowT = 0;
+      g.world.player.slowCd = 0;
+      return { active, cooldown };
+    })()`);
+    if (!ability.active || !ability.cooldown) {
+      throw new Error(`Active cyberware path failed: ${JSON.stringify(ability)}`);
+    }
+    const shooting = await cdp.evaluate(`(async () => {
+      const g = window.__game;
+      const p = g.world.player;
+      p.weapon = 'pistol';
+      p.clip = 2;
+      p.ammo = 10;
+      p.attackCd = 0;
+      p.reloadT = 0;
+      const before = g.world.shotsFired;
+      window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      window.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
+      return { fired: g.world.shotsFired > before, clip: p.clip };
+    })()`);
+    if (!shooting.fired || shooting.clip !== 1) {
+      throw new Error(`Player shooting path failed: ${JSON.stringify(shooting)}`);
+    }
+    const telegraphs = await cdp.evaluate(`(() => {
+      const g = window.__game;
+      g.onEvent({ type: 'netrunnerChannel', x: 0, y: 0, angle: 0 });
+      const channel = document.getElementById('hud-subtitle').textContent;
+      g.onEvent({ type: 'bossCharge', x: 0, y: 0, angle: 0 });
+      const charge = document.getElementById('hud-subtitle').textContent;
+      return { channel, charge };
+    })()`);
+    if (!telegraphs.channel.includes('NETRUNNER') || !telegraphs.charge.includes('CHARGING')) {
+      throw new Error(`Telegraph HUD failed: ${JSON.stringify(telegraphs)}`);
+    }
+    const threats = await cdp.evaluate(`(() => {
+      window.__game.hud.setThreats([
+        { x: -400, y: 300, kind: 'charge' },
+        { x: window.innerWidth + 400, y: 300, kind: 'hack' },
+      ]);
+      return {
+        count: document.querySelectorAll('#hud-threats .hud-threat.on').length,
+        charge: !!document.querySelector('#hud-threats .hud-threat.on.charge'),
+        hack: !!document.querySelector('#hud-threats .hud-threat.on.hack'),
+      };
+    })()`);
+    if (threats.count !== 2 || !threats.charge || !threats.hack) {
+      throw new Error(`Edge threat markers failed: ${JSON.stringify(threats)}`);
+    }
+    const threatShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'threats.png'), Buffer.from(threatShot.data, 'base64'));
+    await cdp.evaluate(`window.__game.hud.setThreats([])`);
+    const squadIntent = await cdp.evaluate(`(async () => {
+      const g = window.__game;
+      const p = g.world.player;
+      const flanker = g.world.enemies.find((e) => e.alive);
+      const coverer = g.world.enemies.filter((e) => e.alive)[1];
+      if (!flanker || !coverer) return { flanker: false, coverer: false };
+      flanker.flankT = 4;
+      flanker.flankX = p.x + 220;
+      flanker.flankY = p.y;
+      coverer.coverT = 4;
+      coverer.coverX = p.x - 220;
+      coverer.coverY = p.y;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await wait(180);
+      const flankView = g.renderer.unitViews.get(flanker.id);
+      const coverView = g.renderer.unitViews.get(coverer.id);
+      const result = {
+        flanker: Boolean(flankView?.intentMark.visible),
+        coverer: Boolean(coverView?.intentMark.visible),
+      };
+      return result;
+    })()`);
+    if (!squadIntent.flanker || !squadIntent.coverer) {
+      throw new Error(`Squad intent markers failed: ${JSON.stringify(squadIntent)}`);
+    }
+    const intentShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'squad-intent.png'), Buffer.from(intentShot.data, 'base64'));
     const breach = await cdp.evaluate(`(() => {
       const g = window.__game;
       g.state = 'breach';
@@ -289,6 +480,31 @@ async function main() {
       `(() => ({ state: window.__game.state, pauseVisible: !document.getElementById('overlay-pause').classList.contains('hidden') }))()`,
     );
     if (paused.state !== 'paused' || !paused.pauseVisible) throw new Error('Pause overlay failed: ' + JSON.stringify(paused));
+    const pauseTrap = await cdp.evaluate(`(() => {
+      const root = document.getElementById('overlay-pause');
+      document.querySelector('#overlay-pause [data-act="resume"]')?.focus();
+      const before = document.activeElement?.textContent ?? '';
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', key: 'Tab', bubbles: true }));
+      const after = document.activeElement?.textContent ?? '';
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', key: 'Tab', bubbles: true, shiftKey: true }));
+      const back = document.activeElement?.textContent ?? '';
+      return {
+        before,
+        after,
+        back,
+        inside: root.contains(document.activeElement),
+        hiddenFocus: (() => {
+          document.getElementById('death-retry')?.focus();
+          return document.activeElement?.id ?? '';
+        })(),
+      };
+    })()`);
+    if (!pauseTrap.inside || pauseTrap.before === pauseTrap.after || pauseTrap.back !== pauseTrap.before) {
+      throw new Error(`Pause focus trap failed: ${JSON.stringify(pauseTrap)}`);
+    }
+    if (pauseTrap.hiddenFocus === 'death-retry') {
+      throw new Error('Hidden death controls accepted focus while paused.');
+    }
     const locale = await cdp.evaluate(`(() => {
       document.querySelector('[data-act="settings"]')?.click();
       const select = document.getElementById('set-locale');
@@ -296,17 +512,21 @@ async function main() {
       select.dispatchEvent(new Event('change', { bubbles: true }));
       const active = document.documentElement.lang;
       const manual = document.getElementById('manual-sections').textContent;
+      window.__game.showTour();
       const tour = document.getElementById('tour-grid').textContent;
+      const count = document.getElementById('tour-count').textContent;
+      document.querySelector('[data-act="tour-close"]')?.click();
       select.value = 'en';
       select.dispatchEvent(new Event('change', { bubbles: true }));
       return {
         active,
         esManual: manual.includes('MOVIMIENTO Y COMBATE'),
-        esTour: tour.includes('DESPLIEGUE'),
+        esTour: tour.includes('LA SALA'),
+        count,
         enManual: document.getElementById('manual-sections').textContent.includes('MOVEMENT & COMBAT'),
       };
     })()`);
-    if (!locale.active || locale.active !== 'es' || !locale.esManual || !locale.esTour || !locale.enManual) {
+    if (!locale.active || locale.active !== 'es' || !locale.esManual || !locale.esTour || !locale.enManual || !locale.count.startsWith('1 /')) {
       throw new Error(`Locale switch failed: ${JSON.stringify(locale)}`);
     }
     const remap = await cdp.evaluate(`(() => {
@@ -354,6 +574,65 @@ async function main() {
     const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, 'smoke.png'), Buffer.from(screenshot.data, 'base64'));
 
+    const lethal = await cdp.evaluate(`(() => {
+      const g = window.__game;
+      const p = g.world.player;
+      p.armor = 0;
+      p.revived = true;
+      p.invulnT = 0;
+      p.dashCd = 0;
+      g.world.killPlayer(Math.PI / 2, {
+        label: 'HEAVY GUNNER',
+        attack: 'LMG',
+        cause: 'gunfire',
+        x: p.x + 400,
+        y: p.y,
+        kind: 'heavy',
+      });
+      return { state: g.state, alive: p.alive };
+    })()`);
+    if (lethal.state !== 'dead' || lethal.alive) {
+      throw new Error(`Lethal hit did not end the run: ${JSON.stringify(lethal)}`);
+    }
+    let deathReport = null;
+    for (let i = 0; i < 40; i++) {
+      deathReport = await cdp.evaluate(`(() => ({
+        visible: !document.getElementById('overlay-death').classList.contains('hidden'),
+        stats: document.getElementById('death-stats').textContent,
+        source: document.getElementById('death-source').textContent,
+        hint: document.getElementById('death-hint').textContent,
+        focused: document.activeElement?.id ?? '',
+        retry: document.getElementById('death-retry').textContent,
+        safehouse: document.getElementById('death-safehouse').textContent,
+      }))()`);
+      if (deathReport.visible) break;
+      await sleep(100);
+    }
+    if (
+      !deathReport ||
+      !deathReport.visible ||
+      !deathReport.stats.includes('KILLED BY HEAVY GUNNER') ||
+      !deathReport.source.includes('LMG') ||
+      !deathReport.source.includes('FROM THE EAST') ||
+      !deathReport.source.includes('DASH READY') ||
+      !deathReport.hint.includes('HEAVY FIRE') ||
+      deathReport.focused !== 'death-safehouse' ||
+      !deathReport.retry.includes('QUICK RETRY') ||
+      !deathReport.safehouse.includes('SAFEHOUSE')
+    ) {
+      throw new Error(`Death report failed: ${JSON.stringify(deathReport)}`);
+    }
+    const deathShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'death.png'), Buffer.from(deathShot.data, 'base64'));
+    await cdp.evaluate(`document.getElementById('death-safehouse').click()`);
+    await sleep(300);
+    const afterDeath = await cdp.evaluate(
+      `(() => ({ state: window.__game.state, hub: !document.getElementById('hub').classList.contains('hidden') }))()`,
+    );
+    if (afterDeath.state !== 'safehouse' || !afterDeath.hub) {
+      throw new Error(`Death exit failed: ${JSON.stringify(afterDeath)}`);
+    }
+
     await cdp.evaluate('window.__game.returnToSafehouse()');
     await sleep(250);
     const hub = await cdp.evaluate(
@@ -369,6 +648,35 @@ async function main() {
       return open;
     })()`);
     if (!workbench) throw new Error('Workbench station failed to open.');
+
+    const archive = await cdp.evaluate(`(async () => {
+      window.__game.safehouse.openStation('archive');
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let i = 0; i < 40; i++) {
+        if (document.querySelectorAll('.archive-entry').length > 0) break;
+        await wait(100);
+      }
+      const count = document.querySelectorAll('.archive-entry').length;
+      const body = document.getElementById('station-body').textContent ?? '';
+      document.querySelector('[data-act="close-station"]')?.click();
+      return { count, body };
+    })()`);
+    if (archive.count !== 17 || !archive.body.includes('CHRONICLES')) {
+      throw new Error(`Archive asset failed to load: ${JSON.stringify(archive)}`);
+    }
+
+    const clinic = await cdp.evaluate(`(() => {
+      window.__game.safehouse.openStation('clinic');
+      const open = !document.getElementById('overlay-augments').classList.contains('hidden');
+      const deltas = Array.from(document.querySelectorAll('#overlay-augments .aug-delta')).map((el) => el.textContent);
+      return { open, count: deltas.length, sample: deltas.find((text) => text.includes(' → ')) ?? '' };
+    })()`);
+    if (!clinic.open || clinic.count === 0 || !clinic.sample.includes(' → ')) {
+      throw new Error(`Clinic upgrade preview failed: ${JSON.stringify(clinic)}`);
+    }
+    const clinicShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'clinic.png'), Buffer.from(clinicShot.data, 'base64'));
+    await cdp.evaluate(`document.querySelector('[data-act="close-augments"]')?.click()`);
 
     const ventures = await cdp.evaluate(`(() => {
       document.getElementById('sh-ventures').click();

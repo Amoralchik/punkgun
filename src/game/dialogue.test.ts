@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import archiveRaw from './archive.json?raw';
 import {
   authoredDialogue,
   dialogueCheckLabel,
   dialogueCheckMet,
   dossierUnlocked,
-  DOSSIERS,
   FACTIONS,
 } from './lore';
+import { parseArchive } from './archive';
 import type { Contract } from './missions';
+
+const DOSSIERS = parseArchive(JSON.parse(archiveRaw));
 
 const contract: Contract = {
   id: 'authored-a01-dead-drop',

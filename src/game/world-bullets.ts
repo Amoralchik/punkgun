@@ -1,7 +1,9 @@
 import type { WorldEvent } from './world-types';
 import type { Barrel, Bullet, Camera, Enemy, Laser, Player, Turret } from './world-types';
+import type { DamageSource } from './damage-report';
 import { angleDelta } from '../core/math';
 import { segmentHitsCircle } from './world-geometry';
+import type { Civilian } from './world-civilians';
 
 export interface BulletHost {
   bullets: Bullet[];
@@ -10,6 +12,9 @@ export interface BulletHost {
   turrets: Turret[];
   lasers: Laser[];
   enemies: Enemy[];
+  /** Market bystanders; any round that meets one stops there. */
+  civilians?: Civilian[];
+  killCivilian?(c: Civilian, by: 'player' | 'enemy', angle: number): void;
   player: Player;
   shotsHit: number;
   deathCause: string;
@@ -21,7 +26,13 @@ export interface BulletHost {
   damageBoss(enemy: Enemy, angle: number): void;
   damageHeavy(enemy: Enemy, angle: number): void;
   killEnemy(enemy: Enemy, by: 'player' | 'enemy' | 'door', silent?: boolean): void;
-  killPlayer(angle: number): void;
+  killPlayer(angle: number, source?: DamageSource | null): void;
+  damageSourceFor(
+    ownerId: number,
+    x: number,
+    y: number,
+    attack?: string,
+  ): DamageSource;
 }
 
 export function updateBullets(host: BulletHost, dt: number, enemyScale = 1): void {
@@ -94,10 +105,27 @@ export function updateBullets(host: BulletHost, dt: number, enemyScale = 1): voi
             }
           }
         }
+        if (!hit && host.civilians && host.killCivilian) {
+          for (const c of host.civilians) {
+            if (!c.alive) continue;
+            if (segmentHitsCircle(b.px, b.py, b.x, b.y, c.x, c.y, c.r)) {
+              host.killCivilian(
+                c,
+                b.ownerKind === 'player' ? 'player' : 'enemy',
+                Math.atan2(b.vy, b.vx),
+              );
+              hit = true;
+              break;
+            }
+          }
+        }
         if (!hit && b.ownerKind !== 'player' && host.player.alive) {
           if (segmentHitsCircle(b.px, b.py, b.x, b.y, host.player.x, host.player.y, host.player.r)) {
             host.deathCause = 'GUNFIRE';
-            host.killPlayer(Math.atan2(b.vy, b.vx));
+            host.killPlayer(
+              Math.atan2(b.vy, b.vx),
+              host.damageSourceFor(b.ownerId, b.x, b.y, b.attack),
+            );
             hit = true;
           }
         }

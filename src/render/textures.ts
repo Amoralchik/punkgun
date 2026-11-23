@@ -9,6 +9,8 @@ const CYAN = '#5ef1ff';
 const MAGENTA = '#ff2f8e';
 const VIOLET = '#8b6bff';
 const AMBER = '#ffc46b';
+/** Pixel height of the baked south-facing wall face (fake 3/4 extrusion). */
+const WALL_FACE = 18;
 
 function canvas(w: number, h: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -133,6 +135,76 @@ function drawOperative(
   }
   ctx.globalAlpha = 1;
 
+  ctx.restore();
+}
+
+/**
+ * Bystander silhouettes. Deliberately unlike combatants: no neon trim ring,
+ * no gloves out front. Looks 0/1 carry umbrellas (dark canopy, lit clear
+ * canopy), look 2 is hooded with arms tucked in.
+ */
+function drawCivilian(ctx: CanvasRenderingContext2D, look: number, frame = 0): void {
+  ctx.save();
+  const phase = ((frame % 4) + 4) % 4;
+  ctx.translate([0, 1.6, 0, -1.6][phase], [0, -0.6, 0, 0.6][phase]);
+  // body underneath (mostly hidden by the canopy)
+  ctx.fillStyle = '#1b1f27';
+  ctx.beginPath();
+  ctx.ellipse(56, 64, 15, 21, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (look === 2) {
+    // hooded walker, hands in pockets
+    ctx.fillStyle = '#3a3f49';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(57, 64, 17, 23, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#4b515c';
+    ctx.beginPath();
+    ctx.arc(64, 64, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.arc(70, 64, 6, -1.1, 1.1);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(214, 186, 150, 0.55)';
+    ctx.fillRect(48, 58, 3, 12);
+  } else {
+    const clear = look === 1;
+    const r = 30;
+    ctx.translate(60, 64);
+    ctx.fillStyle = clear ? 'rgba(170, 220, 235, 0.22)' : '#22262e';
+    ctx.strokeStyle = clear ? 'rgba(200, 245, 255, 0.75)' : 'rgba(150, 160, 175, 0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const rr = i % 2 === 0 ? r : r - 3;
+      const x = Math.cos(a) * rr;
+      const y = Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = clear ? 'rgba(200, 245, 255, 0.4)' : 'rgba(0, 0, 0, 0.45)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 8; i += 2) {
+      const a = (i / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.stroke();
+    }
+    // LED shaft tip on the lit umbrella; plain ferrule otherwise.
+    ctx.fillStyle = clear ? '#bff8ff' : '#6b7280';
+    ctx.beginPath();
+    ctx.arc(0, 0, clear ? 3.2 : 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -585,6 +657,9 @@ export class TextureBank {
   readonly enemy: THREE.Texture[];
   readonly enemyWalk: THREE.Texture[][];
   readonly enemyCorpse: THREE.Texture[];
+  /** Bystanders: [look][walkFrame] and one corpse per look. */
+  readonly civilianWalk: THREE.Texture[][];
+  readonly civilianCorpse: THREE.Texture[];
   readonly weapons = new Map<WeaponId, THREE.Texture>();
   readonly flash: THREE.Texture;
   readonly slash: THREE.Texture;
@@ -597,6 +672,7 @@ export class TextureBank {
   readonly door: THREE.Texture;
   readonly loot: Record<LootKind, THREE.Texture>;
   readonly target: THREE.Texture;
+  readonly intent: THREE.Texture;
   readonly shield: THREE.Texture;
   readonly smoke: THREE.Texture;
   readonly barrel: THREE.Texture;
@@ -615,6 +691,28 @@ export class TextureBank {
     );
     this.enemy = [this.enemyWalk[0][0], this.enemyWalk[1][0]];
     this.enemyCorpse = [this.buildCorpseTex('enemy', 0), this.buildCorpseTex('enemy', 1)];
+    this.civilianWalk = [0, 1, 2].map((look) =>
+      [0, 1, 2, 3].map((f) => {
+        const c = canvas(128, 128);
+        drawCivilian(c.getContext('2d')!, look, f);
+        return texture(c, true);
+      }),
+    );
+    this.civilianCorpse = [0, 1, 2].map((look) => {
+      const c = canvas(128, 128);
+      const ctx = c.getContext('2d')!;
+      drawCorpse(ctx, { coat: '#3a3f49', coatDark: '#1b1f27', trim: '#4b515c', hair: '#15171c', skin: '#c79a80' });
+      if (look !== 2) {
+        // dropped umbrella beside the body
+        ctx.save();
+        ctx.translate(98, 30);
+        ctx.rotate(0.6);
+        ctx.scale(0.55, 0.35);
+        drawCivilian(ctx, look, 0);
+        ctx.restore();
+      }
+      return texture(c);
+    });
 
     for (const id of [...GUN_IDS, 'bat' as const]) {
       const c = canvas(96, 48);
@@ -637,6 +735,7 @@ export class TextureBank {
       optic: texture(this.buildLootIcon('optic')),
     };
     this.target = texture(this.buildTarget());
+    this.intent = texture(this.buildIntent());
     this.shield = texture(this.buildShield());
     this.smoke = texture(this.buildSmoke());
     this.barrel = texture(this.buildBarrel());
@@ -1029,6 +1128,29 @@ export class TextureBank {
     return c;
   }
 
+  private buildIntent(): HTMLCanvasElement {
+    const c = canvas(64, 64);
+    const ctx = c.getContext('2d')!;
+    ctx.translate(32, 32);
+    ctx.strokeStyle = CYAN;
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(-13, 12);
+    ctx.lineTo(11, 0);
+    ctx.lineTo(-13, -12);
+    ctx.stroke();
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(-1, 12);
+    ctx.lineTo(23, 0);
+    ctx.lineTo(-1, -12);
+    ctx.stroke();
+    return c;
+  }
+
   private buildTarget(): HTMLCanvasElement {
     const c = canvas(96, 96);
     const ctx = c.getContext('2d')!;
@@ -1263,8 +1385,14 @@ export class TextureBank {
         if (isWall(level, cx, cy)) continue;
         const x = cx * TILE;
         const y = cy * TILE;
+        // One coherent material per floor, with only a faint per-tile tint so
+        // the ground reads as poured concrete/plating rather than a checkerboard.
+        ctx.fillStyle = floorColors[0];
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.globalAlpha = 0.28;
         ctx.fillStyle = floorColors[Math.floor(rnd() * floorColors.length)];
         ctx.fillRect(x, y, TILE, TILE);
+        ctx.globalAlpha = 1;
 
         // grid seams
         ctx.strokeStyle = gridColor;
@@ -1272,12 +1400,13 @@ export class TextureBank {
         ctx.strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
 
         // occasional tech panel
-        if (rnd() < (isHub ? 0.05 : 0.14)) {
+        // Kept faint: bright filled squares read as pickups/crates.
+        if (rnd() < (isHub ? 0.05 : 0.08)) {
           const col = district.neon[Math.floor(rnd() * district.neon.length)];
-          ctx.globalAlpha = 0.16;
+          ctx.globalAlpha = 0.05;
           ctx.fillStyle = col;
           ctx.fillRect(x + 9, y + 9, TILE - 18, TILE - 18);
-          ctx.globalAlpha = 0.42;
+          ctx.globalAlpha = 0.2;
           ctx.strokeStyle = col;
           ctx.strokeRect(x + 9.5, y + 9.5, TILE - 19, TILE - 19);
           ctx.globalAlpha = 1;
@@ -1412,6 +1541,39 @@ export class TextureBank {
     }
     ctx.globalAlpha = 1;
 
+    // Low-frequency grime: large soft blotches break up the floor without
+    // fighting the gameplay lights layered on top.
+    for (let i = 0; i < Math.round((w * h) / 22); i++) {
+      const px = rnd() * w * TILE;
+      const py = rnd() * h * TILE;
+      const rad = 60 + rnd() * 160;
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, rad);
+      grad.addColorStop(0, `rgba(0, 0, 0, ${0.1 + rnd() * 0.14})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+    }
+
+    // Cast shadows: walls are tall, the key light sits up and to the left, so
+    // every solid block throws a soft shadow down-right onto the floor.
+    {
+      const shadow = canvas(c.width, c.height);
+      const sctx = shadow.getContext('2d')!;
+      sctx.fillStyle = '#000';
+      for (let cy = 0; cy < h; cy++) {
+        for (let cx = 0; cx < w; cx++) {
+          if (!isWall(level, cx, cy) || level.glass[cy * w + cx] === 1) continue;
+          sctx.fillRect(cx * TILE + 14, cy * TILE + WALL_FACE + 10, TILE, TILE);
+        }
+      }
+      // Walls themselves are painted over this, so only the spill shows.
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      if ('filter' in ctx) ctx.filter = 'blur(7px)';
+      ctx.drawImage(shadow, 0, 0);
+      ctx.restore();
+    }
+
     // contact shadows on floors next to walls
     for (let cy = 0; cy < h; cy++) {
       for (let cx = 0; cx < w; cx++) {
@@ -1444,23 +1606,48 @@ export class TextureBank {
         if (level.glass[cy * w + cx] === 1) continue;
         const x = cx * TILE;
         const y = cy * TILE;
-        const wg = ctx.createLinearGradient(x, y, x + TILE, y + TILE);
-        wg.addColorStop(0, '#0c1119');
-        wg.addColorStop(0.55, district.wall);
-        wg.addColorStop(1, '#04070c');
+        // Roof cap: one continuous slab across neighbouring wall tiles (no
+        // per-tile box outline), lit from the upper left.
+        const wg = ctx.createLinearGradient(x, y, x + TILE * 0.6, y + TILE);
+        wg.addColorStop(0, '#151d2a');
+        wg.addColorStop(1, district.wall);
         ctx.fillStyle = wg;
         ctx.fillRect(x, y, TILE, TILE);
-        ctx.strokeStyle = 'rgba(80, 110, 150, 0.1)';
-        ctx.lineWidth = 1;
-        for (let i = -TILE; i < TILE; i += 12) {
-          ctx.beginPath();
-          ctx.moveTo(x + i, y);
-          ctx.lineTo(x + i + TILE, y + TILE);
-          ctx.stroke();
+        // Sparse roof detail: vents/plates every few tiles.
+        if (((cx * 7 + cy * 13) & 7) === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.35)';
+          ctx.fillRect(x + 14, y + 12, 22, 14);
+          ctx.strokeStyle = 'rgba(120, 150, 190, 0.16)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 14.5, y + 12.5, 21, 13);
         }
-        ctx.strokeStyle = '#2c3f5c';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x + 3, y + 3, TILE - 6, TILE - 6);
+        // Bevel highlight on edges that face open floor (north/west catch light).
+        ctx.fillStyle = 'rgba(160, 190, 230, 0.13)';
+        if (!isWall(level, cx, cy - 1)) ctx.fillRect(x, y, TILE, 2);
+        if (!isWall(level, cx - 1, cy)) ctx.fillRect(x, y, 2, TILE);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        if (!isWall(level, cx + 1, cy)) ctx.fillRect(x + TILE - 3, y, 3, TILE);
+
+        // South face: the visible vertical side of the wall gives the block
+        // height. Drawn inside the wall tile so collision stays honest.
+        if (!isWall(level, cx, cy + 1)) {
+          const fy = y + TILE - WALL_FACE;
+          const fg = ctx.createLinearGradient(0, fy, 0, y + TILE);
+          fg.addColorStop(0, '#0e141e');
+          fg.addColorStop(1, '#04060a');
+          ctx.fillStyle = fg;
+          ctx.fillRect(x, fy, TILE, WALL_FACE);
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.fillRect(x, fy, TILE, 1.5);
+          ctx.strokeStyle = 'rgba(90, 120, 160, 0.13)';
+          ctx.lineWidth = 1;
+          for (let px = x + 8; px < x + TILE; px += 16) {
+            ctx.beginPath();
+            ctx.moveTo(px + 0.5, fy + 3);
+            ctx.lineTo(px + 0.5, y + TILE - 3);
+            ctx.stroke();
+          }
+        }
       }
     }
 
@@ -1482,10 +1669,10 @@ export class TextureBank {
           const bright = rnd() < 0.4;
           const col = bright ? palette[Math.floor(rnd() * palette.length)] : '#2d3d55';
           ctx.strokeStyle = col;
-          ctx.lineWidth = bright ? 2.5 : 2;
+          ctx.lineWidth = bright ? 2.5 : 1.5;
           ctx.shadowColor = col;
           ctx.shadowBlur = bright ? 7 : 0;
-          ctx.globalAlpha = bright ? 0.9 : 0.75;
+          ctx.globalAlpha = bright ? 0.9 : 0.4;
           ctx.beginPath();
           if (n.side === 'top') {
             ctx.moveTo(x + 2, y + 1.5);

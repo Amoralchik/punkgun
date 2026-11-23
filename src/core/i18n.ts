@@ -5,10 +5,12 @@
  */
 export type MessageKey =
   | 'event.bossPhase'
+  | 'event.bossCharge'
   | 'event.caseSecured'
   | 'event.exitOpen'
   | 'event.kerenzikov'
   | 'event.netrunnerHack'
+  | 'event.netrunnerChannel'
   | 'event.objectiveComplete'
   | 'event.sabotage'
   | 'event.secondHeart'
@@ -16,6 +18,8 @@ export type MessageKey =
   | 'event.quickhackFail'
   | 'event.execution'
   | 'event.caseHeavy'
+  | 'event.civilianDown'
+  | 'event.exitDefended'
   | 'objective.purge'
   | 'objective.target'
   | 'objective.recover'
@@ -62,6 +66,10 @@ export type MessageKey =
   | 'hud.caseSecured'
   | 'hud.holdZone'
   | 'hud.zoneHeld'
+  | 'tip.deploy'
+  | 'tip.armor'
+  | 'tip.reload'
+  | 'tip.execute'
   | 'station.note.exchange1'
   | 'station.note.exchange2'
   | 'station.note.market'
@@ -90,10 +98,12 @@ export type MessageKey =
 
 const EN: Record<MessageKey, string> = {
   'event.bossPhase': 'ARMOR PLATE SHATTERED — BOSS PHASE SHIFT',
+  'event.bossCharge': 'BOSS CHARGING — BREAK LINE OF SIGHT OR SIDESTEP',
   'event.caseSecured': 'CASE SECURED — EXTRACT UNDER FIRE',
   'event.exitOpen': 'EXIT OPEN — GET OUT',
   'event.kerenzikov': 'KERENZIKOV — TIME DILATION',
   'event.netrunnerHack': 'SIGNAL SCRAMBLED — CYBERWARE LOCKED',
+  'event.netrunnerChannel': 'NETRUNNER CHANNELING — BREAK SIGHT OR KILL IT',
   'event.objectiveComplete': 'OBJECTIVE COMPLETE — EXIT OPEN',
   'event.sabotage': 'TAP PLANTED — GRID COMPROMISED',
   'event.secondHeart': 'SECOND HEART — FLATLINE AVERTED',
@@ -101,6 +111,8 @@ const EN: Record<MessageKey, string> = {
   'event.quickhackFail': 'NO VALID QUICKHACK TARGET',
   'event.execution': 'EXECUTION',
   'event.caseHeavy': 'CASE IN HAND — TOO HEAVY TO DASH',
+  'event.civilianDown': 'BYSTANDER DOWN — HEAT UP, PAY DOCKED',
+  'event.exitDefended': 'EXIT HELD — SQUAD DUG IN AT EXTRACTION',
   'objective.purge': 'PURGE ALL HOSTILES',
   'objective.target': 'KILL THE MARKED TARGET',
   'objective.recover': 'RECOVER {count} CACHE{plural}',
@@ -147,6 +159,10 @@ const EN: Record<MessageKey, string> = {
   'hud.caseSecured': 'CASE SECURED — EXIT',
   'hud.holdZone': 'HOLD THE ZONE {seconds}S',
   'hud.zoneHeld': 'ZONE HELD — EXIT',
+  'tip.deploy': 'EVERYONE DIES IN ONE HIT. SPACE DASHES THROUGH FIRE.',
+  'tip.armor': 'PLATE BROKEN — THE NEXT HIT KILLS. BREAK LINE OF SIGHT.',
+  'tip.reload': 'MAGAZINE EMPTY. PRESS R BEFORE THE NEXT ROOM.',
+  'tip.execute': 'STUNNED TARGET. PRESS E TO EXECUTE.',
   'station.note.exchange1': 'Five names. One city. Prices move after every clean extraction. Dividends pay on the same tick.',
   'station.note.exchange2': 'Buy low, sell high, or hold for dividends. A crash is a buying opportunity if you survive it.',
   'station.note.market': 'Buy ammo from storage. Sell guns and contraband here; pack consumables at the supply depot.',
@@ -176,10 +192,12 @@ const EN: Record<MessageKey, string> = {
 
 const ES: Record<MessageKey, string> = {
   'event.bossPhase': 'PLACA DESTRUIDA — CAMBIO DE FASE',
+  'event.bossCharge': 'JEFE CARGANDO — ROMPE LA LÍNEA DE VISIÓN O ESQUIVA',
   'event.caseSecured': 'MALETÍN ASEGURADO — EXTRAE BAJO FUEGO',
   'event.exitOpen': 'SALIDA ABIERTA — VETE',
   'event.kerenzikov': 'KERENZIKOV — DILATACIÓN TEMPORAL',
   'event.netrunnerHack': 'SEÑAL CORTADA — CIBERWARE BLOQUEADO',
+  'event.netrunnerChannel': 'NETRUNNER CANALIZANDO — ROMPE LA VISIÓN O MÁTALO',
   'event.objectiveComplete': 'OBJETIVO CUMPLIDO — SALIDA ABIERTA',
   'event.sabotage': 'TAP COLOCADO — RED COMPROMETIDA',
   'event.secondHeart': 'SEGUNDO CORAZÓN — LÍNEA PLANA EVITADA',
@@ -187,6 +205,8 @@ const ES: Record<MessageKey, string> = {
   'event.quickhackFail': 'SIN OBJETIVO VÁLIDO',
   'event.execution': 'EJECUCIÓN',
   'event.caseHeavy': 'MALETÍN EN MANO — DEMASIADO PESADO PARA ESQUIVAR',
+  'event.civilianDown': 'CIVIL ABATIDO — SUBE EL CALOR, BAJA LA PAGA',
+  'event.exitDefended': 'SALIDA TOMADA — ESCUADRÓN ATRINCHERADO EN LA EXTRACCIÓN',
   'objective.purge': 'ELIMINA A TODOS LOS HOSTILES',
   'objective.target': 'MATA AL OBJETIVO MARCADO',
   'objective.recover': 'RECUPERA {count} CACHÉ{plural}',
@@ -233,6 +253,10 @@ const ES: Record<MessageKey, string> = {
   'hud.caseSecured': 'MALETÍN ASEGURADO — SALIDA',
   'hud.holdZone': 'MANTÉN LA ZONA {seconds}S',
   'hud.zoneHeld': 'ZONA MANTENIDA — SALIDA',
+  'tip.deploy': 'TODOS MUEREN DE UN GOLPE. EL IMPULSO (ESPACIO) CRUZA EL FUEGO.',
+  'tip.armor': 'PLACA ROTA — EL SIGUIENTE IMPACTO MATA. ROMPE LA LÍNEA DE VISIÓN.',
+  'tip.reload': 'CARGADOR VACÍO. PULSA R ANTES DE LA SIGUIENTE SALA.',
+  'tip.execute': 'OBJETIVO ATURDIDO. PULSA E PARA EJECUTAR.',
   'station.note.exchange1': 'Cinco nombres. Una ciudad. Los precios se mueven tras cada extracción limpia. Los dividendos pagan en el mismo tick.',
   'station.note.exchange2': 'Compra barato, vende caro o mantén por dividendos. Una caída es una oportunidad si sobrevives.',
   'station.note.market': 'Compra munición del almacén. Vende armas y contrabando aquí; prepara consumibles en suministros.',

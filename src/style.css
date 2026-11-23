@@ -503,6 +503,32 @@ body.cyberpsycho #scanlines {
 .hud-subtitle.on {
   opacity: 1;
 }
+.hud-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 176px;
+  transform: translate(-50%, 6px);
+  width: min(640px, 76vw);
+  padding: 9px 14px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  color: var(--amber);
+  background: rgba(10, 8, 3, 0.82);
+  border-left: 2px solid var(--amber);
+  box-shadow: 0 0 24px rgba(255, 170, 60, 0.12);
+  opacity: 0;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+  pointer-events: none;
+}
+.hud-tip.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
 .hud-log {
   position: absolute;
   left: 28px;
@@ -763,11 +789,13 @@ body.contract-blackout #vignette {
     radial-gradient(circle at 50% 45%, rgba(8, 14, 24, 0.55) 0%, rgba(2, 3, 6, 0.93) 75%),
     repeating-linear-gradient(0deg, rgba(98, 246, 255, 0.015) 0 1px, transparent 1px 4px);
   opacity: 1;
+  visibility: visible;
   transition: opacity 0.3s ease;
   cursor: pointer;
 }
 .overlay.hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 .ending-panel {
@@ -1042,6 +1070,54 @@ body.contract-blackout #vignette {
 }
 .result-note.red {
   color: rgba(255, 59, 78, 0.68);
+}
+.death-source {
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  line-height: 1.6;
+  color: var(--amber);
+}
+.death-hint {
+  margin-top: 14px;
+  max-width: 560px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1.7;
+  color: rgba(223, 252, 255, 0.72);
+  border-left: 2px solid rgba(94, 241, 255, 0.4);
+  padding-left: 10px;
+}
+.death-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.cta-button {
+  appearance: none;
+  border: 1px solid rgba(94, 241, 255, 0.45);
+  background: rgba(94, 241, 255, 0.06);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+.cta-button.red {
+  border-color: rgba(255, 59, 78, 0.55);
+  background: rgba(255, 59, 78, 0.07);
+  color: var(--red);
+}
+.cta-button:hover,
+.cta-button:focus-visible {
+  background: rgba(94, 241, 255, 0.14);
+}
+.cta-button.red:hover,
+.cta-button.red:focus-visible {
+  background: rgba(255, 59, 78, 0.16);
 }
 
 /* ---------- screen fx ---------- */
@@ -2399,6 +2475,13 @@ body.no-scanlines #scanlines {
   letter-spacing: 0.18em;
   color: var(--cyan);
 }
+.aug-delta {
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+}
 .aug-action {
   flex: 0 0 auto;
   flex-direction: column;
@@ -2923,6 +3006,53 @@ body.finale #scanlines {
   100% {
     opacity: 0;
   }
+}
+.hud-threats {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hud-threat {
+  position: absolute;
+  width: 24px;
+  height: 3px;
+  opacity: 0;
+  color: var(--amber);
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+  transition: opacity 0.12s ease;
+}
+.hud-threat.on {
+  opacity: 0.92;
+  animation: threatPulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes threatPulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.reduced-motion .hud-threat.on {
+  animation: none;
+  opacity: 0.9;
+}
+.hud-threat::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: -4px;
+  border-left: 6px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.hud-threat.hack {
+  color: var(--cyan);
+}
+.hud-threat.charge {
+  color: var(--red);
 }
 
 /* ---------- attributes ---------- */
@@ -3639,6 +3769,23 @@ body.finale #scanlines {
 }
 .detail-mods {
   margin-top: 6px;
+}
+/* District setpiece: filled tag so it reads above plain modifiers. */
+.cmod.csetpiece {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-weight: 700;
+}
+.setpiece-detail {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-left: 2px solid var(--sp);
+  background: color-mix(in srgb, var(--sp) 9%, transparent);
+  line-height: 1.5;
+}
+.setpiece-detail b {
+  color: var(--sp);
+  letter-spacing: 0.1em;
 }
 
 /* ---------- netrunner scramble ---------- */
@@ -4375,17 +4522,59 @@ body.reduced-motion #screen-transition.active {
 }
 .tour-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin: 16px 0;
 }
-.tour-grid div {
+.tour-grid .tour-step {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px;
+  gap: 8px;
+  padding: 16px;
   border-left: 2px solid rgba(94, 241, 255, 0.28);
   background: rgba(94, 241, 255, 0.035);
+}
+.tour-step h3 {
+  margin: 0;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+.tour-step p {
+  margin: 0;
+  color: rgba(223, 252, 255, 0.72);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.tour-step b {
+  color: var(--cyan);
+}
+.tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tour-actions button {
+  appearance: none;
+  border: 1px solid rgba(94, 241, 255, 0.35);
+  background: rgba(94, 241, 255, 0.05);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+.tour-actions button[disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+.tour-actions [data-act="tour-close"] {
+  margin-left: auto;
+  border-color: rgba(223, 252, 255, 0.2);
+  color: var(--muted);
 }
 .tour-grid b {
   color: var(--cyan);

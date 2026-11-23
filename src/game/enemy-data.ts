@@ -60,6 +60,24 @@ export interface EnemyLoadout {
   ammo: number;
 }
 
+/** Laser wind-up: the tell is only visible during this final aim window. */
+export const ENEMY_AIM_WINDUP: Partial<Record<EnemyKind, number>> = {
+  grunt: 0.32,
+  gunner: 0.28,
+  heavy: 0.45,
+  sniper: 0.65,
+  marksman: 0.5,
+  breacher: 0.4,
+  drone: 0.3,
+  medic: 0.3,
+  operator: 0.3,
+  boss: 0.5,
+};
+
+export function isEnemyAiming(kind: EnemyKind, fireCd: number): boolean {
+  return fireCd <= (ENEMY_AIM_WINDUP[kind] ?? 0.32);
+}
+
 /** Roll the starting weapon/ammo using the same sequence as the old inline table. */
 export function rollEnemyLoadout(kind: EnemyKind, rng: () => number): EnemyLoadout {
   if (kind === 'boss') return { weapon: 'shotgun', ammo: 10 };

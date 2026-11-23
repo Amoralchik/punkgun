@@ -1,3 +1,4 @@
+import type { SetpieceId } from './setpieces';
 import type { ApproachId } from './attributes';
 import type { ConsumableId } from './consumables';
 import type { LootKind } from './economy';
@@ -25,6 +26,8 @@ export interface MissionSpec {
   ngPlus?: number;
   /** Fight all bosses back-to-back in one arena. */
   bossRush?: boolean;
+  /** District setpiece (see setpieces.ts). */
+  setpiece?: SetpieceId | null;
 }
 
 export type ObjectiveNodeKind = 'terminal' | 'case' | 'zone';
@@ -205,6 +208,8 @@ export interface Bullet {
   life: number;
   ownerId: number;
   ownerKind: 'player' | 'enemy';
+  /** Human-readable attack name used by the death report. */
+  attack?: string;
   /** Remaining enemies this round can pass through. */
   pierce: number;
 }

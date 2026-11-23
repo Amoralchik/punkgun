@@ -54,6 +54,33 @@ function input(overrides: Partial<ResultInput> = {}): ResultInput {
 
 describe('run result flow', () => {
   it('builds death, win, ending and none views', () => {
+    const death = buildResult(
+      input({
+        dead: true,
+        world: {
+          time: 60,
+          kills: 5,
+          lootValue: 0,
+          deathCause: 'GUNFIRE',
+          lastDamage: {
+            label: 'HEAVY GUNNER',
+            attack: 'LMG',
+            cause: 'gunfire',
+            x: 400,
+            y: 0,
+            kind: 'heavy',
+          },
+          dashReady: true,
+          player: { weapon: 'smg', x: 0, y: 0 },
+        },
+      }),
+    );
+    expect(death.kind).toBe('death');
+    if (death.kind === 'death') {
+      expect(death.stats).toContain('KILLED BY HEAVY GUNNER');
+      expect(death.source).toContain('FROM THE EAST');
+      expect(death.source).toContain('DASH READY');
+    }
     expect(buildResult(input({ dead: true })).kind).toBe('death');
     expect(buildResult(input()).kind).toBe('win');
     expect(

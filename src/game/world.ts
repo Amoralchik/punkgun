@@ -1,41 +1,72 @@
 import { Input } from '../core/input';
 import { angleDelta, clamp, dist, mulberry32, randomSeed, turnToward } from '../core/math';
 import { Level, TILE, isWall, tileCenter, worldToTile } from './map';
+import { offsetSpawn, pickSpawnPoints } from './level-spawns';
+import {
+  panicCivilians,
+  spawnCivilians,
+  updateCivilians,
+  type Civilian,
+  type CivilianHost,
+} from './world-civilians';
+import type { SetpieceId } from './setpieces';
 import { Pathfinder } from './path';
 import { updateBullets } from './world-bullets';
+import { activateAbilities, type AbilityHost } from './world-abilities';
 import { updateDoorAngles } from './world-doors';
 import {
   aimPlayer,
   dashDirection,
   movementAxes,
   playerMoveSpeed,
+  SWING_DURATION,
+  SWING_HIT_AT,
   tickPlayerCooldowns,
 } from './world-player';
+import { playerAttack, type PlayerAttackHost } from './world-attack';
+import { runEnemyArchetype, type EnemyActionHost } from './world-enemy-actions';
+import { runSquadMovement, type SquadHost } from './world-squad-ai';
+import { runBossCharge, type BossChargeHost } from './world-boss-ai';
+import {
+  alertAt,
+  canSee,
+  noticeCorpse,
+  spot,
+  type PerceptionHost,
+} from './world-perception';
+import {
+  addHeat,
+  spawnReinforcements,
+  type EncounterHost,
+} from './world-encounters';
+import {
+  tickObjectivePressure,
+  type ObjectivePressureHost,
+} from './world-objective-pressure';
+import {
+  checkMissionComplete,
+  type MissionCompletionHost,
+} from './world-mission-completion';
 import { segmentHitsCircle } from './world-geometry';
 import {
   assignSquads,
-  findCoverPoint,
-  flankPoint,
-  grenadeThreat,
-  isFlanker,
-  meleeKind,
-  squadLeader,
+  ENEMY_SPEED,
 } from './world-ai';
 import { baseMods, RunMods } from './progression';
-import { CONSUMABLE_MAP, ConsumableId } from './consumables';
+import { ConsumableId } from './consumables';
 import {
   ATTACHMENT_MAP,
   AttachmentId,
   attachmentMag,
-  attachmentPellets,
 } from './attachments';
 import { LOOT_DEFS } from './economy';
-import { GunId, WEAPONS, WeaponId, isGun, NamedWeaponId, NAMED_MAP } from './weapons';
+import { GunId, WEAPONS, WeaponId, isGun, NamedWeaponId } from './weapons';
 import { APPROACH_MAP, ApproachId } from './attributes';
 import { ModifierId } from './modifiers';
-import { ENEMY_TRAITS, pickEnemyKind, rollEnemyLoadout } from './enemy-data';
+import { ENEMY_TRAITS, isEnemyAiming, pickEnemyKind, rollEnemyLoadout } from './enemy-data';
 import { BOSSES, BOSS_ORDER, BossId } from './bosses';
 import { createObjectiveNodes, nearestObjectiveNode, objectiveNodeText } from './world-objectives';
+import { ENEMY_LABELS, type DamageSource } from './damage-report';
 import type { RunBoon } from './boons';
 import {
   addBlood as emitBlood,
@@ -67,10 +98,6 @@ import type {
   WorldEvent,
   WorldState,
 } from './world-types';
-
-const ENEMY_SPEED = 148;
-const SWING_DURATION = 0.24;
-const SWING_HIT_AT = 0.065;
 
 export class World {
   readonly player: Player;
@@ -112,7 +139,21 @@ export class World {
   /** First-time enemy/camera/turret detections; zero means a ghost run. */
   detections = 0;
   deathCause = 'UNKNOWN';
+  /** Lethal hit snapshot for the death report. */
+  lastDamage: DamageSource | null = null;
+  /** Dash availability at the moment the lethal hit landed. */
+  deathDashReady = false;
   reinforcementWave = 0;
+  /** District setpiece this run is playing under. */
+  readonly setpiece: SetpieceId | null;
+  /** Market-patrol bystanders. Never hostile, never counted as enemies. */
+  readonly civilians: Civilian[] = [];
+  /** Civilians the player (bullets, blasts) killed. Docks pay. */
+  civiliansKilled = 0;
+  /** Defended extraction: exit squad spawned / ids of its members. */
+  private exitGuardSpawned = false;
+  private readonly exitGuardIds = new Set<number>();
+  private readonly civilianHost: CivilianHost;
   defenseT = 0;
   defenseWaveT = 0;
   extractionPressureT = 0;
@@ -138,6 +179,15 @@ export class World {
   private readonly spottedCameras = new Set<number>();
   private readonly pathfinder: Pathfinder;
   private readonly rand: () => number;
+  private readonly abilityHost: AbilityHost;
+  private readonly attackHost: PlayerAttackHost;
+  private readonly enemyActionHost: EnemyActionHost;
+  private readonly squadHost: SquadHost;
+  private readonly bossHost: BossChargeHost;
+  private readonly perceptionHost: PerceptionHost;
+  private readonly encounterHost: EncounterHost;
+  private readonly objectivePressureHost: ObjectivePressureHost;
+  private readonly missionHost: MissionCompletionHost;
   private nextId = 1;
 
   constructor(
@@ -157,6 +207,7 @@ export class World {
     readonly seed: number = randomSeed(),
   ) {
     this.mission = mission;
+    this.setpiece = mission.setpiece ?? null;
     this.mods = mods;
     this.bossId = mission.bossId ?? null;
     this.currentBossId = mission.bossId ?? null;
@@ -244,7 +295,6 @@ export class World {
         ? (ATTACHMENT_MAP[loadAttachment].ammoBonus[loadWeapon as GunId] ?? 0)
         : 0;
     const totalAmmo = (loadout?.ammo ?? 0) + extraAmmo;
-    const loadDef = WEAPONS[loadWeapon];
     const clip = isGun(loadWeapon)
       ? Math.min(totalAmmo, attachmentMag(loadWeapon, loadAttachment))
       : 0;
@@ -299,6 +349,260 @@ export class World {
       caseCarried: false,
     };
 
+    const world = this;
+    this.civilianHost = {
+      level,
+      player: this.player,
+      civilians: this.civilians,
+      rand: () => this.rand(),
+      solidAt: (x, y) => this.solidAt(x, y),
+    };
+    this.abilityHost = {
+      player: this.player,
+      enemies: this.enemies,
+      cameras: this.cameras,
+      turrets: this.turrets,
+      lasers: this.lasers,
+      mods,
+      get shake() {
+        return world.shake;
+      },
+      set shake(value: number) {
+        world.shake = value;
+      },
+      get quickhackFxT() {
+        return world.quickhackFxT;
+      },
+      set quickhackFxT(value: number) {
+        world.quickhackFxT = value;
+      },
+      get quickhackX() {
+        return world.quickhackX;
+      },
+      set quickhackX(value: number) {
+        world.quickhackX = value;
+      },
+      get quickhackY() {
+        return world.quickhackY;
+      },
+      set quickhackY(value: number) {
+        world.quickhackY = value;
+      },
+      emit: (event) => this.emit(event),
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+      smokeBlocks: (ax, ay, bx, by) => this.smokeBlocks(ax, ay, bx, by),
+      addHeat: (amount) => addHeat(this.encounterHost, amount),
+    };
+
+    this.attackHost = {
+      player: this.player,
+      bullets: this.bullets,
+      mods,
+      get shotsFired() {
+        return world.shotsFired;
+      },
+      set shotsFired(value: number) {
+        world.shotsFired = value;
+      },
+      get shake() {
+        return world.shake;
+      },
+      set shake(value: number) {
+        world.shake = value;
+      },
+      rand: () => this.rand(),
+      emit: (event) => this.emit(event),
+      resolveCircle: (entity) => this.resolveCircle(entity),
+      addCasing: (x, y, angle) => this.addCasing(x, y, angle),
+      alertAt: (x, y, radius) => alertAt(this.perceptionHost, x, y, radius),
+      addHeat: (amount) => addHeat(this.encounterHost, amount),
+    };
+
+    this.enemyActionHost = {
+      player: this.player,
+      enemies: this.enemies,
+      turrets: this.turrets,
+      grenades: this.grenades,
+      level,
+      pathfinder: this.pathfinder,
+      mods,
+      get hackMultiplier() {
+        return world.hackMultiplier;
+      },
+      rand: () => this.rand(),
+      nextId: () => this.nextId++,
+      emit: (event) => this.emit(event),
+      steer: (e, tx, ty, speed, dt) => this.steer(e, tx, ty, speed, dt),
+      followPath: (e, dt) => this.followPath(e, dt),
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+      deployTurret: (e) => this.deployTurret(e),
+      enemyPunch: (e) => this.enemyPunch(e),
+      enemyShoot: (e) => this.enemyShoot(e),
+    };
+
+    this.squadHost = {
+      player: this.player,
+      enemies: this.enemies,
+      grenades: this.grenades,
+      level,
+      steer: (e, tx, ty, speed, dt) => this.steer(e, tx, ty, speed, dt),
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+      solidAt: (x, y) => this.solidAt(x, y),
+    };
+
+    this.bossHost = {
+      player: this.player,
+      get bossChargeEnabled() {
+        return world.bossDef.charge;
+      },
+      emit: (event) => this.emit(event),
+      steer: (e, tx, ty, speed, dt) => this.steer(e, tx, ty, speed, dt),
+      enemyPunch: (e) => this.enemyPunch(e),
+    };
+
+    this.perceptionHost = {
+      onNoise: (x, y, radius) => {
+        if (this.civilians.length > 0) panicCivilians(this.civilianHost, x, y, radius);
+      },
+      player: this.player,
+      enemies: this.enemies,
+      mods,
+      get approachVision() {
+        return world.approachVision;
+      },
+      get modifierVision() {
+        return world.modifierVision;
+      },
+      spotted: this.spotted,
+      get detections() {
+        return world.detections;
+      },
+      set detections(value: number) {
+        world.detections = value;
+      },
+      rand: () => this.rand(),
+      emit: (event) => this.emit(event),
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+      smokeBlocks: (ax, ay, bx, by) => this.smokeBlocks(ax, ay, bx, by),
+    };
+
+    this.encounterHost = {
+      player: this.player,
+      level,
+      enemies: this.enemies,
+      mods,
+      get heat() {
+        return world.heat;
+      },
+      set heat(value: number) {
+        world.heat = value;
+      },
+      get peakHeat() {
+        return world.peakHeat;
+      },
+      set peakHeat(value: number) {
+        world.peakHeat = value;
+      },
+      get reinforcementWave() {
+        return world.reinforcementWave;
+      },
+      set reinforcementWave(value: number) {
+        world.reinforcementWave = value;
+      },
+      get heatShift() {
+        return world.heatShift;
+      },
+      get modifierHeat() {
+        return world.modifierHeat;
+      },
+      get exitOpen() {
+        return world.exitOpen;
+      },
+      addEnemy: (x, y, strafeSign, state, forcedKind) =>
+        this.addEnemy(x, y, strafeSign, state, forcedKind),
+      emit: (event) => this.emit(event),
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+    };
+
+    this.objectivePressureHost = {
+      get objective() {
+        return world.mission.objective;
+      },
+      objectives: this.objectives,
+      player: this.player,
+      get state() {
+        return world.state;
+      },
+      get exitOpen() {
+        return world.exitOpen;
+      },
+      get defenseT() {
+        return world.defenseT;
+      },
+      set defenseT(value: number) {
+        world.defenseT = value;
+      },
+      get defenseWaveT() {
+        return world.defenseWaveT;
+      },
+      set defenseWaveT(value: number) {
+        world.defenseWaveT = value;
+      },
+      get extractionPressureT() {
+        return world.extractionPressureT;
+      },
+      set extractionPressureT(value: number) {
+        world.extractionPressureT = value;
+      },
+      spawnReinforcements: (count, forcedKind, anchor) =>
+        spawnReinforcements(this.encounterHost, count, forcedKind, anchor),
+      emit: (event) => this.emit(event),
+      checkObjective: () => checkMissionComplete(this.missionHost),
+    };
+
+    this.missionHost = {
+      get objective() {
+        return world.mission.objective;
+      },
+      get exitOpen() {
+        return world.exitOpen;
+      },
+      set exitOpen(value: boolean) {
+        world.exitOpen = value;
+      },
+      get aliveEnemies() {
+        return world.aliveEnemies;
+      },
+      enemies: this.enemies,
+      get targetId() {
+        return world.targetId;
+      },
+      get boss() {
+        return world.boss;
+      },
+      get bossRush() {
+        return world.mission.bossRush === true;
+      },
+      bossRushQueue: this.bossRushQueue,
+      get bossRushIndex() {
+        return world.bossRushIndex;
+      },
+      set bossRushIndex(value: number) {
+        world.bossRushIndex = value;
+      },
+      get collectedLoot() {
+        return world.collectedLoot;
+      },
+      get requiredLoot() {
+        return world.mission.requiredLoot;
+      },
+      objectives: this.objectives,
+      player: this.player,
+      exit: level.exit,
+      spawnBoss: (id) => this.spawnBoss(id),
+      emit: (event) => this.emit(event),
+    };
+
     level.enemies.forEach((spawn, i) =>
       this.addEnemy(spawn.x, spawn.y, i % 2 === 0 ? 1 : -1, 'idle', spawn.kind),
     );
@@ -306,15 +610,15 @@ export class World {
     const seedSpawn = level.enemies[0];
     if (extra > 0 && seedSpawn) {
       for (let i = 0; i < extra; i++) {
-        const offset = (i + 1) * 26;
         const spawnPoint = level.enemies[(i + 1) % level.enemies.length] ?? seedSpawn;
+        const placed = offsetSpawn(level, spawnPoint, i);
         const kind =
           mission.risk === 'HIGH' && i === 1
             ? this.rand() < 0.5
               ? 'heavy'
               : 'stalker'
             : pickEnemyKind(this.rand());
-        this.addEnemy(spawnPoint.x + offset, spawnPoint.y - offset, 1, 'idle', kind);
+        this.addEnemy(placed.x, placed.y, 1, 'idle', kind);
       }
     }
 
@@ -388,6 +692,77 @@ export class World {
     this.applyModifiers(mission.modifiers ?? []);
     this.applyBoons();
     this.setupObjectives();
+    this.applySetpiece();
+  }
+
+  /** District setpiece: reshape the encounter around the district. */
+  private applySetpiece(): void {
+    if (this.setpiece === 'blackoutFloor') {
+      // Grid down: cameras dark, guards work by flashlight, stalkers sweep.
+      this.modifierVision *= 0.62;
+      for (const cam of this.cameras) cam.disabledT = 1e9;
+      const points = pickSpawnPoints(this.level, {
+        from: this.level.spawn,
+        count: 2,
+        lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+      });
+      for (const pt of points) {
+        const e = this.addEnemy(pt.x, pt.y, 1, 'idle', 'stalker');
+        e.stunT = 1.2;
+      }
+      assignSquads(this.enemies);
+    } else if (this.setpiece === 'marketPatrol') {
+      const count = 7 + Math.floor(this.rand() * 3);
+      this.civilians.push(
+        ...spawnCivilians(this.level, count, this.rand, () => this.nextId++),
+      );
+    }
+  }
+
+  /** Defended extraction: a heavy-led squad digs in around the exit. */
+  private spawnExitGuard(): void {
+    this.exitGuardSpawned = true;
+    const kinds = ['heavy', 'gunner', 'marksman'] as const;
+    const points = pickSpawnPoints(this.level, {
+      from: this.player,
+      count: kinds.length,
+      minDist: TILE * 3,
+      anchor: this.level.exit,
+      anchorRadius: TILE * 4.5,
+      lineClear: (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
+    });
+    points.forEach((pt, i) => {
+      const e = this.addEnemy(pt.x, pt.y, i % 2 === 0 ? 1 : -1, 'alert', kinds[i]);
+      e.angle = Math.atan2(this.player.y - e.y, this.player.x - e.x);
+      e.lastSeenX = this.level.exit.x;
+      e.lastSeenY = this.level.exit.y;
+      e.searchT = 4;
+      this.exitGuardIds.add(e.id);
+    });
+    assignSquads(this.enemies);
+    this.emit({ type: 'siren', x: this.level.exit.x, y: this.level.exit.y, angle: 0 });
+    this.emit({ type: 'exitDefended', x: this.level.exit.x, y: this.level.exit.y, angle: 0 });
+  }
+
+  /** True while any defended-extraction guard is still standing. */
+  get exitContested(): boolean {
+    if (this.exitGuardIds.size === 0) return false;
+    return this.enemies.some((e) => e.alive && this.exitGuardIds.has(e.id));
+  }
+
+  /** A bystander goes down. Only the player's rounds and blasts count. */
+  killCivilian(c: Civilian, by: 'player' | 'enemy', angle: number): void {
+    if (!c.alive) return;
+    c.alive = false;
+    c.corpseAngle = angle + (this.rand() - 0.5) * 1.5;
+    this.addBlood(c.x, c.y, angle, 10);
+    panicCivilians(this.civilianHost, c.x, c.y, 360);
+    if (by !== 'player') return;
+    this.civiliansKilled++;
+    addHeat(this.encounterHost, 15);
+    // A scream carries: nearby guards come looking.
+    alertAt(this.perceptionHost, c.x, c.y, 280);
+    this.emit({ type: 'civilianDown', x: c.x, y: c.y, angle, count: this.civiliansKilled });
   }
 
   private applyBoons(): void {
@@ -473,7 +848,7 @@ export class World {
       }
     }
     if (ids.includes('swarm')) {
-      this.spawnReinforcements(3);
+      spawnReinforcements(this.encounterHost, 3);
     }
     if (ids.includes('blackIce') && !this.enemies.some((e) => e.kind === 'netrunner')) {
       const spawn = this.level.enemies[0];
@@ -654,6 +1029,7 @@ export class World {
   }
 
   objectiveText(): string {
+    if (this.exitOpen && this.exitContested) return 'EXIT HELD — BREAK THE SQUAD OR RUN IT';
     if (this.exitOpen) return 'EXIT OPEN — GET OUT';
     if (this.mission.objective === 'purge') {
       return `PURGE ${this.enemies.length - this.aliveEnemies}/${this.enemies.length}`;
@@ -677,80 +1053,6 @@ export class World {
     return `CACHES ${this.collectedLoot}/${this.mission.requiredLoot}`;
   }
 
-  private checkObjective(): void {
-    if (this.exitOpen) return;
-    let done = false;
-    if (this.mission.objective === 'purge') {
-      done = this.aliveEnemies === 0;
-    } else if (this.mission.objective === 'target' || this.mission.objective === 'hunt') {
-      const target = this.enemies.find((e) => e.id === this.targetId);
-      done = !!target && !target.alive;
-    } else if (this.mission.objective === 'boss') {
-      const boss = this.boss;
-      done = !!boss && !boss.alive;
-      if (done && this.mission.bossRush && this.bossRushIndex < this.bossRushQueue.length - 1) {
-        this.bossRushIndex++;
-        this.spawnBoss(this.bossRushQueue[this.bossRushIndex]);
-        this.player.invulnT = Math.max(this.player.invulnT, 1);
-        const current = this.boss;
-        this.emit({
-          type: 'bossRushWave',
-          x: current?.x ?? this.player.x,
-          y: current?.y ?? this.player.y,
-          angle: 0,
-          wave: this.bossRushIndex + 1,
-          total: this.bossRushQueue.length,
-        });
-        return;
-      }
-    } else if (this.mission.objective === 'sabotage') {
-      done = this.objectives.length > 0 && this.objectives.every((n) => n.completed);
-    } else if (this.mission.objective === 'extraction') {
-      done = this.objectives[0]?.completed === true;
-    } else if (this.mission.objective === 'defense') {
-      done = this.objectives[0]?.completed === true;
-    } else {
-      done = this.collectedLoot >= this.mission.requiredLoot;
-    }
-    if (!done) return;
-    this.exitOpen = true;
-    this.emit({ type: 'exitOpen', x: this.level.exit.x, y: this.level.exit.y, angle: 0 });
-  }
-
-  private updateObjectives(dt: number): void {
-    if (this.state !== 'playing') return;
-    const p = this.player;
-    if (this.mission.objective === 'defense') {
-      const zone = this.objectives[0];
-      if (!zone || zone.completed) return;
-      if (!p.alive || dist(p.x, p.y, zone.x, zone.y) > zone.radius) return;
-      zone.progress = Math.min(zone.required, zone.progress + dt);
-      this.defenseT = zone.progress;
-      this.defenseWaveT -= dt;
-      if (this.defenseWaveT <= 0) {
-        this.defenseWaveT = 12;
-        this.spawnReinforcements(2, 'grunt');
-        this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
-      }
-      if (zone.progress >= zone.required) {
-        zone.completed = true;
-        this.emit({ type: 'objectiveComplete', x: zone.x, y: zone.y, angle: 0 });
-        this.checkObjective();
-      }
-      return;
-    }
-    if (this.mission.objective === 'extraction') {
-      const node = this.objectives[0];
-      if (!node?.completed || this.exitOpen) return;
-      this.extractionPressureT -= dt;
-      if (this.extractionPressureT <= 0) {
-        this.extractionPressureT = 8;
-        this.spawnReinforcements(2, 'rusher');
-        this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
-      }
-    }
-  }
-
   resolveHazardBreach(
     hazard: 'camera' | 'turret' | 'safe',
     hazardId: number,
@@ -760,7 +1062,7 @@ export class World {
       const item = this.loot.find((entry) => entry.id === hazardId && entry.locked);
       if (!item) return;
       if (!success) {
-        this.addHeat(10);
+        addHeat(this.encounterHost, 10);
         this.emit({ type: 'breachFail', x: item.x, y: item.y, angle: 0 });
         return;
       }
@@ -774,7 +1076,7 @@ export class World {
         : this.turrets.find((turret) => turret.id === hazardId);
     if (!target || !target.alive) return;
     if (!success) {
-      this.addHeat(10);
+      addHeat(this.encounterHost, 10);
       this.emit({ type: 'breachFail', x: target.x, y: target.y, angle: 0 });
       return;
     }
@@ -820,7 +1122,7 @@ export class World {
     const node = this.objectives.find((entry) => entry.id === nodeId);
     if (!node || node.completed) return;
     if (!success) {
-      this.addHeat(14);
+      addHeat(this.encounterHost, 14);
       this.emit({ type: 'breachFail', x: node.x, y: node.y, angle: 0 });
       return;
     }
@@ -856,17 +1158,17 @@ export class World {
     node.completed = true;
     node.progress = node.required;
     if (node.kind === 'terminal') {
-      this.addHeat(7);
+      addHeat(this.encounterHost, 7);
       this.emit({ type: 'sabotage', x: node.x, y: node.y, angle: 0 });
-      this.alertAt(node.x, node.y, 220);
+      alertAt(this.perceptionHost, node.x, node.y, 220);
     } else {
       this.player.caseCarried = true;
-      this.addHeat(35);
-      this.spawnReinforcements(3, 'rusher');
+      addHeat(this.encounterHost, 35);
+      spawnReinforcements(this.encounterHost, 3, 'rusher');
       this.extractionPressureT = 5;
       this.emit({ type: 'caseSecured', x: node.x, y: node.y, angle: 0 });
     }
-    this.checkObjective();
+    checkMissionComplete(this.missionHost);
   }
 
   update(dt: number, aim: { x: number; y: number }, edge: boolean): void {
@@ -882,13 +1184,22 @@ export class World {
     this.updateLasers(dt);
     this.updateEnemies(dt * slow);
     updateBullets(this, dt, slow);
+    if (this.civilians.length > 0) updateCivilians(this.civilianHost, dt);
+    if (
+      this.setpiece === 'defendedExtraction' &&
+      this.exitOpen &&
+      !this.exitGuardSpawned &&
+      this.state === 'playing'
+    ) {
+      this.spawnExitGuard();
+    }
     this.updatePickups(dt);
     this.updateGrenades(dt);
     this.updateSmokes(dt);
     this.updateSteams(dt);
     this.updateParticles(dt);
     this.updateDoors(dt);
-    this.updateObjectives(dt);
+    tickObjectivePressure(this.objectivePressureHost, dt);
 
     if (this.player.alive && this.exitOpen && this.state === 'playing') {
       const d = dist(this.player.x, this.player.y, this.level.exit.x, this.level.exit.y);
@@ -954,7 +1265,7 @@ export class World {
     const center = tileCenter(cx, cy, this.level.h);
     this.addSparks(center.x, center.y, Math.atan2(-1, 0));
     this.emit({ type: 'glassBreak', x: center.x, y: center.y, angle: 0 });
-    this.alertAt(center.x, center.y, 240);
+    alertAt(this.perceptionHost, center.x, center.y, 240);
     return true;
   }
 
@@ -1085,35 +1396,6 @@ export class World {
       e.fireCd = 0.5 + this.rand() * 0.4;
     }
     this.emit({ type: 'loudBreach', x: this.player.x, y: this.player.y, angle: 0 });
-  }
-
-  private spawnReinforcements(count: number, forcedKind?: EnemyKind): void {
-    const p = this.player;
-    const points = [...this.level.enemies]
-      .map((spawn) => ({ ...spawn, d: dist(spawn.x, spawn.y, p.x, p.y) }))
-      .sort((a, b) => b.d - a.d)
-      .slice(0, count);
-    for (const point of points) {
-      this.addEnemy(point.x, point.y, 1, 'chase', forcedKind ?? point.kind);
-    }
-    assignSquads(this.enemies);
-    this.emit({ type: 'siren', x: p.x, y: p.y, angle: 0 });
-  }
-
-  private addHeat(amount: number): void {
-    this.heat = Math.min(100, this.heat + amount * this.mods.heatMult * this.modifierHeat);
-    this.peakHeat = Math.max(this.peakHeat, this.heat);
-    if (this.exitOpen) return;
-    const firstWave = Math.max(25, 55 - this.heatShift);
-    const secondWave = Math.max(55, 90 - this.heatShift);
-    if (this.heat >= firstWave && this.reinforcementWave < 1) {
-      this.reinforcementWave = 1;
-      this.spawnReinforcements(2);
-    }
-    if (this.heat >= secondWave && this.reinforcementWave < 2) {
-      this.reinforcementWave = 2;
-      this.spawnReinforcements(2);
-    }
   }
 
   private nearestExecution(): Enemy | null {
@@ -1275,7 +1557,9 @@ export class World {
     if (edge) {
       const def = WEAPONS[p.weapon];
       if (this.input.wasPressed('KeyR') && p.hackedT <= 0) this.toggleReload();
-      if (this.input.mousePressed || (def.auto && this.input.mouseDown)) this.playerAttack();
+      if (this.input.mousePressed || (def.auto && this.input.mouseDown)) {
+        playerAttack(this.attackHost);
+      }
       if (this.input.rightPressed) this.playerThrow();
       if (this.input.wasPressed('KeyE') || this.input.wasPressed('KeyF')) this.playerInteract();
       if (this.input.wasPressed('KeyQ')) this.useSupply();
@@ -1292,50 +1576,7 @@ export class World {
           this.emit({ type: 'dash', x: p.x, y: p.y, angle: p.angle });
         }
       }
-      if (p.hackedT <= 0 && this.mods.deck > 0 && p.quickhackCd <= 0 && this.input.wasPressed('KeyZ')) {
-        this.triggerQuickhack();
-      }
-      if (
-        p.hackedT <= 0 &&
-        (this.input.wasPressed('ShiftLeft') || this.input.wasPressed('ShiftRight')) &&
-        this.mods.sandevistan > 0 &&
-        p.slowCd <= 0
-      ) {
-        p.slowT = 2.5 + (this.mods.sandevistan - 1) * 0.8;
-        p.slowCd = (14 - (this.mods.sandevistan - 1) * 3) * this.mods.abilityCd;
-        this.emit({ type: 'sandevistan', x: p.x, y: p.y, angle: p.angle });
-      }
-      if (this.input.wasPressed('KeyC') && p.hackedT <= 0 && this.mods.camo > 0 && p.camoCloakCd <= 0) {
-        p.camoT = 2.5 + (this.mods.camo - 1) * 0.8;
-        p.camoCloakCd = (12 - (this.mods.camo - 1) * 2) * this.mods.abilityCd;
-        this.emit({ type: 'camo', x: p.x, y: p.y, angle: p.angle });
-      }
-      if (this.input.wasPressed('KeyX') && p.hackedT <= 0 && this.mods.emp > 0 && p.empCd <= 0) {
-        this.triggerEmp();
-      }
-      if (this.input.wasPressed('KeyV') && p.hackedT <= 0 && this.mods.berserk > 0 && p.berserkCd <= 0) {
-        p.berserkT = 4 + (this.mods.berserk - 1) * 0.8;
-        p.berserkCd = (20 - (this.mods.berserk - 1) * 3) * this.mods.abilityCd;
-        this.emit({ type: 'berserk', x: p.x, y: p.y, angle: p.angle });
-      }
-      if (
-        this.input.wasPressed('KeyG') &&
-        p.hackedT <= 0 &&
-        this.mods.overclock > 0 &&
-        p.overclockCd <= 0
-      ) {
-        p.overclockT = 3.5 + (this.mods.overclock - 1) * 0.7;
-        p.overclockCd = (18 - (this.mods.overclock - 1) * 3) * this.mods.abilityCd;
-        this.emit({ type: 'overclock', x: p.x, y: p.y, angle: p.angle });
-      }
-      if (
-        this.input.wasPressed('KeyH') &&
-        p.hackedT <= 0 &&
-        this.mods.deck > 0 &&
-        p.deckCd <= 0
-      ) {
-        this.triggerDeck();
-      }
+      activateAbilities(this.abilityHost, this.input);
     }
 
     if (p.swingT > 0) {
@@ -1394,180 +1635,6 @@ export class World {
     p.clip += take;
     p.ammo -= take;
     this.emit({ type: 'reloadEnd', x: p.x, y: p.y, angle: p.angle });
-  }
-
-  private triggerEmp(): void {
-    const p = this.player;
-    const rank = this.mods.emp;
-    if (rank <= 0) return;
-    const radius = 220 + rank * 40;
-    p.empCd = (20 - (rank - 1) * 3) * this.mods.abilityCd;
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      if (dist(p.x, p.y, e.x, e.y) > radius) continue;
-      e.stunT = Math.max(e.stunT, 2.5 + rank * 0.5);
-      e.aiming = false;
-      e.hackT = 0;
-    }
-    for (const c of this.cameras) {
-      if (c.alive && dist(p.x, p.y, c.x, c.y) <= radius) c.disabledT = 7;
-    }
-    for (const t of this.turrets) {
-      if (t.alive && dist(p.x, p.y, t.x, t.y) <= radius) t.disabledT = 7;
-    }
-    for (const l of this.lasers) {
-      if (l.alive && dist(p.x, p.y, l.x, l.y) <= radius) l.disabledT = 7;
-    }
-    this.shake = Math.min(1, this.shake + 0.3);
-    this.emit({ type: 'emp', x: p.x, y: p.y, angle: p.angle });
-  }
-
-  private triggerDeck(): void {
-    const p = this.player;
-    const rank = this.mods.deck;
-    if (rank <= 0) return;
-    const radius = 360 + rank * 60;
-    p.deckCd = (22 - (rank - 1) * 3) * this.mods.abilityCd;
-    for (const c of this.cameras) {
-      if (c.alive && dist(p.x, p.y, c.x, c.y) <= radius) c.disabledT = 8 + rank;
-    }
-    for (const t of this.turrets) {
-      if (t.alive && dist(p.x, p.y, t.x, t.y) <= radius) t.disabledT = 8 + rank;
-    }
-    for (const l of this.lasers) {
-      if (l.alive && dist(p.x, p.y, l.x, l.y) <= radius) l.disabledT = 8 + rank;
-    }
-    this.emit({ type: 'deck', x: p.x, y: p.y, angle: p.angle });
-  }
-
-  private triggerQuickhack(): void {
-    const p = this.player;
-    if (this.mods.deck <= 0) return;
-    let target: Enemy | null = null;
-    let best = 70;
-    for (const e of this.enemies) {
-      if (!e.alive || e.kind === 'boss') continue;
-      if (dist(p.x, p.y, e.x, e.y) > 520) continue;
-      const aimD = dist(e.x, e.y, p.aimX, p.aimY);
-      if (aimD >= best) continue;
-      if (!this.lineClear(p.x, p.y, e.x, e.y)) continue;
-      if (this.smokeBlocks(p.x, p.y, e.x, e.y)) continue;
-      target = e;
-      best = aimD;
-    }
-    if (!target) {
-      this.emit({ type: 'quickhackFail', x: p.x, y: p.y, angle: p.angle });
-      return;
-    }
-    p.quickhackCd = (10 - (this.mods.deck - 1) * 2) * this.mods.abilityCd;
-    this.quickhackFxT = 0.3;
-    this.quickhackX = target.x;
-    this.quickhackY = target.y;
-    target.stunT = Math.max(target.stunT, 1.2 + this.mods.deck * 0.7);
-    target.aiming = false;
-    target.flashT = 0.25;
-    target.hackT = 0;
-    if (target.kind === 'netrunner') target.hackCd = 8;
-    if (target.kind === 'operator') target.deployCd = 8;
-    this.addHeat(3);
-    this.emit({ type: 'quickhack', x: target.x, y: target.y, angle: target.angle });
-  }
-
-  private playerAttack(): void {
-    const p = this.player;
-    if (p.attackCd > 0) return;
-    if (p.reloadT > 0) return;
-    if (p.camoT > 0) {
-      p.camoT = 0;
-      this.emit({ type: 'camoBreak', x: p.x, y: p.y, angle: p.angle });
-    }
-    const def = WEAPONS[p.weapon];
-
-    if (def.melee) {
-      p.attackCd = def.cooldown * this.mods.meleeCooldown;
-      p.swingT = SWING_DURATION;
-      p.swingHit = false;
-      const dashX = Math.cos(p.angle) * 13;
-      const dashY = Math.sin(p.angle) * 13;
-      p.x += dashX;
-      this.resolveCircle(p);
-      p.y += dashY;
-      this.resolveCircle(p);
-      this.emit({ type: 'swing', x: p.x, y: p.y, angle: p.angle });
-      if (p.weapon === 'bat') this.alertAt(p.x, p.y, 190);
-      this.shake = Math.min(1, this.shake + def.shake);
-      return;
-    }
-
-    if (p.clip <= 0) {
-      p.attackCd = 0.24;
-      this.emit({ type: 'empty', x: p.x, y: p.y, angle: p.angle });
-      return;
-    }
-
-    p.clip--;
-    this.shotsFired++;
-    const shotgun = p.weapon === 'shotgun';
-    const suppressed = p.attachment === 'suppressor';
-    const attachment = p.attachment ? ATTACHMENT_MAP[p.attachment] : null;
-    const shotHeat = def.sound === 'lmg' ? 11 : def.sound === 'rifle' ? 9 : def.sound === 'ak' ? 8 : shotgun ? 16 : def.sound === 'railgun' ? 13 : def.sound === 'plasma' ? 10 : 7;
-    const alertRadius =
-      def.sound === 'lmg' ? 1180 : def.sound === 'rifle' ? 980 : def.sound === 'ak' ? 860 : shotgun ? 900 : def.sound === 'railgun' ? 1250 : def.sound === 'plasma' ? 950 : 760;
-    this.addHeat(shotHeat * (attachment?.heatMult ?? 1));
-    p.attackCd =
-      def.cooldown *
-      this.mods.gunCooldown *
-      (attachment?.cooldownMult ?? 1) *
-      (p.overclockT > 0 ? 0.65 : 1);
-    p.flashT = 0.06;
-    const variantSpread = p.variant ? NAMED_MAP[p.variant].spreadMult : 1;
-    const precision = def.family === 'RIFLE' || def.family === 'DMR' || def.family === 'RAILGUN';
-    const overclockSpread = p.overclockT > 0 ? 0.8 : 1;
-    const muzzleX = p.x + Math.cos(p.angle) * 26;
-    const muzzleY = p.y + Math.sin(p.angle) * 26;
-
-    const pellets = attachmentPellets(p.weapon as GunId, p.attachment);
-    for (let i = 0; i < pellets; i++) {
-      const a =
-        p.angle +
-        (this.rand() * 2 - 1) *
-          def.spread *
-          this.mods.spread *
-          (precision ? this.mods.precisionSpread : 1) *
-          overclockSpread *
-          variantSpread *
-          (attachment?.spreadMult ?? 1);
-      this.bullets.push({
-        x: muzzleX,
-        y: muzzleY,
-        px: muzzleX,
-        py: muzzleY,
-        vx: Math.cos(a) * def.speed,
-        vy: Math.sin(a) * def.speed,
-        life: 1.1,
-        ownerId: p.id,
-        ownerKind: 'player',
-        pierce: def.pierce + this.mods.pierce + (attachment?.pierceBonus ?? 0),
-      });
-    }
-
-    p.vx -= Math.cos(p.angle) * 85;
-    p.vy -= Math.sin(p.angle) * 85;
-    this.shake = Math.min(1, this.shake + def.shake);
-    const soundType =
-      def.sound === 'pistol'
-        ? 'pistol'
-        : def.sound === 'shotgun'
-          ? 'shotgun'
-          : (`shot-${def.sound}` as const);
-    this.addCasing(muzzleX, muzzleY, p.angle);
-    this.emit({
-      type: suppressed ? (shotgun ? 'suppressedShotgun' : 'suppressedShot') : soundType,
-      x: muzzleX,
-      y: muzzleY,
-      angle: p.angle,
-    });
-    this.alertAt(p.x, p.y, alertRadius * (attachment?.alertMult ?? 1));
   }
 
   private resolveMelee(): void {
@@ -1645,7 +1712,7 @@ export class World {
       variant: p.variant,
     });
     this.emit({ type: 'throw', x: p.x, y: p.y, angle: a });
-    this.addHeat(2);
+    addHeat(this.encounterHost, 2);
     p.weapon = 'fists';
     p.ammo = 0;
     p.clip = 0;
@@ -1653,7 +1720,7 @@ export class World {
     p.attachment = null;
     p.variant = null;
     p.attackCd = Math.max(p.attackCd, 0.18);
-    this.alertAt(p.x, p.y, 260);
+    alertAt(this.perceptionHost, p.x, p.y, 260);
   }
 
   private useSupply(): void {
@@ -1698,7 +1765,7 @@ export class World {
         owner: 'player',
       });
       this.emit({ type: 'fragThrow', x: p.x, y: p.y, angle: p.angle });
-      this.addHeat(3);
+      addHeat(this.encounterHost, 3);
     }
     p.supplyCharges--;
   }
@@ -1765,8 +1832,8 @@ export class World {
     radius = 115,
   ): void {
     this.explosions.push({ id: this.nextId++, x, y, life: 0.35, maxLife: 0.35 });
-    this.addHeat(25);
-    this.alertAt(x, y, 420);
+    addHeat(this.encounterHost, 25);
+    alertAt(this.perceptionHost, x, y, 420);
     this.shake = 1;
     this.hitstop = Math.max(this.hitstop, 0.06);
     this.emit({ type: 'explosion', x, y, angle: 0 });
@@ -1788,7 +1855,13 @@ export class World {
     if (owner !== 'player') {
       if (this.player.alive && dist(x, y, this.player.x, this.player.y) <= radius) {
         this.deathCause = 'EXPLOSION';
-        this.killPlayer(Math.atan2(this.player.y - y, this.player.x - x));
+        this.killPlayer(Math.atan2(this.player.y - y, this.player.x - x), {
+          label: owner === 'barrel' ? 'EXPLOSIVE BARREL' : 'ENEMY GRENADE',
+          attack: owner === 'barrel' ? 'CHAIN BLAST' : 'FRAG BLAST',
+          cause: 'explosion',
+          x,
+          y,
+        });
       }
     }
     if (owner !== 'enemy') {
@@ -1798,6 +1871,10 @@ export class World {
         if (e.kind === 'boss') this.damageBoss(e, Math.atan2(e.y - y, e.x - x));
         else this.killEnemy(e, 'player');
       }
+    }
+    for (const c of this.civilians) {
+      if (!c.alive || dist(x, y, c.x, c.y) > radius) continue;
+      this.killCivilian(c, owner === 'enemy' ? 'enemy' : 'player', Math.atan2(c.y - y, c.x - x));
     }
     for (const b of this.barrels) {
       if (!b.alive || dist(x, y, b.x, b.y) > radius + 25) continue;
@@ -1856,7 +1933,7 @@ export class World {
       loot.collected = true;
       this.lootValue += Math.round(loot.value * this.mods.lootMult);
       this.emit({ type: 'loot', x: loot.x, y: loot.y, angle: 0 });
-      this.checkObjective();
+      checkMissionComplete(this.missionHost);
       return;
     }
     const pick = this.nearestPickup();
@@ -1929,8 +2006,8 @@ export class World {
           this.detections++;
         }
         this.emit({ type: 'cameraAlert', x: cam.x, y: cam.y, angle: cam.angle });
-        this.alertAt(cam.x, cam.y, 330);
-        this.addHeat(6);
+        alertAt(this.perceptionHost, cam.x, cam.y, 330);
+        addHeat(this.encounterHost, 6);
       }
       cam.alertT = 2.2;
     }
@@ -1952,7 +2029,13 @@ export class World {
       if (!within) continue;
       this.deathCause = 'LASER';
       this.emit({ type: 'laserHit', x: l.x, y: l.y, angle: 0 });
-      this.killPlayer(Math.atan2(p.y - l.y, p.x - l.x));
+      this.killPlayer(Math.atan2(p.y - l.y, p.x - l.x), {
+        label: 'LASER GRID',
+        attack: 'PULSE BEAM',
+        cause: 'laser',
+        x: l.x,
+        y: l.y,
+      });
       return;
     }
   }
@@ -2042,10 +2125,11 @@ export class World {
       life: 1.2,
       ownerId: t.id,
       ownerKind: 'enemy',
+      attack: 'TURRET FIRE',
       pierce: 0,
     });
-    this.addHeat(4);
-    this.alertAt(t.x, t.y, 380);
+    addHeat(this.encounterHost, 4);
+    alertAt(this.perceptionHost, t.x, t.y, 380);
     this.emit({ type: 'turretShot', x: t.x, y: t.y, angle: t.angle });
   }
 
@@ -2077,8 +2161,8 @@ export class World {
         continue;
       }
 
-      this.noticeCorpse(e);
-      const sees = this.player.alive && this.canSee(e);
+      noticeCorpse(this.perceptionHost, e);
+      const sees = this.player.alive && canSee(this.perceptionHost, e);
       if (e.kind === 'netrunner' && !sees) e.hackT = 0;
       if (sees) {
         e.lastSeenX = this.player.x;
@@ -2128,7 +2212,7 @@ export class World {
             e.angle = turnToward(e.angle, e.targetAngle, dt * 2);
           }
         }
-        if (sees) this.spot(e);
+        if (sees) spot(this.perceptionHost, e);
         continue;
       }
 
@@ -2150,88 +2234,9 @@ export class World {
         e.angle = turnToward(e.angle, aim, dt * (e.kind === 'shield' ? 3.2 : 11));
       }
 
-      if (e.kind !== 'boss') {
-        const threat = grenadeThreat(e, this.grenades);
-        if (threat) {
-          this.steer(e, threat.x, threat.y, ENEMY_SPEED * 1.15 * e.speedMult, dt);
-          continue;
-        }
-        if (e.suppressT > 0 && e.coverT <= 0 && !meleeKind(e.kind)) {
-          const cover = findCoverPoint(
-            this.level,
-            e,
-            this.player,
-            (x, y) => !this.solidAt(x, y),
-            (ax, ay, bx, by) => this.lineClear(ax, ay, bx, by),
-          );
-          if (cover) {
-            e.coverX = cover.x;
-            e.coverY = cover.y;
-            e.coverT = 1.4;
-            e.path = [];
-          }
-        }
-        if (e.coverT > 0) {
-          this.steer(e, e.coverX, e.coverY, ENEMY_SPEED * 1.1 * e.speedMult, dt);
-          continue;
-        }
-        const leader = squadLeader(this.enemies, e);
-        if (leader && isFlanker(this.enemies, e)) {
-          if (e.flankT <= 0) {
-            let point = flankPoint(leader, this.player, e.id % 2 === 0 ? 1 : -1);
-            point.x = clamp(point.x, TILE, (this.level.w - 1) * TILE);
-            point.y = clamp(point.y, TILE, (this.level.h - 1) * TILE);
-            if (this.solidAt(point.x, point.y)) {
-              point = flankPoint(leader, this.player, e.id % 2 === 0 ? -1 : 1);
-              point.x = clamp(point.x, TILE, (this.level.w - 1) * TILE);
-              point.y = clamp(point.y, TILE, (this.level.h - 1) * TILE);
-            }
-            e.flankX = point.x;
-            e.flankY = point.y;
-            e.flankT = 1.6;
-          }
-          if (e.flankT > 0) {
-            this.steer(e, e.flankX, e.flankY, ENEMY_SPEED * 1.05 * e.speedMult, dt);
-            if (dist(e.x, e.y, e.flankX, e.flankY) < 70) e.flankT = 0;
-            continue;
-          }
-        }
-      }
+      if (runSquadMovement(this.squadHost, e, dt)) continue;
 
-      if (e.kind === 'boss') {
-        const phase = Math.max(1, e.maxArmor - e.armor + 1);
-        if (e.bossChargeT > 0) {
-          const prev = e.bossChargeT;
-          e.bossChargeT = Math.max(0, e.bossChargeT - dt);
-          e.aiming = true;
-          const a = Math.atan2(this.player.y - e.y, this.player.x - e.x);
-          e.angle = a;
-          this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * 2.8, dt);
-          if (dToPlayer < 70 && e.meleeCd <= 0) {
-            this.enemyPunch(e);
-            e.bossChargeT = 0;
-            e.bossChargeCd = 6;
-            e.bossWeakT = 1.1;
-          } else if (prev > 0 && e.bossChargeT === 0) {
-            e.bossWeakT = 1.2;
-          }
-          continue;
-        }
-        if (
-          e.bossChargeCd <= 0 &&
-          this.bossDef.charge &&
-          sees &&
-          phase >= 2 &&
-          dToPlayer > 90 &&
-          dToPlayer < 560
-        ) {
-          e.bossChargeT = 0.7;
-          e.bossChargeCd = 8;
-          e.aiming = true;
-          this.emit({ type: 'bossCharge', x: e.x, y: e.y, angle: e.angle });
-          continue;
-        }
-      }
+      if (runBossCharge(this.bossHost, e, dt, sees, dToPlayer)) continue;
 
       if (this.mission.objective === 'hunt' && e.isTarget && sees) {
         const away = Math.atan2(e.y - this.player.y, e.x - this.player.x);
@@ -2244,142 +2249,14 @@ export class World {
           dt * 6,
         );
         if (isGun(e.weapon) && e.ammo > 0) {
-          e.aiming = true;
+          e.aiming = isEnemyAiming(e.kind, e.fireCd);
           e.fireCd -= dt;
           if (e.fireCd <= 0) this.enemyShoot(e);
         }
         continue;
       }
 
-      if (e.kind === 'hound' && sees) {
-        if (e.leapT > 0) {
-          const a = Math.atan2(this.player.y - e.y, this.player.x - e.x);
-          e.angle = a;
-          this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * 3, dt);
-          if (dToPlayer < 55 && e.meleeCd <= 0) this.enemyPunch(e);
-          continue;
-        }
-        if (e.leapCd <= 0 && dToPlayer < 220 && this.lineClear(e.x, e.y, this.player.x, this.player.y)) {
-          e.leapT = 0.35;
-          e.leapCd = 2.2;
-          this.emit({ type: 'houndLeap', x: e.x, y: e.y, angle: e.angle });
-        }
-        if (dToPlayer < 55 && e.meleeCd <= 0) this.enemyPunch(e);
-        if (this.lineClear(e.x, e.y, this.player.x, this.player.y)) {
-          this.steer(e, this.player.x, this.player.y, ENEMY_SPEED * 1.6, dt);
-        } else {
-          if (e.pathT <= 0 || e.path.length === 0) {
-            const from = worldToTile(e.x, e.y, this.level.h);
-            const to = worldToTile(this.player.x, this.player.y, this.level.h);
-            e.path = this.pathfinder.find(this.level, from.cx, from.cy, to.cx, to.cy) ?? [];
-            e.pathT = 0.35;
-          }
-          this.followPath(e, dt);
-        }
-        continue;
-      }
-
-      if (e.kind === 'medic' && sees) {
-        let patient: Enemy | null = null;
-        let lowest = Infinity;
-        for (const other of this.enemies) {
-          if (!other.alive || other === e || other.kind === 'boss') continue;
-          if (dist(e.x, e.y, other.x, other.y) > 280) continue;
-          if (other.armor >= Math.max(1, other.maxArmor)) continue;
-          if (other.armor < lowest) {
-            lowest = other.armor;
-            patient = other;
-          }
-        }
-        if (patient && e.medicCharges > 0 && e.healCd <= 0) {
-          patient.armor = Math.min(1 + patient.maxArmor, patient.armor + 1);
-          patient.maxArmor = Math.max(1, patient.maxArmor);
-          e.medicCharges--;
-          e.healCd = 7;
-          this.emit({ type: 'medicHeal', x: patient.x, y: patient.y, angle: e.angle });
-        }
-        const away = dToPlayer < 280;
-        const toward = dToPlayer > 460;
-        const side = e.angle + (Math.PI / 2) * e.strafeSign;
-        const tx = toward
-          ? this.player.x
-          : e.x + Math.cos(away ? e.angle + Math.PI : side) * 160;
-        const ty = toward
-          ? this.player.y
-          : e.y + Math.sin(away ? e.angle + Math.PI : side) * 160;
-        this.steer(e, tx, ty, ENEMY_SPEED * e.speedMult * (away ? 0.95 : 0.55), dt);
-        if (isGun(e.weapon) && e.ammo > 0 && dToPlayer < 420) {
-          e.aiming = true;
-          e.fireCd -= dt;
-          if (e.fireCd <= 0) this.enemyShoot(e);
-        }
-        continue;
-      }
-
-      if (e.kind === 'operator') {
-        if (sees && dToPlayer < 520 && e.deployCd <= 0 && this.turrets.filter((t) => t.alive).length < 6) {
-          this.deployTurret(e);
-          e.deployCd = 9;
-        }
-      }
-
-      if (e.kind === 'netrunner' && sees) {
-        const away = dToPlayer < 250;
-        const toward = dToPlayer > 460;
-        const side = e.angle + (Math.PI / 2) * e.strafeSign;
-        const tx = toward ? this.player.x : e.x + Math.cos(away ? e.angle + Math.PI : side) * 140;
-        const ty = toward ? this.player.y : e.y + Math.sin(away ? e.angle + Math.PI : side) * 140;
-        this.steer(e, tx, ty, ENEMY_SPEED * e.speedMult * (away ? 0.95 : 0.55), dt);
-        if (e.hackCd <= 0) {
-          e.aiming = true;
-          e.hackT += dt;
-          if (e.hackT >= 1.2) {
-            this.player.hackedT = Math.max(
-              this.player.hackedT,
-              4 * (1 - this.mods.hackResist) * this.hackMultiplier,
-            );
-            e.hackT = 0;
-            e.hackCd = 6;
-            e.aiming = false;
-            this.emit({ type: 'netrunnerHack', x: e.x, y: e.y, angle: e.angle });
-          }
-        } else {
-          e.hackT = 0;
-        }
-        continue;
-      }
-
-      if (e.kind === 'grenadier') {
-        if (sees && dToPlayer < 560 && e.grenadeCd <= 0) {
-          const fuse = 0.85;
-          const tx = this.player.x + this.player.vx * 0.12;
-          const ty = this.player.y + this.player.vy * 0.12;
-          const dx = tx - e.x;
-          const dy = ty - e.y;
-          const speed = Math.min(720, Math.max(160, Math.hypot(dx, dy) / fuse));
-          const angle = Math.atan2(dy, dx);
-          this.grenades.push({
-            id: this.nextId++,
-            x: e.x + Math.cos(angle) * 20,
-            y: e.y + Math.sin(angle) * 20,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            life: fuse,
-            owner: 'enemy',
-          });
-          e.grenadeCd = 2.6 + this.rand() * 2.2;
-          e.flashT = 0.12;
-          e.angle = angle;
-          this.emit({ type: 'fragThrow', x: e.x, y: e.y, angle });
-        }
-        const away = dToPlayer < 230;
-        const toward = dToPlayer > 430;
-        const side = e.angle + (Math.PI / 2) * e.strafeSign;
-        const tx = toward ? this.player.x : e.x + Math.cos(away ? e.angle + Math.PI : side) * 150;
-        const ty = toward ? this.player.y : e.y + Math.sin(away ? e.angle + Math.PI : side) * 150;
-        this.steer(e, tx, ty, ENEMY_SPEED * e.speedMult * (away ? 0.9 : 0.5), dt);
-        continue;
-      }
+      if (runEnemyArchetype(this.enemyActionHost, e, dt, sees, dToPlayer)) continue;
 
       const armed = isGun(e.weapon) && e.ammo > 0;
       const precision = e.kind === 'sniper' || e.kind === 'marksman';
@@ -2397,7 +2274,7 @@ export class World {
             : 360;
 
       if (sees && armed && dToPlayer < engageRange) {
-        e.aiming = true;
+        e.aiming = isEnemyAiming(e.kind, e.fireCd);
         e.fireCd -= dt;
         if (e.fireCd <= 0) {
           this.enemyShoot(e);
@@ -2529,87 +2406,6 @@ export class World {
     }
   }
 
-  private noticeCorpse(e: Enemy): void {
-    if (e.state === 'chase' || e.state === 'alert') return;
-    for (const body of this.enemies) {
-      if (body.alive || body.corpseFound) continue;
-      const d = dist(e.x, e.y, body.x, body.y);
-      if (d > 260 * e.visionMult) continue;
-      if (d > 76) {
-        const a = Math.atan2(body.y - e.y, body.x - e.x);
-        if (Math.abs(angleDelta(e.angle, a)) > 1.05) continue;
-      }
-      if (!this.lineClear(e.x, e.y, body.x, body.y)) continue;
-      if (this.smokeBlocks(e.x, e.y, body.x, body.y)) continue;
-      body.corpseFound = true;
-      e.state = 'chase';
-      e.lastSeenX = body.x;
-      e.lastSeenY = body.y;
-      e.searchT = 6;
-      e.markT = 1;
-      this.alertAt(body.x, body.y, 260);
-      this.detections++;
-      this.emit({ type: 'bodyFound', x: body.x, y: body.y, angle: e.angle });
-      return;
-    }
-  }
-
-  canSee(e: Enemy): boolean {
-    const p = this.player;
-    if (p.camoT > 0) return false;
-    const d = dist(e.x, e.y, p.x, p.y);
-    if (d > 500 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision) {
-      return false;
-    }
-    const committed = e.state === 'chase' || e.state === 'alert';
-    const peripheral =
-      committed && d < 200 * this.approachVision * this.modifierVision;
-    if (
-      !peripheral &&
-      d > 110 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision
-    ) {
-      const a = Math.atan2(p.y - e.y, p.x - e.x);
-      if (Math.abs(angleDelta(e.angle, a)) > 1.1) return false;
-    }
-    if (!this.lineClear(e.x, e.y, p.x, p.y)) return false;
-    return !this.smokeBlocks(e.x, e.y, p.x, p.y);
-  }
-
-  private spot(e: Enemy): void {
-    if (e.state === 'chase' || e.state === 'alert') return;
-    if (!this.spotted.has(e.id)) {
-      this.spotted.add(e.id);
-      this.detections++;
-    }
-    e.state = 'alert';
-    e.stateT = 0.2 + this.rand() * 0.1;
-    e.markT = 0.9;
-    e.fireCd = e.kind === 'sniper' ? 1.0 + this.rand() * 0.4 : 0.4 + this.rand() * 0.35;
-    this.emit({ type: 'alert', x: e.x, y: e.y, angle: e.angle });
-    for (const other of this.enemies) {
-      if (other === e || !other.alive) continue;
-      if (other.state !== 'idle') continue;
-      if (dist(e.x, e.y, other.x, other.y) > 210) continue;
-      other.state = 'chase';
-      other.lastSeenX = this.player.x;
-      other.lastSeenY = this.player.y;
-      other.searchT = 9;
-      other.markT = 0.9;
-    }
-  }
-
-  private alertAt(x: number, y: number, radius: number): void {
-    for (const e of this.enemies) {
-      if (!e.alive || e.state === 'chase' || e.state === 'alert') continue;
-      if (dist(x, y, e.x, e.y) > radius) continue;
-      e.state = 'chase';
-      e.lastSeenX = x;
-      e.lastSeenY = y;
-      e.searchT = 6;
-      e.markT = 0.8;
-    }
-  }
-
   private steer(e: Enemy, tx: number, ty: number, speed: number, dt: number): void {
     const dx = tx - e.x;
     const dy = ty - e.y;
@@ -2689,7 +2485,7 @@ export class World {
     this.emit({ type: weak ? 'bossWeakHit' : 'bossHit', x: e.x, y: e.y, angle });
     if (e.armor > 0) {
       e.speedMult = Math.min(1.5, e.speedMult + 0.12);
-      this.spawnReinforcements(this.bossDef.adds + Math.min(2, this.ngPlus), this.bossDef.addKind);
+      spawnReinforcements(this.encounterHost, this.bossDef.adds + Math.min(2, this.ngPlus), this.bossDef.addKind);
       if (this.bossDef.shock) this.bossShock(e);
       this.spawnBossHazards(e);
       e.bossWeakT = 1.4;
@@ -2736,6 +2532,7 @@ export class World {
         life: 0.95,
         ownerId: e.id,
         ownerKind: 'enemy',
+        attack: 'SHOCKWAVE',
         pierce: 0,
       });
     }
@@ -2769,6 +2566,7 @@ export class World {
         life: 1.2,
         ownerId: e.id,
         ownerKind: 'enemy',
+        attack: precision ? 'PRECISION SHOT' : def.name,
         pierce: 0,
       });
     }
@@ -2796,7 +2594,53 @@ export class World {
     e.angle = Math.atan2(this.player.y - e.y, this.player.x - e.x);
     this.deathCause = 'MELEE';
     this.emit({ type: 'enemyPunch', x: e.x, y: e.y, angle: e.angle });
-    this.killPlayer(e.angle);
+    this.killPlayer(e.angle, {
+      label: e.kind === 'boss' ? this.bossName : ENEMY_LABELS[e.kind],
+      attack: 'MELEE',
+      cause: 'melee',
+      x: e.x,
+      y: e.y,
+      kind: e.kind,
+    });
+  }
+
+  /** Resolve a bullet's owner into the attack description used by the death UI. */
+  damageSourceFor(
+    ownerId: number,
+    x: number,
+    y: number,
+    attack?: string,
+  ): DamageSource {
+    const enemy = this.enemies.find((e) => e.id === ownerId);
+    if (enemy) {
+      const precision = enemy.kind === 'sniper' || enemy.kind === 'marksman';
+      const weapon = isGun(enemy.weapon) ? WEAPONS[enemy.weapon].name : 'MELEE';
+      return {
+        label: enemy.kind === 'boss' ? this.bossName : ENEMY_LABELS[enemy.kind],
+        attack: attack ?? (precision ? 'PRECISION SHOT' : weapon),
+        cause: 'gunfire',
+        x: enemy.x,
+        y: enemy.y,
+        kind: enemy.kind,
+      };
+    }
+    const turret = this.turrets.find((t) => t.id === ownerId);
+    if (turret) {
+      return {
+        label: 'SECURITY TURRET',
+        attack: attack ?? 'TURRET FIRE',
+        cause: 'turret',
+        x: turret.x,
+        y: turret.y,
+      };
+    }
+    return {
+      label: 'STRAY FIRE',
+      attack: attack ?? 'GUNFIRE',
+      cause: 'gunfire',
+      x,
+      y,
+    };
   }
 
   damageHeavy(e: Enemy, angle: number): void {
@@ -2809,7 +2653,7 @@ export class World {
     if (e.armor <= 0) this.emit({ type: 'armorBreakEnemy', x: e.x, y: e.y, angle });
   }
 
-  killPlayer(angle: number): void {
+  killPlayer(angle: number, source: DamageSource | null = null): void {
     const p = this.player;
     if (!p.alive) return;
     if (p.invulnT > 0) return;
@@ -2842,6 +2686,8 @@ export class World {
       this.emit({ type: 'secondHeart', x: p.x, y: p.y, angle });
       return;
     }
+    this.lastDamage = source;
+    this.deathDashReady = p.dashCd <= 0;
     p.alive = false;
     this.combo = 0;
     this.comboT = 0;
@@ -2954,7 +2800,7 @@ export class World {
     d.target = d.axis === 'h' ? 1.45 : -1.45;
     d.speed = kicked ? 16 : 4.2;
     this.emit({ type: kicked ? 'doorSlam' : 'doorOpen', x: d.x, y: d.y, angle: d.angle });
-    if (kicked) this.addHeat(3);
+    if (kicked) addHeat(this.encounterHost, 3);
     this.shake = Math.min(1, this.shake + (kicked ? 0.34 : 0.03));
     if (kicked) {
       const radius = 88 + this.mods.gorilla * 26;
@@ -2962,7 +2808,7 @@ export class World {
         if (!e.alive) continue;
         if (dist(e.x, e.y, d.x, d.y) <= radius) this.killEnemy(e, 'player');
       }
-      this.alertAt(d.x, d.y, 300);
+      alertAt(this.perceptionHost, d.x, d.y, 300);
       this.hitstop = Math.max(this.hitstop, 0.04);
     }
   }
@@ -3024,7 +2870,7 @@ export class World {
       });
     }
 
-    this.checkObjective();
+    checkMissionComplete(this.missionHost);
   }
 
   /* ------------------------------------------------------------------ */

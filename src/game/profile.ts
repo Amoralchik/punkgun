@@ -1766,15 +1766,71 @@ export class Profile {
     this.save();
   }
 
-  runMods(): RunMods {
-    const strain = humanityStage(this.humanityUsed, this.humanityMax);
+  private runModsFor(
+    cyberware: CyberwareRanks,
+    perks: PerkRanks,
+    usedHumanity: number,
+  ): RunMods {
+    const strain = humanityStage(usedHumanity, this.humanityMax);
     return applyRoleMods(
       applyRoomMods(
-        computeMods(this.data.cyberware, this.data.perks, this.data.attributes, strain),
+        computeMods(cyberware, perks, this.data.attributes, strain),
         this.data.room,
       ),
       this.data.role,
     );
+  }
+
+  runMods(): RunMods {
+    return this.runModsFor(this.data.cyberware, this.data.perks, this.humanityUsed);
+  }
+
+  /** Preview the exact stat delta of the next cyberware rank. */
+  previewCyberware(id: CyberwareId, before: RunMods = this.runMods()): {
+    before: RunMods;
+    after: RunMods;
+    cost: number;
+    load: number;
+    risk: number;
+    overCapacity: boolean;
+  } | null {
+    const def = CYBERWARE_DEFS.find((entry) => entry.id === id);
+    if (!def) return null;
+    const rank = this.data.cyberware[id];
+    if (rank >= def.maxRank) return null;
+    const load = def.humanity[rank] ?? 0;
+    const used = this.humanityUsed + load;
+    return {
+      before,
+      after: this.runModsFor(
+        { ...this.data.cyberware, [id]: rank + 1 },
+        this.data.perks,
+        used,
+      ),
+      cost: this.cyberwarePrice(id),
+      load,
+      risk: this.cyberwareRisk(id),
+      overCapacity: used > this.humanityMax,
+    };
+  }
+
+  /** Preview the exact stat delta of the next perk rank. */
+  previewPerk(
+    id: PerkId,
+    before: RunMods = this.runMods(),
+  ): { before: RunMods; after: RunMods } | null {
+    const def = PERK_DEFS.find((entry) => entry.id === id);
+    if (!def) return null;
+    const rank = this.data.perks[id];
+    if (rank >= def.maxRank) return null;
+    return {
+      before,
+      after: this.runModsFor(
+        this.data.cyberware,
+        { ...this.data.perks, [id]: rank + 1 },
+        this.humanityUsed,
+      ),
+    };
   }
 
   setRole(role: RoleId | null): void {

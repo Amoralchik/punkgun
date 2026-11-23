@@ -1,3 +1,6 @@
+import { getLocale } from '../core/i18n';
+import { TOUR_STEPS, renderTourStep } from '../core/manual';
+
 export interface PauseHooks {
   onResume: () => void;
   onSettingsSync: () => void;
@@ -13,11 +16,20 @@ export class PauseController {
   private readonly settings = document.getElementById('pause-settings')!;
   private readonly manualRoot = document.getElementById('overlay-manual')!;
   private readonly tourRoot = document.getElementById('overlay-tour')!;
+  private readonly tourStepEl = document.getElementById('tour-grid')!;
+  private readonly tourCountEl = document.getElementById('tour-count')!;
+  private readonly tourPrevEl = document.getElementById(
+    'tour-prev',
+  ) as HTMLButtonElement;
+  private readonly tourNextEl = document.getElementById(
+    'tour-next',
+  ) as HTMLButtonElement;
   private readonly abandon = document.querySelector<HTMLButtonElement>(
     '#overlay-pause [data-act="abandon"]',
   )!;
   private manual = false;
   private tour = false;
+  private tourIndex = 0;
   private abandonArmed = false;
   private abandonTimer: number | null = null;
 
@@ -33,9 +45,11 @@ export class PauseController {
       else if (action === 'abandon') this.confirmAbandon();
     });
     this.tourRoot.addEventListener('click', (event) => {
-      if ((event.target as HTMLElement).closest('[data-act="tour-close"]')) {
-        this.closeTour();
-      }
+      const action = (event.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset
+        .act;
+      if (action === 'tour-close') this.closeTour();
+      else if (action === 'tour-next') this.advanceTour();
+      else if (action === 'tour-prev') this.retreatTour();
     });
     this.manualRoot.addEventListener('click', (event) => {
       if ((event.target as HTMLElement).closest('[data-act="close-manual"]')) {
@@ -76,7 +90,36 @@ export class PauseController {
 
   showTour(): void {
     this.tour = true;
+    this.tourIndex = 0;
+    this.renderTour();
     this.tourRoot.classList.remove('hidden');
+    this.tourNextEl.focus();
+  }
+
+  advanceTour(): void {
+    if (this.tourIndex >= TOUR_STEPS.length - 1) {
+      this.closeTour();
+      return;
+    }
+    this.tourIndex++;
+    this.renderTour();
+    this.tourNextEl.focus();
+  }
+
+  retreatTour(): void {
+    if (this.tourIndex <= 0) return;
+    this.tourIndex--;
+    this.renderTour();
+    this.tourNextEl.focus();
+  }
+
+  private renderTour(): void {
+    const step = TOUR_STEPS[this.tourIndex];
+    this.tourStepEl.innerHTML = renderTourStep(step, getLocale());
+    this.tourCountEl.textContent = `${this.tourIndex + 1} / ${TOUR_STEPS.length}`;
+    this.tourPrevEl.disabled = this.tourIndex === 0;
+    this.tourNextEl.textContent =
+      this.tourIndex === TOUR_STEPS.length - 1 ? 'FINISH' : 'NEXT';
   }
 
   closeTour(): void {

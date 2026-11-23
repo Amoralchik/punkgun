@@ -2,6 +2,7 @@ import { APPROACH_MAP, type ApproachId } from './attributes';
 import { ATTACHMENT_MAP } from './attachments';
 import { timeBonus } from './economy';
 import { modifierPayBonus } from './modifiers';
+import { collateralPenalty, setpieceFor, setpiecePayBonus } from './setpieces';
 import { rolePayMult } from './roles';
 import {
   ventureComponentBonus,
@@ -34,7 +35,15 @@ export function settleRun(
   const player = world.player;
   const approach = APPROACH_MAP[approachId];
   const factionRep = profile.data.reputation[contract?.faction ?? 'market'] ?? 0;
-  const modifierMult = 1 + modifierPayBonus(contract?.modifiers ?? []);
+  const setpiece = world.setpiece ?? setpieceFor(contract);
+  const collateral = world.civiliansKilled ?? 0;
+  const modifierMult = Math.max(
+    0.2,
+    1 +
+      modifierPayBonus(contract?.modifiers ?? []) +
+      setpiecePayBonus(setpiece) -
+      collateralPenalty(collateral),
+  );
   const base = Math.round(
     (contract?.reward ?? 75) * modifierMult * approach.payoutMult * (1 + repPayBonus(factionRep)),
   );
@@ -186,6 +195,8 @@ export function settleRun(
     stealthKills: world.stealthKills,
     peakHeat: world.peakHeat,
     bestCombo: world.bestCombo ?? 0,
+    setpiece,
+    collateral,
   };
 
   profile.recordRun({

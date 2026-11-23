@@ -4,9 +4,9 @@ import {
   type Palette,
   type Settings,
 } from '../core/settings';
-import { renderManual, renderTour } from './manual';
+import { renderManual } from './manual';
 
-/** Settings DOM, remap capture and localized manual/tour rendering. */
+/** Settings DOM, remap capture and localized manual rendering. */
 export class SettingsPanel {
   private readonly volume = document.getElementById('set-volume') as HTMLInputElement;
   private readonly shake = document.getElementById('set-shake') as HTMLInputElement;
@@ -25,9 +25,9 @@ export class SettingsPanel {
   private readonly dialogueLog = document.getElementById(
     'set-dialogue-log',
   ) as HTMLInputElement;
+  private readonly fieldTips = document.getElementById('set-field-tips') as HTMLInputElement;
   private readonly remapRoot = document.getElementById('set-remap')!;
   private readonly manualSections = document.getElementById('manual-sections')!;
-  private readonly tourGrid = document.getElementById('tour-grid')!;
   private remapAction: string | null = null;
 
   constructor(
@@ -45,6 +45,7 @@ export class SettingsPanel {
       this.reducedMotion,
       this.subtitles,
       this.dialogueLog,
+      this.fieldTips,
     ]) {
       element.addEventListener('change', () => this.commit());
     }
@@ -87,8 +88,8 @@ export class SettingsPanel {
     this.language.value = this.settings.data.locale;
     this.subtitles.checked = this.settings.data.subtitles;
     this.dialogueLog.checked = this.settings.data.dialogueLog;
+    this.fieldTips.checked = this.settings.data.fieldTips;
     this.manualSections.innerHTML = renderManual(this.settings.data.locale);
-    this.tourGrid.innerHTML = renderTour(this.settings.data.locale);
     this.renderRemapButtons();
   }
 
@@ -106,6 +107,7 @@ export class SettingsPanel {
     this.settings.set('locale', this.language.value === 'es' ? 'es' : 'en');
     this.settings.set('subtitles', this.subtitles.checked);
     this.settings.set('dialogueLog', this.dialogueLog.checked);
+    this.settings.set('fieldTips', this.fieldTips.checked);
     this.onChange();
     this.sync();
   }

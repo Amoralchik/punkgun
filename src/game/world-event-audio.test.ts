@@ -22,6 +22,8 @@ describe('world event audio', () => {
     expect(playWorldEventAudio(event('cameraBroken'), a)).toBe(true);
     expect(playWorldEventAudio(event('operatorDeploy'), a)).toBe(true);
     expect(playWorldEventAudio(event('bossShock'), a)).toBe(true);
+    expect(playWorldEventAudio(event('bossCharge'), a)).toBe(false);
+    expect(playWorldEventAudio(event('netrunnerChannel'), a)).toBe(false);
     expect(playWorldEventAudio(event('kill'), a)).toBe(false);
     expect(a.alert).toHaveBeenCalled();
   });

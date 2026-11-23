@@ -1,11 +1,14 @@
 import type { EndingId } from '../game/endings';
 import type { GameState } from '../game/game-state';
+import { isFormTarget, isInteractiveTarget } from '../core/focus';
 
 export interface KeyboardHooks {
   state: () => GameState;
   toggleMute: () => void;
   isTourOpen: () => boolean;
   closeTour: () => void;
+  tourNext: () => void;
+  tourPrev: () => void;
   finishBreach: () => void;
   isDialogueOpen: () => boolean;
   dialogueChoice: (index: number) => string | null;
@@ -42,15 +45,31 @@ export class KeyboardController {
   }
 
   handle(event: KeyboardEvent): void {
-    if (event.code === 'KeyM') {
+    if (event.repeat) return;
+    // Typing and native form controls keep their normal key behavior. Escape
+    // still reaches overlay routing so pause/manual can close.
+    if (isFormTarget(event.target) && event.code !== 'Escape') return;
+    if (
+      event.code === 'KeyM' &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
       this.hooks.toggleMute();
       return;
     }
     if (this.hooks.isTourOpen()) {
-      if (['Escape', 'Enter', 'Space'].includes(event.code)) {
+      if (event.code === 'Escape') {
         event.preventDefault();
         this.hooks.closeTour();
+      } else if (event.code === 'ArrowRight' || event.code === 'ArrowDown') {
+        event.preventDefault();
+        this.hooks.tourNext();
+      } else if (event.code === 'ArrowLeft' || event.code === 'ArrowUp') {
+        event.preventDefault();
+        this.hooks.tourPrev();
       }
+      // Enter/Space stay native so the focused tour button activates itself.
       return;
     }
     const state = this.hooks.state();
@@ -82,6 +101,7 @@ export class KeyboardController {
           this.hooks.chooseDialogue(choice);
         }
       } else if (['Enter', 'Space', 'KeyE'].includes(event.code)) {
+        if (event.code !== 'KeyE' && isInteractiveTarget(event.target)) return;
         event.preventDefault();
         this.hooks.advanceDialogue();
       }
@@ -89,6 +109,7 @@ export class KeyboardController {
     }
     if (this.hooks.isEpilogue()) {
       if (event.code === 'Enter' || event.code === 'Space') {
+        if (isInteractiveTarget(event.target)) return;
         event.preventDefault();
         this.hooks.finishEpilogue();
       }
@@ -138,11 +159,17 @@ export class KeyboardController {
     }
     if (state === 'dead') {
       if (event.code === 'KeyR') this.hooks.quickRetry();
-      else if (event.code === 'Space' || event.code === 'Enter') this.hooks.returnToSafehouse();
+      else if (event.code === 'Space' || event.code === 'Enter') {
+        if (isInteractiveTarget(event.target)) return;
+        this.hooks.returnToSafehouse();
+      }
       return;
     }
     if (state === 'win') {
-      if (event.code === 'KeyR' || event.code === 'Enter' || event.code === 'Space') {
+      if (event.code === 'KeyR') {
+        this.hooks.returnToSafehouse();
+      } else if (event.code === 'Enter' || event.code === 'Space') {
+        if (isInteractiveTarget(event.target)) return;
         this.hooks.returnToSafehouse();
       }
     }
