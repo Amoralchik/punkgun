@@ -56,7 +56,7 @@ budget was raised for the 0.2 content expansion (campaign, bosses, objectives,
 
 ## Compatibility / WebGL
 
-- Boot is wrapped in a fatal boundary.
+- Client boot is isolated in `game/boot.ts` and wrapped in a fatal boundary.
 - WebGL context loss stops the frame loop and presents `RELOAD CLIENT`.
 - No WebGL => `SIGNAL LOST` boot failure, not a black canvas.
 - Reduced motion disables shake, hit-stop, death slow-mo, death slides, flashes and CSS motion.
