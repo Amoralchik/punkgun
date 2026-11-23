@@ -1,4 +1,5 @@
 import type { Profile } from '../game/profile';
+import { getLocale } from '../core/i18n';
 import {
   VENTURES,
   VENTURE_MAP,
@@ -9,6 +10,7 @@ import {
 
 /** Ventures station body; actions stay in the Safehouse controller. */
 export function renderVentures(profile: Profile): string {
+  const es = getLocale() === 'es';
   const ranks = profile.data.ventures;
   const income = ventureIncome(ranks);
   const pay = Math.round((venturePayMult(ranks) - 1) * 100);
@@ -37,9 +39,9 @@ export function renderVentures(profile: Profile): string {
         <span>${venture.name}</span>
         <b>${rank}/${venture.maxLevel}</b>
       </div>
-      <small>${venture.tagline}</small>
-      <p>${venture.desc}</p>
-      <div class="venture-effect">${venture.effect}</div>
+      <small>${es ? venture.taglineEs : venture.tagline}</small>
+      <p>${es ? venture.descEs : venture.desc}</p>
+      <div class="venture-effect">${es ? venture.effectEs : venture.effect}</div>
       <button data-act="venture" data-id="${venture.id}" ${maxed ? 'disabled' : ''}>${
         maxed ? 'MAX LEVEL' : `INVEST $${cost}`
       }</button>
