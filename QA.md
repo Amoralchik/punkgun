@@ -65,6 +65,8 @@ types.
 - [ ] Authored contracts open faction dialogue; attribute/reputation choices show READY/LOCKED and apply boons.
 - [ ] PAY, ARMOR, QUIET and COMPONENTS boons show in the brief and affect settlement/vision/plates.
 - [ ] Purge, target, recover, sabotage, extraction, hunt, defense all complete.
+- [ ] Every archetype attacks and closes correctly: `npm run test:gym`.
+- [ ] A committed enemy reacquires a close player instead of going idle behind its cone.
 - [ ] Sabotage terminals and extraction case are visible and interactable.
 - [ ] Defense timer only advances inside the marked zone; waves spawn.
 - [ ] Hunt target flees and still shoots.

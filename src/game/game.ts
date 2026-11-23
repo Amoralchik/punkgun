@@ -569,7 +569,7 @@ export class Game {
     }
     if (contract.authored) {
       this.pendingRun = { contract, approachId, boons: [] };
-      this.dialogueLines = authoredDialogue(contract);
+      this.dialogueLines = authoredDialogue(contract, this.profile.data.story);
       this.dialogueIndex = 0;
       this.dialogueKickerEl.textContent = `// PRE-OP BRIEFING · ${FACTIONS[contract.faction].name}`;
       this.dialogueOpen = true;
@@ -618,9 +618,18 @@ export class Game {
             const checkLabel = choice.check
               ? `<small>${dialogueCheckLabel(choice.check)}${met ? ' · READY' : ' · LOCKED'}</small>`
               : '';
+            const repLabel = choice.reputation
+              ? Object.entries(choice.reputation)
+                  .map(([faction, delta]) => {
+                    const name = FACTIONS[faction as keyof typeof FACTIONS].name.split(' ')[0];
+                    return `${name} ${delta > 0 ? '+' : ''}${delta}`;
+                  })
+                  .join(' · ')
+              : '';
+            const consequence = repLabel ? `<small>${repLabel}</small>` : '';
             return `<button class="dialogue-choice" data-choice="${choice.id}" ${
               met ? '' : 'disabled'
-            }><span>${choice.label}</span>${checkLabel}</button>`;
+            }><span>${choice.label}</span>${checkLabel}${consequence}</button>`;
           })
           .join('')
       : '';
@@ -663,6 +672,23 @@ export class Game {
       this.pendingRun.boons.push(choice.boon);
       this.hud.logLine(`BOON: ${BOONS[choice.boon].label} — ${BOONS[choice.boon].desc}`);
     }
+    const contract = this.pendingRun.contract;
+    this.profile.data.story[`faction:${contract.faction}`] = choice.id;
+    if (choice.reputation) {
+      for (const [faction, delta] of Object.entries(choice.reputation)) {
+        const id = faction as keyof typeof this.profile.data.reputation;
+        this.profile.data.reputation[id] = Math.max(
+          0,
+          this.profile.data.reputation[id] + delta,
+        );
+      }
+      this.hud.logLine(
+        `STANDING: ${Object.entries(choice.reputation)
+          .map(([faction, delta]) => `${FACTIONS[faction as keyof typeof FACTIONS].name.split(' ')[0]} ${delta > 0 ? '+' : ''}${delta}`)
+          .join(' · ')}`,
+      );
+    }
+    this.profile.save();
     if (choice.reply) {
       this.dialogueLines.splice(this.dialogueIndex + 1, 0, {
         speaker: line!.speaker,

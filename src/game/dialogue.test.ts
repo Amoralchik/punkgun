@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { authoredDialogue, dialogueCheckLabel, dialogueCheckMet, FACTIONS } from './lore';
+import {
+  authoredDialogue,
+  dialogueCheckLabel,
+  dialogueCheckMet,
+  dossierUnlocked,
+  DOSSIERS,
+  FACTIONS,
+} from './lore';
 import type { Contract } from './missions';
 
 const contract: Contract = {
@@ -31,6 +38,23 @@ describe('authored dialogue', () => {
       'armor',
       'components',
     ]);
+
+    const withMarker = authoredDialogue(contract, { 'faction:helix': 'attribute' });
+    expect(withMarker[2].choices?.map((choice) => choice.id)).toEqual([
+      'attribute',
+      'faction',
+      'armor',
+      'components',
+      'leverage',
+    ]);
+  });
+
+  it('unlocks a faction archive entry from a storyline choice', () => {
+    const entry = DOSSIERS.find((dossier) => dossier.id === 'story-helix');
+    expect(entry).toBeDefined();
+    const base = { clears: 0, level: 1, bossCleared: false, finalCleared: false, story: {} };
+    expect(dossierUnlocked(entry!, base)).toBe(false);
+    expect(dossierUnlocked(entry!, { ...base, story: { 'faction:helix': 'attribute' } })).toBe(true);
   });
 
   it('checks attributes and reputation against the player build', () => {

@@ -1,5 +1,6 @@
 import { LOOT_DEFS, LootKind } from './economy';
 import type { WeaponId } from './weapons';
+import type { EnemyKind } from './world-types';
 
 export const TILE = 64;
 
@@ -14,14 +15,7 @@ export const TILE = 64;
  * 1 datashard  2 credchip  3 optic (sellable loot)
  */
 
-export type EnemyTag =
-  | 'grunt'
-  | 'shield'
-  | 'sniper'
-  | 'rusher'
-  | 'gunner'
-  | 'marksman'
-  | 'heavy';
+export type EnemyTag = EnemyKind;
 
 export type LayoutId =
   | 'sector07'
@@ -394,7 +388,7 @@ export interface Level {
   walls: Uint8Array;
   doors: DoorSpawn[];
   spawn: { x: number; y: number };
-  enemies: { x: number; y: number; kind?: EnemyTag }[];
+  enemies: { x: number; y: number; kind?: EnemyKind }[];
   weapons: WeaponSpawn[];
   loot: LootSpawn[];
   barrels: BarrelSpawn[];
@@ -441,7 +435,7 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
   const w = rows[0].length;
   const walls = new Uint8Array(w * h);
   const doors: DoorSpawn[] = [];
-  const enemies: { x: number; y: number; kind?: EnemyTag }[] = [];
+  const enemies: { x: number; y: number; kind?: EnemyKind }[] = [];
   const weapons: WeaponSpawn[] = [];
   const loot: LootSpawn[] = [];
   const barrels: BarrelSpawn[] = [];

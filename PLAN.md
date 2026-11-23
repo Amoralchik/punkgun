@@ -6,7 +6,7 @@ working checklist.
 
 ## Baseline audit (verified)
 
-- TypeScript + Vite + Three.js; 75 unit tests; production build and budget pass.
+- TypeScript + Vite + Three.js; 81 unit tests; production build and budget pass.
 - Save v2 with three slots, export/import, last-known-good backup, corrupt-payload
   quarantine, and startup recovery reporting.
 - PWA app shell, offline fallback, packaged static release.
@@ -26,10 +26,12 @@ working checklist.
 | Attributes + checks | 4 | 4 + derived + dialogue checks | broader skill checks |
 | Modifiers | 4 | **12** | setpiece-only modifiers |
 | Authored contracts | 3 random + boss/final | **12 authored + 3 random + 4 bosses** | more faction-specific voice |
-| Dialogue | linear boss briefing | **faction beats + choices + attribute/reputation checks + run boons** | branching consequences and more checks |
+| Dialogue | linear boss briefing | **faction beats + choices + checks + reputation deltas + story flags + run boons** | more consequence payoffs |
 | Objectives | 4 | **8** (purge, target, recover, boss, sabotage, extraction, hunt, defense) | objective-specific bespoke rooms |
 | Endings | 1 | **3** (burn, broadcast, vanish) | branch epilogue scenes |
 | New game flow | reset only | **confirmed new-game reset + campaign reroll** | ending-screen shortcut |
+| Enemy AI | sticky chase bug | **longer memory + close-range reacquire + no enemy-friendly fire** | flanking/cover coordination |
+| Combat gym | none | **14-archetype deterministic gym test** | full clear-rate/3-build matrix |
 | Chapters | 1 gate + final | **3 chapters + final** | faction storyline branches |
 | Save recovery | none | backup + quarantine + migration | slot UI polish |
 | PWA / offline | shell | shell + cache v2 + smoke | offline update prompt |
@@ -62,8 +64,7 @@ working checklist.
 
 ## Next sequence
 
-1. Build a combat gym for the 14 archetypes, including freighter/nightclub hazards,
-   and tune threat tells/clear rates.
+1. Expand the 14-archetype gym into a three-build clear-rate matrix and tune tells.
 2. Add branching dialogue consequences, more checks, and archive entries per path.
 3. Split `World` into player/AI/bullets/doors/objectives modules behind the
    existing `World` facade, then repeat for `Safehouse` and `Game`.

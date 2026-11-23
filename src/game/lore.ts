@@ -76,6 +76,7 @@ export interface DossierUnlock {
   boss?: boolean;
   final?: boolean;
   ending?: EndingId;
+  story?: string;
 }
 
 export interface Dossier {
@@ -236,6 +237,66 @@ export const DOSSIERS: Dossier[] = [
       'The rain keeps falling. Somewhere the market opens for the night. You have a gun. That is usually enough.',
     ],
   },
+  {
+    id: 'story-helix',
+    order: 12,
+    title: 'THE LEDGER',
+    kicker: '// FACTION FILE — HELIX',
+    faction: 'helix',
+    unlock: { story: 'faction:helix' },
+    body: [
+      'You chose a method in front of a Helix handler. The choice is filed with your name attached.',
+      'KESTREL keeps the receipt. That is either a favor or a leash.',
+    ],
+  },
+  {
+    id: 'story-teeth',
+    order: 13,
+    title: 'PORCELAIN',
+    kicker: '// FACTION FILE — CHROME TEETH',
+    faction: 'teeth',
+    unlock: { story: 'faction:teeth' },
+    body: [
+      'GRIN remembers how you handled the tenements. He does not remember it fondly.',
+      'The Teeth spread the story before you leave the block. By morning it has a body count you did not earn.',
+    ],
+  },
+  {
+    id: 'story-orbit',
+    order: 14,
+    title: 'MANIFEST',
+    kicker: '// FACTION FILE — LOW ORBIT',
+    faction: 'orbit',
+    unlock: { story: 'faction:orbit' },
+    body: [
+      'CUTTER marks the manifest with your choice. The syndicate pays its debts in cargo and silence.',
+      'The freighter leaves on time. The container does not.',
+    ],
+  },
+  {
+    id: 'story-market',
+    order: 15,
+    title: 'NO RECEIPTS',
+    kicker: '// FACTION FILE — NIGHT MARKET',
+    faction: 'market',
+    unlock: { story: 'faction:market' },
+    body: [
+      'VESPER does not write anything down. That is how you know the favor is real.',
+      'The market opens at dusk. Your name is already in the queue, just not the one you can see.',
+    ],
+  },
+  {
+    id: 'story-sublevel',
+    order: 16,
+    title: 'SUBJECT 06',
+    kicker: '// FACTION FILE — THE SUBLEVEL',
+    faction: 'sublevel',
+    unlock: { story: 'faction:sublevel' },
+    body: [
+      'MOTH logs your choice in a file that predates you.',
+      'The Sublevel does not care which method you pick. It only cares that you keep coming back.',
+    ],
+  },
 ];
 
 export interface StoryProgress {
@@ -244,6 +305,7 @@ export interface StoryProgress {
   bossCleared: boolean;
   finalCleared: boolean;
   ending?: EndingId | null;
+  story?: Record<string, string>;
 }
 
 export function dossierUnlocked(dossier: Dossier, p: StoryProgress): boolean {
@@ -251,6 +313,7 @@ export function dossierUnlocked(dossier: Dossier, p: StoryProgress): boolean {
   if (u.final && !p.finalCleared) return false;
   if (u.boss && !p.bossCleared) return false;
   if (u.ending && p.ending !== u.ending) return false;
+  if (u.story && !p.story?.[u.story]) return false;
   if (u.clears !== undefined && p.clears < u.clears) return false;
   if (u.level !== undefined && p.level < u.level) return false;
   return true;
@@ -258,6 +321,7 @@ export function dossierUnlocked(dossier: Dossier, p: StoryProgress): boolean {
 
 export function unlockText(dossier: Dossier): string {
   const u = dossier.unlock;
+  if (u.story) return 'MAKE A FACTION CHOICE';
   if (u.ending) return 'CHOOSE THE AFTERMATH';
   if (u.final) return 'CLEAR THE FINAL CONTRACT';
   if (u.boss) return 'BREAK THE SUBLEVEL';
@@ -311,6 +375,8 @@ export interface DialogueChoice {
   label: string;
   check?: DialogueCheck;
   boon?: RunBoon;
+  /** Reputation deltas applied immediately when chosen. */
+  reputation?: Partial<Record<FactionId, number>>;
   reply?: string;
 }
 
@@ -398,11 +464,15 @@ export const FACTION_STORYLINES: Record<FactionId, FactionStoryline> = {
   },
 };
 
-export function authoredDialogue(contract: Contract): DialogueLine[] {
-  const story = FACTION_STORYLINES[contract.faction] ?? FACTION_STORYLINES.market;
+export function authoredDialogue(
+  contract: Contract,
+  story: Record<string, string> = {},
+): DialogueLine[] {
+  const storyline = FACTION_STORYLINES[contract.faction] ?? FACTION_STORYLINES.market;
   const chapterIndex =
     typeof contract.chapter === 'number' ? Math.min(2, Math.max(0, contract.chapter - 1)) : 0;
-  const beat = story.beats[chapterIndex] ?? story.beats[0];
+  const beat = storyline.beats[chapterIndex] ?? storyline.beats[0];
+  const priorChoice = story[`faction:${contract.faction}`];
   const attribute: AttributeId =
     contract.faction === 'teeth'
       ? 'body'
@@ -413,7 +483,7 @@ export function authoredDialogue(contract: Contract): DialogueLine[] {
           : 'tech';
   return [
     {
-      speaker: story.contact,
+      speaker: storyline.contact,
       text: beat,
     },
     {
@@ -429,6 +499,7 @@ export function authoredDialogue(contract: Contract): DialogueLine[] {
           label: `Use the ${attribute} route`,
           check: { kind: 'attribute', attribute, value: 4 },
           boon: 'quiet',
+          reputation: { [contract.faction]: 1 },
           reply: 'Clean access. The sector will be quieter than it has any right to be.',
         },
         {
@@ -436,6 +507,7 @@ export function authoredDialogue(contract: Contract): DialogueLine[] {
           label: 'Call in the faction favor',
           check: { kind: 'reputation', faction: contract.faction, value: 5 },
           boon: 'pay',
+          reputation: { [contract.faction]: 1 },
           reply: 'The fixer moves a number. Your cut grows before you step out the door.',
         },
         {
@@ -448,8 +520,20 @@ export function authoredDialogue(contract: Contract): DialogueLine[] {
           id: 'components',
           label: 'Claim the salvage upfront',
           boon: 'components',
+          reputation: { market: 1 },
           reply: 'Three components are already in the bag. Do not lose the bag.',
         },
+        ...(priorChoice
+          ? [
+              {
+                id: 'leverage',
+                label: `Call in the ${contract.faction} marker`,
+                boon: 'pay' as const,
+                reputation: { [contract.faction]: 1 },
+                reply: 'The marker clears. The faction remembers that you used it.',
+              },
+            ]
+          : []),
       ],
     },
   ];

@@ -1742,7 +1742,7 @@ export class World {
       if (sees) {
         e.lastSeenX = this.player.x;
         e.lastSeenY = this.player.y;
-        e.searchT = 7;
+        e.searchT = 10;
       }
 
       if (e.state === 'idle') {
@@ -2013,6 +2013,23 @@ export class World {
         }
         if (!sees) {
           e.searchT -= dt;
+          const dToPlayerNow = dist(e.x, e.y, this.player.x, this.player.y);
+          if (
+            dToPlayerNow < 320 &&
+            this.player.camoT <= 0 &&
+            this.lineClear(e.x, e.y, this.player.x, this.player.y)
+          ) {
+            // Keep a committed pusher interested while the player is still
+            // close and visible through the sector, even if the enemy's
+            // facing cone has slipped off them.
+            e.searchT = Math.max(e.searchT, 1.5);
+            e.angle = turnToward(
+              e.angle,
+              Math.atan2(this.player.y - e.y, this.player.x - e.x),
+              dt * 6,
+            );
+            e.markT = Math.max(e.markT, 0.2);
+          }
           if (e.searchT <= 0) {
             e.state = 'idle';
             e.baseAngle = e.angle;
@@ -2083,7 +2100,13 @@ export class World {
     if (d > 500 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision) {
       return false;
     }
-    if (d > 110 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision) {
+    const committed = e.state === 'chase' || e.state === 'alert';
+    const peripheral =
+      committed && d < 200 * this.approachVision * this.modifierVision;
+    if (
+      !peripheral &&
+      d > 110 * this.mods.vision * e.visionMult * this.approachVision * this.modifierVision
+    ) {
       const a = Math.atan2(p.y - e.y, p.x - e.x);
       if (Math.abs(angleDelta(e.angle, a)) > 1.1) return false;
     }
@@ -2105,7 +2128,7 @@ export class World {
       other.state = 'chase';
       other.lastSeenX = this.player.x;
       other.lastSeenY = this.player.y;
-      other.searchT = 7;
+      other.searchT = 9;
       other.markT = 0.9;
     }
   }
@@ -2416,7 +2439,7 @@ export class World {
           hit = true;
         }
       }
-      if (!hit) {
+      if (!hit && b.ownerKind === 'player') {
         for (const e of this.enemies) {
           if (!e.alive || e.id === b.ownerId) continue;
           if (segmentHitsCircle(b.px, b.py, b.x, b.y, e.x, e.y, e.r)) {

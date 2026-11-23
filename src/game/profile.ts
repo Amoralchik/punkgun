@@ -278,6 +278,8 @@ export interface ProfileData {
   bossesCleared: Record<BossId, boolean>;
   /** Authored campaign beats already banked. */
   completedContracts: string[];
+  /** Faction storyline choices, keyed by faction. */
+  story: Record<string, string>;
   /** Chosen finale, null until the Spire falls. */
   ending: EndingId | null;
   /** Seeded rotating market stock and price drift. */
@@ -358,6 +360,7 @@ function defaultData(): ProfileData {
     reputation: { ...EMPTY_REPUTATION },
     bossesCleared: { ...EMPTY_BOSSES },
     completedContracts: [],
+    story: {},
     ending: null,
     market: { seed: 0, refreshedRun: 0, stock: {} },
     presets: [null, null, null],
@@ -602,6 +605,13 @@ export class Profile {
           }
         }
       }
+      const story: Record<string, string> = {};
+      const rawStory = parsed.story;
+      if (rawStory && typeof rawStory === 'object') {
+        for (const [key, value] of Object.entries(rawStory)) {
+          if (typeof value === 'string' && value.length <= 40) story[key] = value;
+        }
+      }
       const presets: Array<LoadoutPreset | null> = [null, null, null];
       const rawPresets = parsed.presets;
       if (Array.isArray(rawPresets)) {
@@ -666,6 +676,7 @@ export class Profile {
         reputation,
         bossesCleared,
         completedContracts,
+        story,
         ending,
         market,
         presets,
