@@ -1,3 +1,4 @@
+import { generateLayout } from './levelgen';
 /**
  * Authored layout data. Pure strings: geometry is derived by `loadLevel`
  * (map.ts), rooms by `findRooms` (level-rooms.ts) and spawn points by
@@ -17,13 +18,28 @@ export type LayoutId =
   | 'nightclub'
   | 'rooftops'
   | 'neon_alley'
-  | 'safehouse';
+  | 'safehouse'
+  // Procedural biomes: rows below are a seed-1 preview; real runs generate
+  // a fresh map from the contract seed (levelgen.ts).
+  | 'motel'
+  | 'street'
+  | 'megatower'
+  | 'desert';
 
 export interface LayoutDef {
   id: LayoutId;
   name: string;
   tagline: string;
   rows: string[];
+  /** Built by levelgen.ts per contract seed. */
+  generated?: boolean;
+  /**
+   * Authored material map (same size as rows): o concrete, c carpet,
+   * k checker, w wood, f office, g grate, l lobby, p parking.
+   */
+  floorRows?: string[];
+  /** Authored prop map for `n` tiles: s sofa, t tv, p plant, b bed, d desk, r rack, x crate. */
+  propRows?: string[];
 }
 
 export const LAYOUTS: LayoutDef[] = [
@@ -349,15 +365,72 @@ export const LAYOUTS: LayoutDef[] = [
     id: 'safehouse',
     name: 'SAFEHOUSE',
     tagline: 'Your room. Your gear. Your contracts.',
+    // A hideout apartment: living room (contracts board, operator radio),
+    // workshop (archive, fabricator, workbench), clinic corner (clinic,
+    // sanctuary) and garage (market, supplies, deploy door).
     rows: [
-      '##################',
-      '#................#',
-      '#.C..R.W....A....#',
-      '#................#',
-      '#.M.Y.OP..T.U....#',
-      '#................#',
-      '#........X.......#',
-      '##################',
+      '##############',
+      '#C...O.#Y..T.#',
+      '#......D.....#',
+      '#.nn...#...W.#',
+      '#.....n#.....#',
+      '###.#####.####',
+      '#A....R#M...U#',
+      '#.n....D.....#',
+      '#...P..#...X.#',
+      '##############',
     ],
+    floorRows: [
+      '..............',
+      '.cccccc.gggggg.',
+      '.cccccccgggggg.',
+      '.cccccc.gggggg.',
+      '.cccccc.gggggg.',
+      '...w.....w....',
+      '.kkkkkk.pppppp.',
+      '.kkkkkkkpppppp.',
+      '.kkkkkk.pppppp.',
+      '..............',
+    ].map((row) => row.slice(0, 14)),
+    propRows: [
+      '..............',
+      '..............',
+      '..............',
+      '..ss..........',
+      '......t.......',
+      '..............',
+      '..............',
+      '..p...........',
+      '..............',
+      '..............',
+    ],
+  },
+  {
+    id: 'motel',
+    name: 'DESERT MOTEL',
+    tagline: 'Vacancy sign buzzing. Every door hides a different bad night.',
+    rows: generateLayout('motel', 1).rows,
+    generated: true,
+  },
+  {
+    id: 'street',
+    name: 'CITY STREETS',
+    tagline: 'Wet asphalt, shuttered shops, and a block that never sleeps.',
+    rows: generateLayout('street', 1).rows,
+    generated: true,
+  },
+  {
+    id: 'megatower',
+    name: 'MEGATOWER',
+    tagline: 'Two hundred floors of glass. This one is yours for five minutes.',
+    rows: generateLayout('megatower', 1).rows,
+    generated: true,
+  },
+  {
+    id: 'desert',
+    name: 'DUST HIGHWAY',
+    tagline: 'Sun like a hammer. Shacks, wrecks and nowhere to hide.',
+    rows: generateLayout('desert', 1).rows,
+    generated: true,
   },
 ];

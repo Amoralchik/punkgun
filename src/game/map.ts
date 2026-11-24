@@ -2,6 +2,7 @@ import { LOOT_DEFS, LootKind } from './economy';
 import type { WeaponId } from './weapons';
 import type { EnemyKind } from './world-types';
 import { LAYOUTS, type LayoutId } from './level-layouts';
+import { Floor, Prop, generateLayout, isBiome, type GeneratedLayout } from './levelgen';
 
 export const TILE = 64;
 
@@ -15,6 +16,7 @@ export const TILE = 64;
  * o explosive barrel   c security camera   t automated turret   l laser grid
  * C contracts  W workbench  A clinic  M market  U supplies  Y archive  T fabricator  O operator  R sanctuary
  * 1 datashard  2 credchip  3 optic (sellable loot)
+ * n low prop: furniture/cover — blocks movement and bullets, not sight
  */
 
 export type EnemyTag = EnemyKind;
@@ -106,6 +108,16 @@ export interface Level {
   stations: Station[];
   exit: { x: number; y: number };
   boss: { x: number; y: number } | null;
+  /** 1 = low prop (furniture/cover): solid for movement and bullets, see-through. */
+  low?: Uint8Array;
+  /** Procedural maps: floor material per tile (levelgen `Floor`). */
+  floorKind?: Uint8Array;
+  /** Procedural maps: prop kind per tile (levelgen `Prop`). */
+  propKind?: Uint8Array;
+  /** Outdoor daytime map: lighter darkness and no night grade. */
+  daylight?: boolean;
+  /** Built by levelgen for this seed. */
+  generated?: boolean;
 }
 
 /**
@@ -136,13 +148,58 @@ export function layoutCacheCount(id: LayoutId): number {
   return count;
 }
 
-export function loadLevel(id: LayoutId = 'sector07'): Level {
+const FLOOR_CHARS: Record<string, Floor> = {
+  o: Floor.Concrete,
+  c: Floor.Carpet,
+  k: Floor.Checker,
+  w: Floor.Wood,
+  f: Floor.Office,
+  g: Floor.Grate,
+  l: Floor.Lobby,
+  p: Floor.Parking,
+};
+const PROP_CHARS: Record<string, Prop> = {
+  s: Prop.Sofa,
+  t: Prop.Tv,
+  p: Prop.Plant,
+  b: Prop.Bed,
+  d: Prop.Desk,
+  r: Prop.Rack,
+  x: Prop.Crate,
+};
+
+/** Material/prop channels for hand-made layouts that author them. */
+function authoredDecor(layout: (typeof LAYOUTS)[number]): GeneratedLayout | null {
+  if (!layout.floorRows) return null;
+  const h = layout.rows.length;
+  const w = layout.rows[0].length;
+  const floor = new Uint8Array(w * h);
+  const props = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      floor[y * w + x] = FLOOR_CHARS[layout.floorRows[y]?.[x] ?? 'o'] ?? Floor.Concrete;
+      const pc = layout.propRows?.[y]?.[x];
+      if (pc && PROP_CHARS[pc] !== undefined) props[y * w + x] = PROP_CHARS[pc];
+    }
+  }
+  return { rows: layout.rows, floor, props, daylight: false };
+}
+
+/**
+ * Build a Level. Procedural biomes generate a fresh map from `seed`
+ * (defaults to the seed-1 preview); authored layouts ignore it.
+ */
+export function loadLevel(id: LayoutId = 'sector07', seed?: number): Level {
   const layout = LAYOUTS.find((entry) => entry.id === id) ?? LAYOUTS[0];
-  const rows = layout.rows;
+  const gen: GeneratedLayout | null = isBiome(layout.id)
+    ? generateLayout(layout.id, seed ?? 1)
+    : authoredDecor(layout);
+  const rows = gen ? gen.rows : layout.rows;
   const h = rows.length;
   const w = rows[0].length;
   const walls = new Uint8Array(w * h);
   const glass = new Uint8Array(w * h);
+  const low = new Uint8Array(w * h);
   const steam: { x: number; y: number }[] = [];
   const doors: DoorSpawn[] = [];
   const enemies: { x: number; y: number; kind?: EnemyKind }[] = [];
@@ -164,6 +221,10 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
       const ch = row[cx];
       const pos = tileCenter(cx, cy, h);
       if (ch === '#') walls[cy * w + cx] = 1;
+      if (ch === 'n') {
+        walls[cy * w + cx] = 1;
+        low[cy * w + cx] = 1;
+      }
       if (ch === 'G') {
         walls[cy * w + cx] = 1;
         glass[cy * w + cx] = 1;
@@ -240,6 +301,11 @@ export function loadLevel(id: LayoutId = 'sector07'): Level {
     stations,
     exit,
     boss,
+    low,
+    floorKind: gen?.floor,
+    propKind: gen?.props,
+    daylight: gen?.daylight ?? false,
+    generated: isBiome(layout.id),
   };
 
   // Derive door orientation from surrounding walls.

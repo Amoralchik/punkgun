@@ -35,7 +35,9 @@ export function findRooms(level: Level): RoomMap {
   const stack: number[] = [];
 
   for (let start = 0; start < w * h; start++) {
-    if (walls[start] === 1 || doorTile.has(start) || tileRoom[start] !== -1) continue;
+    const low = level.low;
+    // Furniture sits inside rooms: it never splits one room into two.
+    if ((walls[start] === 1 && low?.[start] !== 1) || doorTile.has(start) || tileRoom[start] !== -1) continue;
     const id = rooms.length;
     let head = 0;
     let sumX = 0;
@@ -62,7 +64,7 @@ export function findRooms(level: Level): RoomMap {
           doorAdj.add(ni);
           continue;
         }
-        if (walls[ni] === 1 || tileRoom[ni] !== -1) continue;
+        if ((walls[ni] === 1 && low?.[ni] !== 1) || tileRoom[ni] !== -1) continue;
         tileRoom[ni] = id;
         stack.push(ni);
       }
@@ -73,6 +75,7 @@ export function findRooms(level: Level): RoomMap {
     let ay = cy;
     let best = Infinity;
     for (const cell of cells) {
+      if (low?.[cell] === 1) continue; // anchors must be standable
       const c = tileCenter(cell % w, (cell / w) | 0, h);
       const d = dist(c.x, c.y, cx, cy);
       if (d < best) {
@@ -81,7 +84,7 @@ export function findRooms(level: Level): RoomMap {
         ay = c.y;
       }
     }
-    rooms.push({ id, tiles: cells.length, x: cx, y: cy, ax, ay, doors: doorAdj.size });
+    rooms.push({ id, tiles: cells.filter((cell) => low?.[cell] !== 1).length, x: cx, y: cy, ax, ay, doors: doorAdj.size });
   }
   return { rooms, tileRoom };
 }
@@ -95,7 +98,9 @@ export function roomAt(map: RoomMap, level: Level, x: number, y: number): number
 /** Distance from a room to the nearest security hazard (camera/turret/laser/barrel). */
 export function hazardDistance(level: Level, room: Room): number {
   const hazards = [...level.cameras, ...level.turrets, ...level.lasers, ...level.barrels];
-  let best = Infinity;
+  // Capped: a level with no hazards must still score rooms (Infinity would
+  // turn every spread score into -Infinity and place only one terminal).
+  let best = 4096;
   for (const hz of hazards) best = Math.min(best, dist(room.ax, room.ay, hz.x, hz.y));
   return best;
 }

@@ -19,7 +19,8 @@
     "smoke:firefox": "node scripts/smoke-playwright.mjs --browser=firefox",
     "smoke:webkit": "node scripts/smoke-playwright.mjs --browser=webkit",
     "soak": "node scripts/soak.mjs",
-    "soak:long": "node scripts/soak.mjs --minutes=30"
+    "soak:long": "node scripts/soak.mjs --minutes=30",
+    "shots": "node scripts/menu-shots.mjs"
   },
   "dependencies": {
     "three": "^0.187.0"

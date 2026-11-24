@@ -58,7 +58,7 @@ export function createObjectiveNodes(
         radius: 58,
       });
     }
-  } else if (mission.objective === 'extraction') {
+  } else if (mission.objective === 'extraction' || mission.objective === 'heist') {
     const pos = pickCaseTile(level, findRooms(level));
     nodes.push({
       id: nextId(),
@@ -106,6 +106,7 @@ export function nearestObjectiveNode(
 export function objectiveNodeText(
   mission: MissionSpec,
   nodes: ObjectiveNode[],
+  blown = false,
 ): string | null {
   if (mission.objective === 'sabotage') {
     const done = nodes.filter((node) => node.completed).length;
@@ -113,6 +114,10 @@ export function objectiveNodeText(
   }
   if (mission.objective === 'extraction') {
     return nodes[0]?.completed ? t('hud.caseSecured') : t('hud.case');
+  }
+  if (mission.objective === 'heist') {
+    if (blown) return t('hud.heistBlown');
+    return nodes[0]?.completed ? t('hud.coreTaken') : t('hud.core');
   }
   if (mission.objective === 'defense') {
     const zone = nodes[0];

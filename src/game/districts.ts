@@ -9,7 +9,11 @@ export type DistrictTheme =
   | 'transit'
   | 'rooftop'
   | 'alley'
-  | 'safehouse';
+  | 'safehouse'
+  | 'motel'
+  | 'street'
+  | 'megatower'
+  | 'desert';
 
 export type DistrictWeather = 'rain' | 'ash' | 'embers' | 'none';
 export type DistrictAmbience = 'rain' | 'wind' | 'embers' | 'none';
@@ -45,6 +49,48 @@ function district(
 }
 
 export const DISTRICTS: Record<LayoutId, DistrictDef> = {
+  // Procedural biomes (levelgen.ts). Floors are painted per material in the
+  // bake; `floor` here is only the fallback concrete tone.
+  motel: district(
+    'motel',
+    'none',
+    'wind',
+    'none',
+    ['#2a2630', '#2c2832', '#27232d'],
+    ['#ff5fa2', '#5ef1ff', '#ffc46b', '#7dffcf'],
+    'rgba(255, 180, 210, 0.06)',
+    '#2b1b26',
+  ),
+  street: district(
+    'street',
+    'rain',
+    'rain',
+    'puddles',
+    ['#23262e', '#25282f', '#21242b'],
+    ['#5ef1ff', '#ff2f8e', '#ffc46b', '#8b6bff'],
+    'rgba(150, 160, 190, 0.08)',
+    '#14161d',
+  ),
+  megatower: district(
+    'megatower',
+    'none',
+    'none',
+    'none',
+    ['#1c2430', '#1e2633', '#1a222d'],
+    ['#5ef1ff', '#8b6bff', '#e9f6ff'],
+    'rgba(120, 170, 220, 0.08)',
+    '#0b121c',
+  ),
+  desert: district(
+    'desert',
+    'ash',
+    'wind',
+    'none',
+    ['#c79a62', '#cfa36b', '#c0925a'],
+    ['#ffb347', '#ff7a4c', '#ffd28a'],
+    'rgba(120, 80, 40, 0.08)',
+    '#6b4428',
+  ),
   safehouse: district(
     'safehouse',
     'none',

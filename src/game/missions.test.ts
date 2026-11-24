@@ -43,7 +43,7 @@ describe('seeded mission generation', () => {
       for (const contract of board) seen.add(contract.objective);
     }
     expect(seen).toEqual(
-      new Set(['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt', 'defense']),
+      new Set(['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt', 'defense', 'heist']),
     );
   });
 

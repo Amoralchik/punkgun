@@ -39,8 +39,9 @@ describe('layout connectivity', () => {
     }
   });
 
-  it('ships the expanded twelve-layout combat set', () => {
-    expect(combat).toHaveLength(12);
+  it('ships twelve authored layouts plus four procedural biomes', () => {
+    expect(combat).toHaveLength(16);
+    expect(combat.filter((layout) => layout.generated).map((l) => l.id).sort()).toEqual(['desert', 'megatower', 'motel', 'street']);
     expect(combat.map((layout) => layout.id)).toEqual(
       expect.arrayContaining([
         'transit',

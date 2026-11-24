@@ -15,7 +15,7 @@ export interface LightSpec {
 }
 
 const QUAD = new THREE.PlaneGeometry(1, 1);
-const MAX_STATIC = 160;
+const MAX_STATIC = 256;
 const MAX_FLASH = 80;
 
 interface StaticSlot {

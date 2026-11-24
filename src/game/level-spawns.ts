@@ -195,10 +195,15 @@ export function pickSpawnPoints(level: Level, query: SpawnQuery): SpawnPoint[] {
 
   // More bodies than distinct points: fan the extras out around the best
   // ones, each snapped back onto standable floor.
-  for (let i = 0; chosen.length < query.count; i++) {
+  const key = (p: { x: number; y: number }) => `${Math.round(p.x)}:${Math.round(p.y)}`;
+  const taken = new Set(chosen.map(key));
+  for (let i = 0; chosen.length < query.count && i < query.count * 24; i++) {
     const base = chosen[i % chosen.length];
     const a = (i + 1) * 2.399963;
-    const p = snapToFloor(level, base.x + Math.cos(a) * TILE * 0.6, base.y + Math.sin(a) * TILE * 0.6);
+    const r = TILE * (0.6 + Math.floor(i / chosen.length) * 0.5);
+    const p = snapToFloor(level, base.x + Math.cos(a) * r, base.y + Math.sin(a) * r);
+    if (taken.has(key(p))) continue;
+    taken.add(key(p));
     chosen.push({ ...p, kind: base.kind });
   }
   return chosen;

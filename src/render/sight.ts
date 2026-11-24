@@ -73,6 +73,8 @@ export class SightMask {
     viewH: number,
   ): void {
     if (!this.mesh.visible) return;
+    // Never let one bad frame (e.g. a NaN from physics) take the game down.
+    if (![px, py, camX, camY, viewW, viewH].every(Number.isFinite) || viewW <= 0 || viewH <= 0) return;
     this.cast(world, px, py);
 
     const { ctx, canvas } = this;

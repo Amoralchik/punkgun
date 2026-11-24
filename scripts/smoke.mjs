@@ -275,6 +275,10 @@ async function main() {
     if (!tourClosed.hidden || !tourClosed.tourSeen) {
       throw new Error(`Native Space did not dismiss the tour: ${JSON.stringify(tourClosed)}`);
     }
+    // Visual QA capture: the hideout room itself.
+    await sleep(420);
+    const roomShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'safehouse-room.png'), Buffer.from(roomShot.data, 'base64'));
 
     await pressKey(cdp, { key: 'Tab', code: 'Tab', keyCode: 9 });
     await sleep(180);
@@ -288,6 +292,22 @@ async function main() {
     if (!hubPanel.open || !hubPanel.inside || !hubPanel.tourButton) {
       throw new Error(`Keyboard terminal open failed: ${JSON.stringify(hubPanel)}`);
     }
+    // Visual QA captures: the terminal (contracts + gear tabs).
+    await sleep(380);
+    const hubShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'hub-contracts.png'), Buffer.from(hubShot.data, 'base64'));
+    const tabs = await cdp.evaluate(`(() => {
+      const panel = document.getElementById('overlay-safehouse');
+      document.querySelector('.sh-tab[data-tab="gear"]').click();
+      const gear = panel.querySelector('.sh-pane[data-pane="gear"]').classList.contains('active')
+        && !panel.querySelector('.sh-pane[data-pane="contracts"]').classList.contains('active');
+      return { gear };
+    })()`);
+    if (!tabs.gear) throw new Error(`Terminal tabs failed: ${JSON.stringify(tabs)}`);
+    await sleep(120);
+    const gearShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, 'hub-gear.png'), Buffer.from(gearShot.data, 'base64'));
+    await cdp.evaluate(`document.querySelector('.sh-tab[data-tab="contracts"]').click()`);
     const replayTour = await cdp.evaluate(`(() => {
       document.getElementById('sh-tour').click();
       const visible = !document.getElementById('overlay-tour').classList.contains('hidden');
@@ -677,6 +697,19 @@ async function main() {
     const clinicShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, 'clinic.png'), Buffer.from(clinicShot.data, 'base64'));
     await cdp.evaluate(`document.querySelector('[data-act="close-augments"]')?.click()`);
+
+    // Regression: the in-room workbench must hand control back when closed.
+    const bench = await cdp.evaluate(`(async () => {
+      const g = window.__game;
+      g.openPanel('workbench');
+      const open = !document.getElementById('overlay-workbench').classList.contains('hidden');
+      document.getElementById('wb-close').click();
+      await new Promise((r) => setTimeout(r, 80));
+      return { open, panelAfter: g.panelOpen, overlays: Array.from(document.querySelectorAll('.overlay:not(.hidden)')).map((el) => el.id) };
+    })()`);
+    if (!bench.open || bench.panelAfter) {
+      throw new Error(`Workbench station did not release the room: ${JSON.stringify(bench)}`);
+    }
 
     const ventures = await cdp.evaluate(`(() => {
       document.getElementById('sh-ventures').click();

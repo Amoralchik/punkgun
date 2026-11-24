@@ -12,6 +12,7 @@ import { FilmPass } from './film-pass';
 import { TextureBank } from './textures';
 import { WeatherField, weatherForLevel } from './weather';
 import { Level, TILE, tileCenter } from '../game/map';
+import { Floor, Prop } from '../game/levelgen';
 import { World } from '../game/world';
 import type { Enemy, EnemyKind, ObjectiveNode, Player } from '../game/world-types';
 import { WEAPONS, WeaponId } from '../game/weapons';
@@ -162,6 +163,8 @@ export class Renderer {
   private readonly hit = new THREE.Vector3();
 
   private viewH = VIEW_H;
+  /** Safehouse: frame the whole room on any aspect ratio. */
+  private fitRoom: { w: number; h: number } | null = null;
   private camX = 0;
   private camY = 0;
   private aspect = 1;
@@ -407,6 +410,8 @@ export class Renderer {
 
   bind(world: World): void {
     this.viewH = world.level.id === 'safehouse' ? VIEW_H : RUN_VIEW_H;
+    this.fitRoom =
+      world.level.id === 'safehouse' ? { w: world.level.w * TILE, h: world.level.h * TILE } : null;
     this.weather.setKind(weatherForLevel(world.level.id));
     this.resize();
     this.dynamic.clear();
@@ -455,8 +460,10 @@ export class Renderer {
     // space (noir: light is information, darkness is the default). A
     // blackout floor drops another stop: only flashlights and neon remain.
     (this.mapMesh.material as THREE.MeshBasicMaterial).color.setScalar(
-      level.id === 'safehouse' ? 1 : world.setpiece === 'blackoutFloor' ? 0.52 : 0.8,
+      level.id === 'safehouse' || level.daylight ? 1 : world.setpiece === 'blackoutFloor' ? 0.52 : 0.8,
     );
+    // Daylight: what you can't see is shaded, not swallowed by night.
+    this.sight.setStrength(level.daylight ? 0.42 : 1);
     for (const view of this.civilianViews.values()) this.dynamic.remove(view.root);
     this.civilianViews.clear();
 
@@ -519,7 +526,7 @@ export class Renderer {
     for (const p of world.pickups) this.addPickupView(p.id, p.weapon);
     for (const l of world.loot) this.addLootView(l.id, l.kind);
     for (const node of world.objectives) this.addObjectiveView(node);
-    if (level.id !== 'safehouse') this.addHoloAds(level);
+    if (level.id !== 'safehouse' && !level.daylight) this.addHoloAds(level);
 
     const exitTex = this.textures.exit;
     const exitMat = new THREE.MeshBasicMaterial({
@@ -577,6 +584,7 @@ export class Renderer {
       push(n.x, n.y, n.kind === 'zone' ? n.radius * 1.5 : 130, color, 0.2, 0.3);
     }
     if (level.boss) push(level.boss.x, level.boss.y, 290, this.palette.amber, 0.25, 0.3);
+    if (level.floorKind && !level.daylight) specs.push(...this.generatedLights(level));
     // Baked neon signage spills colour onto the street below it.
     const signs = this.textures.signLights.get(level.id) ?? [];
     for (const sign of signs) {
@@ -601,6 +609,50 @@ export class Renderer {
       }
     }
     return specs;
+  }
+
+  /**
+   * Night lighting for generated maps: sodium lamps outdoors, ceiling light
+   * by room type indoors, and glowing props. Light is the art direction.
+   */
+  private generatedLights(level: Level): LightSpec[] {
+    const out: LightSpec[] = [];
+    const fk = level.floorKind!;
+    const pk = level.propKind;
+    const at = (cx: number, cy: number) => tileCenter(cx, cy, level.h);
+    for (let cy = 0; cy < level.h; cy++) {
+      for (let cx = 0; cx < level.w; cx++) {
+        const i = cy * level.w + cx;
+        const p = at(cx, cy);
+        if (level.walls[i] === 1 && level.low?.[i] !== 1) continue;
+        const f = fk[i];
+        // Sodium street lamps on sidewalks and lot edges.
+        if ((f === Floor.Sidewalk || f === Floor.Parking) && (cx * 3 + cy * 7) % 11 === 0) {
+          out.push({ x: p.x, y: p.y, size: 330, color: 0xffa04a, intensity: 0.19, pulse: 0.02 });
+          continue;
+        }
+        // Ceiling lights on a grid indoors, coloured by room material.
+        if (cx % 4 === 2 && cy % 4 === 2) {
+          const room =
+            f === Floor.Office ? { c: 0xdff3ff, s: 260, k: 0.13 } // office fluorescent
+            : f === Floor.Carpet ? { c: 0xffb46a, s: 220, k: 0.16 } // motel lamp
+            : f === Floor.Checker ? { c: 0xfff0d8, s: 260, k: 0.15 } // diner / bath
+            : f === Floor.Wood ? { c: 0xffc98a, s: 230, k: 0.14 } // wood: warm
+            : f === Floor.Lobby ? { c: 0xfff6e8, s: 300, k: 0.15 } // lobby
+            : f === Floor.Grate ? { c: 0x9fe8ff, s: 180, k: 0.06 } // server room
+            : null;
+          if (room) out.push({ x: p.x, y: p.y, size: room.s, color: room.c, intensity: room.k, pulse: 0.03 });
+        }
+        if (!pk || pk[i] === 0) continue;
+        const prop = pk[i];
+        if (prop === Prop.Tv) out.push({ x: p.x, y: p.y, size: 150, color: 0x8fd8ff, intensity: 0.2, pulse: 0.4 });
+        else if (prop === Prop.Vending) out.push({ x: p.x, y: p.y, size: 140, color: 0xff3b6b, intensity: 0.2, pulse: 0.08 });
+        else if (prop === Prop.Nightstand) out.push({ x: p.x, y: p.y, size: 140, color: 0xffc46b, intensity: 0.2, pulse: 0.05 });
+        else if (prop === Prop.Desk && (cx + cy) % 2 === 0) out.push({ x: p.x, y: p.y, size: 90, color: 0x5ef1ff, intensity: 0.14, pulse: 0.1 });
+        else if (prop === Prop.Rack && (cx + cy) % 2 === 0) out.push({ x: p.x, y: p.y, size: 90, color: 0x7dffcf, intensity: 0.12, pulse: 0.3 });
+      }
+    }
+    return out;
   }
 
   private createUnitView(
@@ -1296,7 +1348,7 @@ export class Renderer {
         const angle = enemy.angle - half + (2 * half * i) / CONE_SEGMENTS;
         let distance = range;
         for (let r = 14; r < range; r += 14) {
-          if (world.solidAt(enemy.x + Math.cos(angle) * r, enemy.y + Math.sin(angle) * r)) {
+          if (world.sightSolidAt(enemy.x + Math.cos(angle) * r, enemy.y + Math.sin(angle) * r)) {
             distance = Math.max(10, r - 7);
             break;
           }
@@ -2007,6 +2059,10 @@ export class Renderer {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.aspect = w / h;
+    if (this.fitRoom) {
+      // Whole room in frame with a margin, never smaller than the base view.
+      this.viewH = Math.max(VIEW_H, this.fitRoom.h + 72, (this.fitRoom.w + 72) / this.aspect);
+    }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(w, h, false);
     this.composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));

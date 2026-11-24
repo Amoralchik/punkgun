@@ -21,7 +21,7 @@ import { RunLauncher } from './run-launcher';
 import { Renderer } from '../render/renderer';
 import { Hud } from '../ui/hud';
 import { Safehouse } from '../ui/safehouse';
-import { LayoutId, Level, loadLevel, StationKind } from './map';
+import { LAYOUTS, LayoutId, Level, loadLevel, StationKind } from './map';
 import type { Contract } from './missions';
 import { buildBoard } from './campaign';
 import { DialogueSession } from './dialogue-session';
@@ -90,7 +90,7 @@ export class Game {
   private readonly frameShell: FrameShell;
   private readonly launcher: RunLauncher;
   private readonly safehouse: Safehouse;
-  private readonly levelCache = new Map<LayoutId, Level>();
+  private readonly levelCache = new Map<string, Level>();
   private contracts: Contract[] = [];
   private currentContract: Contract | null = null;
   private world: World;
@@ -330,7 +330,7 @@ export class Game {
 
   private createWorld(config: RunConfig): World {
     const { contract, loadout, approach, seed } = config;
-    const level = this.getLevel(contract.layoutId);
+    const level = this.getLevel(contract.layoutId, contract.seed);
     return new World(
       level,
       this.input,
@@ -342,11 +342,15 @@ export class Game {
     );
   }
 
-  private getLevel(id: LayoutId): Level {
-    let level = this.levelCache.get(id);
+  private getLevel(id: LayoutId, seed = 1): Level {
+    const generated = LAYOUTS.find((layout) => layout.id === id)?.generated === true;
+    const key = generated ? `${id}:${seed}` : id;
+    let level = this.levelCache.get(key);
     if (!level) {
-      level = loadLevel(id);
-      this.levelCache.set(id, level);
+      level = loadLevel(id, seed);
+      // Keep the cache small: generated maps are one-offs.
+      if (generated) for (const k of [...this.levelCache.keys()]) if (k.includes(':')) this.levelCache.delete(k);
+      this.levelCache.set(key, level);
     }
     return level;
   }

@@ -170,6 +170,10 @@ export class World {
   private exitGuardSpawned = false;
   /** Seconds since the exit opened; hunters drop every OVERTIME_WAVE. */
   overtimeT = 0;
+  /** Heist: someone saw the operative. */
+  heistBlown = false;
+  private lastGoodX = 0;
+  private lastGoodY = 0;
   overtimeWaves = 0;
   private readonly exitGuardIds = new Set<number>();
   private readonly civilianHost: CivilianHost;
@@ -1110,7 +1114,7 @@ export class World {
       const plus = this.ngPlus > 0 ? `NG+${this.ngPlus} · ` : '';
       return boss ? `${plus}${wave}${this.bossName} ARMOR ${boss.armor}/${boss.maxArmor}` : 'KILL THE BOSS';
     }
-    const nodeText = objectiveNodeText(this.mission, this.objectives);
+    const nodeText = objectiveNodeText(this.mission, this.objectives, this.heistBlown);
     if (nodeText) return nodeText;
     return `CACHES ${this.collectedLoot}/${this.mission.requiredLoot}`;
   }
@@ -1223,6 +1227,9 @@ export class World {
       addHeat(this.encounterHost, 7);
       this.emit({ type: 'sabotage', x: node.x, y: node.y, angle: 0 });
       alertAt(this.perceptionHost, node.x, node.y, 220);
+    } else if (this.mission.objective === 'heist') {
+      // A clean lift makes no noise: no heat, no burden, no response.
+      this.emit({ type: 'coreStolen', x: node.x, y: node.y, angle: 0 });
     } else {
       this.player.caseCarried = true;
       addHeat(this.encounterHost, 35);
@@ -1241,12 +1248,38 @@ export class World {
 
     const slow = this.player.alive && this.player.slowT > 0 ? 0.35 : 1;
     if (this.player.alive) this.updatePlayer(dt, edge);
+    // Physics guard: a non-finite position (e.g. pushed out of geometry with
+    // a zero normal) snaps back to the last good one.
+    const p = this.player;
+    if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
+      this.lastGoodX = p.x;
+      this.lastGoodY = p.y;
+    } else {
+      const never = this.lastGoodX === 0 && this.lastGoodY === 0;
+      p.x = never ? this.level.spawn.x : this.lastGoodX;
+      p.y = never ? this.level.spawn.y : this.lastGoodY;
+      p.vx = 0;
+      p.vy = 0;
+    }
     this.updateCameras(dt);
     this.updateTurrets(dt);
     this.updateLasers(dt);
     this.updateEnemies(dt * slow);
     updateBullets(this, dt, slow);
     if (this.civilians.length > 0) updateCivilians(this.civilianHost, dt);
+    if (
+      this.mission.objective === 'heist' &&
+      !this.heistBlown &&
+      this.detections > 0 &&
+      this.state === 'playing'
+    ) {
+      // Made. The job is blown: alarm, response team, pay cut.
+      this.heistBlown = true;
+      this.heat = Math.max(this.heat, 60);
+      this.peakHeat = Math.max(this.peakHeat, this.heat);
+      spawnReinforcements(this.encounterHost, 3);
+      this.emit({ type: 'heistBlown', x: this.player.x, y: this.player.y, angle: 0 });
+    }
     if (this.exitOpen && this.state === 'playing' && this.player.alive && this.level.enemies.length > 0) {
       this.tickOvertime(dt);
     }
@@ -1304,6 +1337,12 @@ export class World {
     return this.blocksSight(cx, cy);
   }
 
+  /** Sight-blocking test in world coords (furniture and glass don't block). */
+  sightSolidAt(x: number, y: number): boolean {
+    const { cx, cy } = worldToTile(x, y, this.level.h);
+    return this.blocksSight(cx, cy);
+  }
+
   /** Whether the operative can currently see a world point. */
   playerSees(x: number, y: number, range = 1150): boolean {
     const p = this.player;
@@ -1315,7 +1354,9 @@ export class World {
 
   private blocksSight(cx: number, cy: number): boolean {
     if (isWall(this.level, cx, cy)) {
-      return this.level.glass[cy * this.level.w + cx] !== 1;
+      const i = cy * this.level.w + cx;
+      // Glass and low furniture are see-through.
+      return this.level.glass[i] !== 1 && this.level.low?.[i] !== 1;
     }
     const door = this.doorMap.get(cy * this.level.w + cx);
     return !!door && !door.open;

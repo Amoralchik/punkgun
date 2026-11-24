@@ -94,7 +94,7 @@
         <div class="safehouse-panel">
           <header class="sh-header">
             <div>
-              <div class="kicker">// SAFEHOUSE</div>
+              <div class="kicker">// SAFEHOUSE TERMINAL</div>
               <div class="sh-logo">PUNK<span>GUN</span></div>
             </div>
             <div class="sh-header-right">
@@ -103,60 +103,106 @@
                 <span id="sh-money">$0</span>
                 <div id="sh-level" class="sh-level">LVL 1 · 0/100 XP · 0 PP</div>
               </div>
-              <button id="sh-new-game-head" class="sh-new-game" type="button" data-act="new-game">NEW GAME</button>
-              <button id="sh-close" class="sh-close" type="button" data-act="close-panel">CLOSE [ESC]</button>
+              <div class="sh-sys">
+                <button id="sh-tour" class="sh-sys-btn" type="button" data-act="tour">TOUR</button>
+                <button id="sh-manual" class="sh-sys-btn" type="button" data-act="manual">MANUAL</button>
+                <button id="sh-new-game-head" class="sh-sys-btn" type="button" data-act="new-game">NEW GAME</button>
+                <button id="sh-close" class="sh-close" type="button" data-act="close-panel">CLOSE [ESC]</button>
+              </div>
             </div>
           </header>
 
+          <nav class="sh-tabs" role="tablist" aria-label="Safehouse terminal">
+            <button class="sh-tab active" type="button" role="tab" data-act="sh-tab" data-tab="contracts">CONTRACTS</button>
+            <button class="sh-tab" type="button" role="tab" data-act="sh-tab" data-tab="gear">GEAR</button>
+            <button class="sh-tab" type="button" role="tab" data-act="sh-tab" data-tab="market">MARKET</button>
+            <button class="sh-tab" type="button" role="tab" data-act="sh-tab" data-tab="record">RECORD</button>
+          </nav>
+
           <div class="sh-body">
-            <section class="sh-col">
-              <h2>CONTRACTS</h2>
-              <div id="sh-contracts" class="sh-contracts"></div>
-              <div id="sh-contract-detail" class="sh-contract-detail"></div>
-
-              <h2>LOADOUT</h2>
-              <div id="sh-equipped" class="sh-equipped"></div>
-              <h2>STORAGE</h2>
-              <div id="sh-stash" class="sh-list"></div>
-              <h2>CONTRABAND</h2>
-              <div id="sh-contraband" class="sh-list"></div>
-              <p id="sh-intel" class="sh-note"></p>
-              <p class="sh-note">
-                Carry one weapon into the sector. Clear it to extract with whatever you're holding
-                and any loot you grabbed — die and everything is gone.
-              </p>
+            <section class="sh-pane active" data-pane="contracts" role="tabpanel">
+              <div class="sh-pane-grid contracts">
+                <div class="sh-col">
+                  <h2>CONTRACTS</h2>
+                  <div id="sh-contracts" class="sh-contracts"></div>
+                </div>
+                <aside class="sh-col sh-dossier">
+                  <h2>DOSSIER</h2>
+                  <div id="sh-contract-detail" class="sh-contract-detail"></div>
+                </aside>
+              </div>
             </section>
-            <section class="sh-col">
-              <h2>BLACK MARKET</h2>
-              <div id="sh-shop" class="sh-list"></div>
-              <h2>SUPPLIES</h2>
-              <div id="sh-supplies" class="sh-list"></div>
-              <div id="sh-kit" class="sh-kit"></div>
-              <p class="sh-note">Kit is packed for one run. Unused charges are lost on deploy.</p>
 
-              <h2>RECORD</h2>
-              <div id="sh-stats" class="sh-stats"></div>
-              <p class="sh-note">
-                Ammo is bought per weapon in storage. Sell guns and contraband here. Loot only
-                extracts on a clean exit.
-              </p>
+            <section class="sh-pane" data-pane="gear" role="tabpanel">
+              <div class="sh-pane-grid">
+                <div class="sh-col">
+                  <h2>LOADOUT</h2>
+                  <div id="sh-equipped" class="sh-equipped"></div>
+                  <h2>STORAGE</h2>
+                  <div id="sh-stash" class="sh-list"></div>
+                </div>
+                <div class="sh-col">
+                  <h2>CONTRABAND</h2>
+                  <div id="sh-contraband" class="sh-list"></div>
+                  <p id="sh-intel" class="sh-note"></p>
+                  <p class="sh-note">
+                    Carry one weapon into the sector. Clear it to extract with whatever you're holding
+                    and any loot you grabbed — die and everything is gone.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="sh-pane" data-pane="market" role="tabpanel">
+              <div class="sh-pane-grid">
+                <div class="sh-col">
+                  <h2>BLACK MARKET</h2>
+                  <div id="sh-shop" class="sh-list"></div>
+                </div>
+                <div class="sh-col">
+                  <h2>SUPPLIES</h2>
+                  <div id="sh-supplies" class="sh-list"></div>
+                  <div id="sh-kit" class="sh-kit"></div>
+                  <p class="sh-note">Kit is packed for one run. Unused charges are lost on deploy.</p>
+                  <p class="sh-note">
+                    Ammo is bought per weapon in storage. Sell guns and contraband here. Loot only
+                    extracts on a clean exit.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="sh-pane" data-pane="record" role="tabpanel">
+              <div class="sh-pane-grid">
+                <div class="sh-col">
+                  <h2>RECORD</h2>
+                  <div id="sh-stats" class="sh-stats"></div>
+                </div>
+                <div class="sh-col">
+                  <h2>CONTROLS</h2>
+                  <div class="sh-controls">WASD MOVE &middot; MOUSE AIM &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE/EXECUTE &middot; SPACE DASH &middot; Z QUICKHACK</div>
+                  <h2>SAVE</h2>
+                  <div class="sh-danger">
+                    <p class="sh-note">Start over or wipe this save slot. Both ask for confirmation.</p>
+                    <button id="sh-new-game" class="sh-new-game" type="button" data-act="new-game">NEW GAME</button>
+                    <button id="sh-reset" class="sh-reset" type="button" data-act="reset">RESET SAVE</button>
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
 
-          <div class="sh-controls">WASD MOVE &middot; MOUSE AIM &middot; LMB STRIKE &middot; RMB THROW &middot; R RELOAD &middot; E USE/EXECUTE &middot; SPACE DASH &middot; Z QUICKHACK</div>
           <footer class="sh-footer">
             <div id="sh-msg" class="sh-msg"></div>
             <div id="sh-summary" class="sh-summary"></div>
             <div class="sh-footer-actions">
-              <button id="sh-case" class="sh-augments" type="button" data-act="open-case">CASE</button>
-              <button id="sh-workbench" class="sh-augments" type="button" data-act="open-workbench">WORKBENCH</button>
-              <button id="sh-ventures" class="sh-augments" type="button" data-act="open-ventures">VENTURES</button>
-              <button id="sh-sanctuary" class="sh-augments" type="button" data-act="open-sanctuary">SANCTUARY</button>
-              <button id="sh-augments" class="sh-augments" type="button" data-act="open-augments">AUGMENTS</button>
-              <button id="sh-tour" class="sh-augments" type="button" data-act="tour">TOUR</button>
-              <button id="sh-manual" class="sh-augments" type="button" data-act="manual">MANUAL</button>
-              <button id="sh-new-game" class="sh-new-game" type="button" data-act="new-game">NEW GAME</button>
-              <button id="sh-reset" class="sh-reset" type="button" data-act="reset">RESET SAVE</button>
+              <div class="sh-stations">
+                <button id="sh-case" class="sh-augments" type="button" data-act="open-case">CASE</button>
+                <button id="sh-workbench" class="sh-augments" type="button" data-act="open-workbench">WORKBENCH</button>
+                <button id="sh-ventures" class="sh-augments" type="button" data-act="open-ventures">VENTURES</button>
+                <button id="sh-sanctuary" class="sh-augments" type="button" data-act="open-sanctuary">SANCTUARY</button>
+                <button id="sh-augments" class="sh-augments" type="button" data-act="open-augments">AUGMENTS</button>
+              </div>
               <button id="sh-deploy" class="sh-deploy" type="button" data-act="open-deploy">DEPLOY TO SECTOR 07</button>
             </div>
           </footer>

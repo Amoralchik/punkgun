@@ -70,6 +70,10 @@ export const FACTION_BY_LAYOUT: Record<LayoutId, FactionId> = {
   nightclub: 'market',
   rooftops: 'helix',
   neon_alley: 'market',
+  motel: 'teeth',
+  street: 'market',
+  megatower: 'helix',
+  desert: 'orbit',
 };
 
 export function factionForLayout(id: LayoutId): FactionId {

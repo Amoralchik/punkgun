@@ -34,8 +34,8 @@ export const SETPIECES: Record<SetpieceId, SetpieceDef> = {
     descEs: 'Sin energía. Cámaras apagadas, guardias con linterna, dos acechadores barren el piso. +16% de pago.',
     color: '#8b6bff',
     payBonus: 0.16,
-    themes: ['corporate', 'blackSite', 'housing'],
-    objectives: ['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt'],
+    themes: ['corporate', 'blackSite', 'housing', 'megatower'],
+    objectives: ['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt', 'heist'],
   },
   marketPatrol: {
     id: 'marketPatrol',
@@ -45,8 +45,8 @@ export const SETPIECES: Record<SetpieceId, SetpieceDef> = {
     descEs: 'Los puestos están abiertos y la calle llena. Los civiles huyen de los disparos; cada uno que derribes suma calor y resta 8% de pago. +12% de pago.',
     color: '#ffc46b',
     payBonus: 0.12,
-    themes: ['market', 'alley'],
-    objectives: ['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt'],
+    themes: ['market', 'alley', 'street'],
+    objectives: ['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt', 'heist'],
   },
   defendedExtraction: {
     id: 'defendedExtraction',
@@ -56,7 +56,7 @@ export const SETPIECES: Record<SetpieceId, SetpieceDef> = {
     descEs: 'La salida es una zona de muerte. Al abrirse, un escuadrón pesado se atrinchera alrededor. Despéjala o corre el riesgo. +18% de pago.',
     color: '#ff3b4e',
     payBonus: 0.18,
-    themes: ['docks', 'transit', 'rooftop'],
+    themes: ['docks', 'transit', 'rooftop', 'desert', 'motel'],
     objectives: ['purge', 'target', 'recover', 'sabotage', 'extraction', 'hunt'],
   },
 };

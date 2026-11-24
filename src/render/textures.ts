@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Level, TILE, isWall } from '../game/map';
+import { Level, TILE, isWall as isWallRaw } from '../game/map';
+import { paintFloor, paintProp, paintStation, paintWallDetail } from './biome-art';
 import { districtFor } from '../game/districts';
 import { GUN_IDS, WeaponId } from '../game/weapons';
 import { LootKind } from '../game/economy';
@@ -1458,6 +1459,24 @@ export class TextureBank {
     const isHub = level.id === 'safehouse';
     const district = districtFor(level.id);
     const flip = (worldY: number): number => h * TILE - worldY;
+    // Furniture (low props) is painted as an object on the floor, never as a
+    // wall slab: for the whole bake it counts as floor.
+    // Stations in a decorated room are furniture standing on the floor.
+    const stationTiles = new Set(
+      level.floorKind
+        ? level.stations.map((st) => {
+            const tcx = Math.floor(st.x / TILE);
+            const tcy = h - 1 - Math.floor(st.y / TILE);
+            return tcy * w + tcx;
+          })
+        : [],
+    );
+    const isWall = (lv: Level, cx: number, cy: number): boolean =>
+      isWallRaw(lv, cx, cy) &&
+      lv.low?.[cy * lv.w + cx] !== 1 &&
+      !stationTiles.has(cy * lv.w + cx);
+    const generated = !!level.floorKind;
+    const daylight = level.daylight === true;
 
     ctx.fillStyle = '#06080d';
     ctx.fillRect(0, 0, c.width, c.height);
@@ -1471,6 +1490,10 @@ export class TextureBank {
         if (isWall(level, cx, cy)) continue;
         const x = cx * TILE;
         const y = cy * TILE;
+        if (generated) {
+          paintFloor(ctx, level.floorKind![cy * w + cx], x, y, cx, cy, rnd);
+          continue;
+        }
         // One coherent material per floor, with only a faint per-tile tint so
         // the ground reads as poured concrete/plating rather than a checkerboard.
         ctx.fillStyle = floorColors[0];
@@ -1591,7 +1614,7 @@ export class TextureBank {
       }
     }
 
-    if (isHub) {
+    if (isHub && !level.floorKind) {
       ctx.save();
       ctx.translate(c.width / 2, c.height / 2);
       ctx.fillStyle = 'rgba(90, 22, 70, 0.16)';
@@ -1612,8 +1635,8 @@ export class TextureBank {
       ctx.restore();
     }
 
-    // ambient neon wash on the floor
-    for (let i = 0; i < 7; i++) {
+    // ambient neon wash on the floor (night maps only)
+    for (let i = 0; i < (daylight ? 0 : 7); i++) {
       const px = 80 + rnd() * (w * TILE - 160);
       const py = 80 + rnd() * (h * TILE - 160);
       const col = palette[Math.floor(rnd() * palette.length)];
@@ -1685,6 +1708,17 @@ export class TextureBank {
       }
     }
 
+    // Furniture / cover props sit on the floor, under the wall slabs' shadows.
+    if (level.low && level.propKind) {
+      for (let cy = 0; cy < h; cy++) {
+        for (let cx = 0; cx < w; cx++) {
+          const i = cy * w + cx;
+          if (level.low[i] !== 1) continue;
+          paintProp(ctx, level.propKind[i], cx * TILE, cy * TILE, rnd);
+        }
+      }
+    }
+
     // wall bodies
     for (let cy = 0; cy < h; cy++) {
       for (let cx = 0; cx < w; cx++) {
@@ -1699,6 +1733,11 @@ export class TextureBank {
         wg.addColorStop(1, district.wall);
         ctx.fillStyle = wg;
         ctx.fillRect(x, y, TILE, TILE);
+        if (generated) {
+          const border = cx === 0 || cy === 0 || cx === w - 1 || cy === h - 1;
+          const capH = TILE - (isWall(level, cx, cy + 1) ? 0 : WALL_FACE);
+          paintWallDetail(ctx, district.theme, x, y, capH, cx, cy, border, rnd);
+        }
         // Sparse roof detail: vents/plates every few tiles.
         if (((cx * 7 + cy * 13) & 7) === 0) {
           ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -1719,8 +1758,9 @@ export class TextureBank {
         if (!isWall(level, cx, cy + 1)) {
           const fy = y + TILE - WALL_FACE;
           const fg = ctx.createLinearGradient(0, fy, 0, y + TILE);
-          fg.addColorStop(0, '#0e141e');
-          fg.addColorStop(1, '#04060a');
+          const warm = district.theme === 'desert' ? ['#6a4326', '#2e1c10'] : district.theme === 'motel' ? ['#8a4f47', '#3b201d'] : ['#0e141e', '#04060a'];
+          fg.addColorStop(0, warm[0]);
+          fg.addColorStop(1, warm[1]);
           ctx.fillStyle = fg;
           ctx.fillRect(x, fy, TILE, WALL_FACE);
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1747,7 +1787,7 @@ export class TextureBank {
         if (!isWall(level, cx, cy) || level.glass[cy * w + cx] === 1) continue;
         if (cx === 0 || cy === 0 || cx === w - 1 || cy === h - 1) continue;
         const roll = rnd();
-        if (roll > (isHub ? 0.05 : 0.2)) continue;
+        if (roll > (isHub ? 0.05 : daylight ? 0 : 0.2)) continue;
         const x = cx * TILE;
         const y = cy * TILE;
         const capH = TILE - (isWall(level, cx, cy + 1) ? 0 : WALL_FACE);
@@ -1916,6 +1956,7 @@ export class TextureBank {
       archive: 'ARCHIVE',
       fabricator: 'FABRICATOR',
       operator: 'OPERATOR',
+      sanctuary: 'SANCTUARY',
       deploy: 'DEPLOY',
     };
     const stationColors: Record<string, string> = {
@@ -1928,11 +1969,28 @@ export class TextureBank {
       fabricator: AMBER,
       operator: CYAN,
       deploy: CYAN,
+      sanctuary: VIOLET,
     };
     for (const station of level.stations) {
       const color = stationColors[station.kind] ?? CYAN;
       ctx.save();
       ctx.translate(station.x, flip(station.y));
+      if (level.floorKind) {
+        // Physical object + a small lit name plate.
+        paintStation(ctx, station.kind, color);
+        const label = stationLabels[station.kind] ?? 'TERMINAL';
+        ctx.font = 'bold 8px Bahnschrift, sans-serif';
+        const lw = ctx.measureText(label).width + 10;
+        ctx.fillStyle = 'rgba(8, 10, 16, 0.85)';
+        ctx.fillRect(-lw / 2, 22, lw, 11);
+        ctx.fillStyle = color;
+        ctx.fillRect(-lw / 2, 22, 2, 11);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 0, 28);
+        ctx.restore();
+        continue;
+      }
       ctx.shadowColor = color;
       ctx.shadowBlur = 12;
       ctx.fillStyle = '#08101a';

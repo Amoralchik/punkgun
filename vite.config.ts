@@ -13,6 +13,12 @@ export default defineConfig({
               test: /node_modules[\\/]/,
               maxSize: 320 * 1024,
             },
+            {
+              // Renderer + art painters: keeps the app chunk under the
+              // largest-chunk budget now that biomes paint their own art.
+              name: 'render',
+              test: /src[\\/]render[\\/]/,
+            },
           ],
         },
       },

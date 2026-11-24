@@ -210,6 +210,74 @@ working checklist.
 - Verification: 318 unit tests, verify + budget (app JS 469.7/475 KB —
   near cap), smoke PASS x2 after one flaky gamepad-focus failure.
 
+## Direction reset: Hotline Miami x old Fallout (2026-11-24)
+
+Decisions (from the user): keep the top-down camera, restyle toward Hotline
+Miami's bold patterned interiors crossed with old Fallout's desert and
+retro-futurism; every non-story run is procedurally generated (story beats
+and bosses keep hand-made "moments"); open world = a Fallout-style travel
+map between locations.
+
+Stage 1-2 shipped:
+- `levelgen.ts`: four biomes — desert motel (night), city streets (rain),
+  megatower floor, dust highway (day). BSP buildings, roads, lots, shacks;
+  per-seed rooms, doors, furniture, squads (1-3), loot, weapons, cameras,
+  turrets, lasers, barrels, steam. Connectivity pass punches doors into any
+  sealed region (or fills it). Verified on 25 seeds per biome.
+- Low props (`n`): furniture is cover — blocks movement and bullets, not
+  sight; never splits rooms or hosts anchors.
+- Board contracts draw only from the biomes and build a fresh map from the
+  contract seed; authored layouts remain for story/bosses.
+- `render/biome-art.ts`: patterned carpet/checker/marble/planks/office
+  tiles/grate, asphalt + lane paint, parking bays, pavers, sand ripples;
+  beds, booths, desks, racks, sofas, sedans, dumpsters, crates, boulders,
+  cacti, vending, TVs; biome wall caps (stucco, sandstone, tar/brick,
+  tower windows onto the night city). Night maps get sodium lamps, room
+  ceiling light by material and glowing props; desert is daylight (no night
+  grade, light shade outside sight).
+- HEIST contract: lift the core unseen for 1.6x; detection blows it (heat
+  60, response team, 0.8x).
+- Robustness: sight mask skips non-finite frames; player NaN snaps back.
+- Budget: render code split into its own chunk; app JS cap 475 -> 520 KB.
+- Verification: 334 unit tests, verify + budget, Chrome smoke PASS.
+
+Safehouse + terminal pass (2026-11-24):
+- Workbench bug fixed: opening the bench from the room left the game in
+  "panel open" after closing it (player frozen). `openWorkbench(fromStation)`
+  now keeps the room hand-off; smoke covers it.
+- `pickTerminalTiles` placed only one terminal on levels without security
+  hazards (Infinity score); capped, with a regression test.
+- Hideout rebuilt (14x10): living room, workshop, clinic corner and garage,
+  authored floor/prop channels (`floorRows`/`propRows` on any layout),
+  stations painted as physical objects with name plates, plum wallpaper,
+  room lighting; the camera frames the whole room on any aspect ratio.
+- Terminal rebuilt as tabs (CONTRACTS / GEAR / MARKET / RECORD): fixed frame,
+  pane scrolls on its own, contract dossier column, boss card no longer
+  crushed, NEW GAME + RESET SAVE moved into a RECORD danger zone, hub hides
+  instantly under sub-panels (no cross-fade overlap), system toast waits
+  while panels are open. Smoke captures hub and room screenshots.
+
+All-menus pass (2026-11-24):
+- `npm run shots` (scripts/menu-shots.mjs): headless capture of every
+  overlay (tour, terminal tabs, case, workbench, clinic, all stations,
+  deploy, lifepath confirm, manual, briefing, dialogue, HUD, pause,
+  settings, breach, death) into tmp-menus/ for visual review.
+- One design system for every panel: plum frame, warm dark gradient, pink
+  accent top bars and rules, pinned headers over scrolling bodies, pink
+  scrollbars, consistent close/primary/danger buttons, pink accents on
+  settings controls. Breach keeps its cyan cyberspace identity.
+- Station kicker + heading tightened into one block; attaché case actions
+  regrouped (primary EQUIP, actions row, segmented filters).
+- The deploy briefing no longer peeks out behind pause, breach, dialogue,
+  manual, death or results screens.
+
+Next stages:
+3. Travel map: region map (city, megatowers, motels, highway, outposts),
+   travel, road encounters, location-bound contracts and free roam.
+4. Character art pass to match (bigger readable sprites, faction outfits).
+5. More biomes (outpost compound, mall, sewer, rooftop) and heist variants
+   (keycards, vaults, timed guards).
+
 ## Non-goals (unchanged)
 
 Multiplayer, open world, mobile/console-first controls, full voice acting,

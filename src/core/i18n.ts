@@ -26,6 +26,7 @@ export type MessageKey =
   | 'objective.recover'
   | 'objective.sabotage'
   | 'objective.extraction'
+  | 'objective.heist'
   | 'objective.hunt'
   | 'objective.defense'
   | 'objective.boss'
@@ -34,6 +35,7 @@ export type MessageKey =
   | 'objective.detail.recover'
   | 'objective.detail.sabotage'
   | 'objective.detail.extraction'
+  | 'objective.detail.heist'
   | 'objective.detail.hunt'
   | 'objective.detail.defense'
   | 'objective.detail.boss'
@@ -65,6 +67,11 @@ export type MessageKey =
   | 'hud.sabotage'
   | 'hud.case'
   | 'hud.caseSecured'
+  | 'hud.core'
+  | 'hud.coreTaken'
+  | 'hud.heistBlown'
+  | 'event.heistBlown'
+  | 'event.coreStolen'
   | 'hud.holdZone'
   | 'hud.zoneHeld'
   | 'tip.deploy'
@@ -120,6 +127,7 @@ const EN: Record<MessageKey, string> = {
   'objective.recover': 'RECOVER {count} CACHE{plural}',
   'objective.sabotage': 'SABOTAGE {count} TERMINAL{plural}',
   'objective.extraction': 'SECURE THE CASE',
+  'objective.heist': 'HEIST — LIFT THE CORE UNSEEN',
   'objective.hunt': 'HUNT THE MARKED TARGET',
   'objective.defense': 'HOLD THE ZONE',
   'objective.boss': 'KILL THE BOSS',
@@ -128,6 +136,7 @@ const EN: Record<MessageKey, string> = {
   'objective.detail.recover': 'Grab {count} marked cache{plural}, then reach the exit.',
   'objective.detail.sabotage': 'Reach {count} marked terminal{plural} and plant the tap. Cameras and patrols make noise.',
   'objective.detail.extraction': 'Secure the package. The sector will converge once you touch it. Reach the exit.',
+  'objective.detail.heist': 'Steal the data core and walk out. Stay unseen for 1.6x pay; get spotted and the job is blown: heat, a response team, 0.8x pay.',
   'objective.detail.hunt': 'The target flees and calls for help. Corner it, kill it, then reach the exit.',
   'objective.detail.defense': 'Hold the marked zone for 45 seconds. Reinforcements arrive in waves.',
   'objective.detail.boss': 'Break the boss armor plates, survive the arena mechanics, then reach the exit.',
@@ -159,6 +168,11 @@ const EN: Record<MessageKey, string> = {
   'hud.sabotage': 'SABOTAGE {done}/{total}',
   'hud.case': 'SECURE THE CASE',
   'hud.caseSecured': 'CASE SECURED — EXIT',
+  'hud.core': 'LIFT THE CORE — STAY UNSEEN',
+  'hud.coreTaken': 'CORE TAKEN — WALK OUT',
+  'hud.heistBlown': 'BLOWN — GRAB IT AND RUN',
+  'event.heistBlown': 'YOU ARE MADE — RESPONSE TEAM INBOUND',
+  'event.coreStolen': 'CORE LIFTED — NOBODY SAW A THING',
   'hud.holdZone': 'HOLD THE ZONE {seconds}S',
   'hud.zoneHeld': 'ZONE HELD — EXIT',
   'tip.deploy': 'EVERYONE DIES IN ONE HIT. SPACE DASHES THROUGH FIRE.',
@@ -215,6 +229,7 @@ const ES: Record<MessageKey, string> = {
   'objective.recover': 'RECUPERA {count} CACHÉ{plural}',
   'objective.sabotage': 'SABOTEA {count} TERMINAL{plural}',
   'objective.extraction': 'ASEGURA EL MALETÍN',
+  'objective.heist': 'GOLPE — ROBA EL NÚCLEO SIN SER VISTO',
   'objective.hunt': 'CAZA AL OBJETIVO MARCADO',
   'objective.defense': 'MANTÉN LA ZONA',
   'objective.boss': 'MATA AL JEFE',
@@ -223,6 +238,7 @@ const ES: Record<MessageKey, string> = {
   'objective.detail.recover': 'Recoge {count} caché{plural} marcada y llega a la salida.',
   'objective.detail.sabotage': 'Llega a {count} terminal{plural} marcada y coloca el tap. Cámaras y patrullas hacen ruido.',
   'objective.detail.extraction': 'Asegura el paquete. El sector convergerá al tocarlo. Llega a la salida.',
+  'objective.detail.heist': 'Roba el núcleo de datos y sal. Sin ser visto cobras 1.6x; si te ven, el golpe se arruina: calor, un equipo de respuesta y 0.8x.',
   'objective.detail.hunt': 'El objetivo huye y pide ayuda. Acorrálalo, mátalo y llega a la salida.',
   'objective.detail.defense': 'Mantén la zona marcada durante 45 segundos. Llegan oleadas.',
   'objective.detail.boss': 'Rompe las placas del jefe, sobrevive a la arena y llega a la salida.',
@@ -254,6 +270,11 @@ const ES: Record<MessageKey, string> = {
   'hud.sabotage': 'SABOTAJE {done}/{total}',
   'hud.case': 'ASEGURA EL MALETÍN',
   'hud.caseSecured': 'MALETÍN ASEGURADO — SALIDA',
+  'hud.core': 'ROBA EL NÚCLEO — QUE NO TE VEAN',
+  'hud.coreTaken': 'NÚCLEO ROBADO — SAL TRANQUILO',
+  'hud.heistBlown': 'DESCUBIERTO — AGÁRRALO Y CORRE',
+  'event.heistBlown': 'TE DESCUBRIERON — EQUIPO DE RESPUESTA EN CAMINO',
+  'event.coreStolen': 'NÚCLEO ROBADO — NADIE VIO NADA',
   'hud.holdZone': 'MANTÉN LA ZONA {seconds}S',
   'hud.zoneHeld': 'ZONA MANTENIDA — SALIDA',
   'tip.deploy': 'TODOS MUEREN DE UN GOLPE. EL IMPULSO (ESPACIO) CRUZA EL FUEGO.',

@@ -54,6 +54,13 @@ describe('room detection', () => {
     }
   });
 
+  it('places every terminal even on a level with no security hazards', () => {
+    const level = loadLevel('safehouse' as LayoutId);
+    const map = findRooms(level);
+    expect(map.rooms.length).toBeGreaterThanOrEqual(2);
+    expect(pickTerminalTiles(level, map, 2, [])).toHaveLength(2);
+  });
+
   it('spreads sabotage terminals across distinct guarded rooms', () => {
     const level = loadLevel('sector07' as LayoutId);
     const map = findRooms(level);

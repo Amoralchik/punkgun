@@ -207,8 +207,7 @@ export class Safehouse {
     this.caseView.close();
     this.stationOnly = false;
     if (kind === 'workbench') {
-      this.stationOnly = true;
-      this.openWorkbench();
+      this.openWorkbench(true);
       return;
     }
     if (kind === 'clinic') {
@@ -256,6 +255,21 @@ export class Safehouse {
     this.stationRoot.classList.remove('hidden');
     this.render();
     this.stationPanel.scrollTop = 0;
+  }
+
+  /** Terminal tabs: one pane visible at a time, each scrolls on its own. */
+  setTab(tab: string): void {
+    const tabs = this.root.querySelectorAll<HTMLElement>('.sh-tab');
+    const panes = this.root.querySelectorAll<HTMLElement>('.sh-pane');
+    if (![...tabs].some((el) => el.dataset.tab === tab)) tab = 'contracts';
+    for (const el of tabs) {
+      const on = el.dataset.tab === tab;
+      el.classList.toggle('active', on);
+      el.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    for (const el of panes) el.classList.toggle('active', el.dataset.pane === tab);
+    const body = this.root.querySelector<HTMLElement>('.sh-body');
+    if (body) body.scrollTop = 0;
   }
 
   openVentures(): void {
@@ -1001,6 +1015,10 @@ export class Safehouse {
         this.hooks.onClick();
         this.openWorkbench();
         return;
+      case 'sh-tab':
+        this.hooks.onClick();
+        this.setTab(target.dataset.tab ?? 'contracts');
+        return;
       case 'open-ventures':
         this.hooks.onClick();
         this.openVentures();
@@ -1401,8 +1419,12 @@ export class Safehouse {
     this.augMsgEl.classList.toggle('err', this.augError);
   }
 
-  private openWorkbench(): void {
-    this.stationOnly = false;
+  /**
+   * `fromStation`: opened by walking up to the bench in the room, so closing
+   * it must hand control back to the room (not to the hub board).
+   */
+  private openWorkbench(fromStation = false): void {
+    this.stationOnly = fromStation;
     this.workbench.open();
   }
 

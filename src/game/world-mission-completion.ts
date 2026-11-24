@@ -58,7 +58,7 @@ export function checkMissionComplete(host: MissionCompletionHost): void {
     }
   } else if (host.objective === 'sabotage') {
     done = host.objectives.length > 0 && host.objectives.every((n) => n.completed);
-  } else if (host.objective === 'extraction') {
+  } else if (host.objective === 'extraction' || host.objective === 'heist') {
     done = host.objectives[0]?.completed === true;
   } else if (host.objective === 'defense') {
     done = host.objectives[0]?.completed === true;

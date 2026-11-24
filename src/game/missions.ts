@@ -14,7 +14,9 @@ export type ObjectiveKind =
   | 'sabotage'
   | 'extraction'
   | 'hunt'
-  | 'defense';
+  | 'defense'
+  /** Stealth: lift the core unseen. Detection blows the job. */
+  | 'heist';
 export type Risk = 'LOW' | 'MED' | 'HIGH';
 export type ChapterId = 1 | 2 | 3 | 'final';
 
@@ -104,6 +106,11 @@ const TAGLINES: Record<ObjectiveKind, string[]> = {
     'They want the room back. Do not give it to them.',
     'Stand where the light is. Count the seconds.',
   ],
+  heist: [
+    'In like a rumour, out like a ghost.',
+    'Nobody sees you. Nobody ever saw you.',
+    'The core walks out. You were never here.',
+  ],
 };
 
 const TAGLINES_ES: Record<ObjectiveKind, string[]> = {
@@ -147,6 +154,11 @@ const TAGLINES_ES: Record<ObjectiveKind, string[]> = {
     'Quieren recuperar la sala. No se la des.',
     'Quédate donde hay luz. Cuenta los segundos.',
   ],
+  heist: [
+    'Entra como un rumor, sal como un fantasma.',
+    'Nadie te ve. Nadie te vio nunca.',
+    'El núcleo se va. Tú nunca estuviste aquí.',
+  ],
 };
 
 function shuffle<T>(items: T[], rng: () => number): T[] {
@@ -182,6 +194,8 @@ export function objectiveText(contract: Contract): string {
       return t('objective.hunt');
     case 'defense':
       return t('objective.defense');
+    case 'heist':
+      return t('objective.heist');
   }
 }
 
@@ -209,6 +223,8 @@ export function objectiveDetail(contract: Contract): string {
       return t('objective.detail.hunt');
     case 'defense':
       return t('objective.detail.defense');
+    case 'heist':
+      return t('objective.detail.heist');
   }
 }
 
@@ -221,6 +237,7 @@ export const BOARD_OBJECTIVES: ObjectiveKind[] = [
   'extraction',
   'hunt',
   'defense',
+  'heist',
 ];
 
 function requiredFor(objective: ObjectiveKind, rng: () => number, layoutId: LayoutId): number {
@@ -239,6 +256,7 @@ function rewardFor(objective: ObjectiveKind, requiredLoot: number, rng: () => nu
   if (objective === 'recover') return 95 + requiredLoot * 20 + Math.floor(rng() * 21);
   if (objective === 'sabotage') return 90 + requiredLoot * 18 + Math.floor(rng() * 18);
   if (objective === 'extraction') return 128 + Math.floor(rng() * 22);
+  if (objective === 'heist') return 110 + Math.floor(rng() * 20);
   if (objective === 'defense') return 120 + Math.floor(rng() * 26);
   return 105 + Math.floor(rng() * 35);
 }
@@ -246,8 +264,10 @@ function rewardFor(objective: ObjectiveKind, requiredLoot: number, rng: () => nu
 /** Rolls a seeded board of contracts; unique objectives and layouts. */
 export function rollContracts(count = 3, seed = randomSeed()): Contract[] {
   const rng = mulberry32(seed);
+  // Generated work is procedural: every board contract builds a fresh map
+  // from its seed. Hand-made layouts are reserved for story moments/bosses.
   const layouts = shuffle(
-    LAYOUTS.filter((layout) => layout.id !== 'sublevel' && layout.id !== 'safehouse'),
+    LAYOUTS.filter((layout) => layout.generated),
     rng,
   );
   const objectives = shuffle(BOARD_OBJECTIVES, rng);

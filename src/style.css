@@ -4614,3 +4614,429 @@ body.reduced-motion #screen-transition.active {
   font-size: 11px;
   line-height: 1.45;
 }
+
+/* ======================================================================
+   Safehouse terminal (tabbed). One pane at a time, fixed frame, the body
+   scrolls on its own — nothing slides under a sticky footer any more.
+   Styled to match the hideout: plum wallpaper frame, hot-pink tabs.
+   ====================================================================== */
+.safehouse-panel {
+  height: min(800px, 94vh);
+  max-height: none;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 0;
+  padding: 20px 28px 0;
+  background: linear-gradient(160deg, #150e18 0%, #0c0a10 58%, #100c0b 100%);
+  border: 2px solid #3b2836;
+  box-shadow:
+    0 0 0 1px rgba(255, 95, 162, 0.16),
+    0 30px 90px rgba(0, 0, 0, 0.65);
+}
+.sh-header {
+  padding-bottom: 12px;
+  border-bottom: none;
+}
+.sh-header-right {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.sh-sys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.sh-sys-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid rgba(223, 252, 255, 0.18);
+  color: rgba(223, 252, 255, 0.6);
+  font: inherit;
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+.sh-sys-btn:hover,
+.sh-sys-btn:focus-visible {
+  color: var(--paper);
+  border-color: var(--cyan);
+}
+.sh-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #ff5fa2;
+}
+.sh-tab {
+  padding: 10px 22px 9px;
+  background: #1a1220;
+  border: none;
+  color: rgba(223, 252, 255, 0.55);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  cursor: pointer;
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.sh-tab:hover,
+.sh-tab:focus-visible {
+  background: #2a1d31;
+  color: var(--paper);
+}
+.sh-tab.active {
+  background: #ff5fa2;
+  color: #14090f;
+}
+.sh-body {
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 10px 16px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #ff5fa2 rgba(255, 255, 255, 0.04);
+}
+.sh-body::-webkit-scrollbar {
+  width: 8px;
+}
+.sh-body::-webkit-scrollbar-thumb {
+  background: #ff5fa2;
+}
+.sh-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+.sh-pane {
+  display: none;
+}
+.sh-pane.active {
+  display: block;
+}
+.sh-pane-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 28px;
+  align-items: start;
+}
+.sh-pane-grid.contracts {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+}
+.sh-contracts {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+}
+/* Boss/locked card: stack the text instead of crushing it into a column. */
+.sh-contract.boss {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.sh-contract.boss .cmeta {
+  flex: none;
+  text-align: left;
+}
+.sh-dossier {
+  position: sticky;
+  top: 0;
+  padding: 2px 14px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border-left: 3px solid #ffc46b;
+}
+.sh-dossier .sh-contract-detail {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.75;
+  color: rgba(223, 252, 255, 0.78);
+}
+.sh-dossier .sh-contract-detail .cflavor {
+  color: rgba(233, 220, 196, 0.7);
+  font-style: italic;
+}
+.sh-controls {
+  padding: 0;
+  border: none;
+  font-size: 9px;
+  line-height: 2;
+  letter-spacing: 0.14em;
+  color: rgba(223, 252, 255, 0.5);
+}
+.sh-danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 59, 78, 0.35);
+  background: rgba(255, 59, 78, 0.05);
+}
+.sh-danger .sh-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+.sh-footer {
+  position: static;
+  padding: 12px 0 16px;
+  border-top: 2px solid #2a1d31;
+  background: transparent;
+}
+.sh-footer-actions {
+  width: 100%;
+  justify-content: space-between;
+  gap: 14px;
+}
+.sh-stations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* Sub-panels open on top of the hub: hide the hub instantly so the two
+   never cross-fade over each other. */
+body:has(#overlay-workbench:not(.hidden)) #overlay-safehouse,
+body:has(#overlay-augments:not(.hidden)) #overlay-safehouse,
+body:has(#overlay-case:not(.hidden)) #overlay-safehouse,
+body:has(#overlay-station:not(.hidden)) #overlay-safehouse {
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+}
+@media (max-width: 860px) {
+  .sh-pane-grid,
+  .sh-pane-grid.contracts {
+    grid-template-columns: 1fr;
+  }
+  .sh-dossier {
+    position: static;
+  }
+  .sh-tab {
+    padding: 9px 12px 8px;
+    font-size: 10px;
+  }
+}
+
+/* System toast never covers a terminal's action row: it waits while any
+   panel is open and reappears in the room. */
+body:has(.overlay:not(.hidden):not(.brief)) .system-toast {
+  display: none;
+}
+
+/* ======================================================================
+   Unified terminal design system — every menu shares the safehouse
+   terminal's look: plum frame, dark warm gradient, hot-pink accent rule,
+   pinned headers over a scrolling body, pink scrollbars. Breach keeps its
+   cyan cyberspace identity but takes the same frame.
+   ====================================================================== */
+:root {
+  --t-frame: #3b2836;
+  --t-accent: #ff5fa2;
+  --t-bg-a: #150e18;
+  --t-bg-b: #0c0a10;
+  --t-bg-c: #100c0b;
+  --t-rule: rgba(255, 95, 162, 0.22);
+}
+
+.station-panel,
+.case-panel,
+.augments-panel,
+.workbench-panel,
+.manual-panel,
+.pause-panel,
+.tour-panel,
+.lifepath-panel,
+.ending-panel,
+.epilogue-panel,
+.brief-card,
+.dialogue-card,
+#overlay-death .ov-inner,
+#overlay-win .ov-inner,
+.breach-panel {
+  background: linear-gradient(160deg, var(--t-bg-a) 0%, var(--t-bg-b) 58%, var(--t-bg-c) 100%);
+  border: 2px solid var(--t-frame);
+  border-radius: 0;
+  box-shadow:
+    0 0 0 1px rgba(255, 95, 162, 0.16),
+    0 30px 90px rgba(0, 0, 0, 0.65);
+}
+.breach-panel {
+  border-color: rgba(94, 241, 255, 0.4);
+  box-shadow:
+    0 0 0 1px rgba(94, 241, 255, 0.18),
+    0 30px 90px rgba(0, 0, 0, 0.65);
+}
+/* Accent bar along the top edge of every card-style panel. */
+.brief-card,
+.dialogue-card,
+.tour-panel,
+#overlay-death .ov-inner,
+#overlay-win .ov-inner {
+  border-top: 3px solid var(--t-accent);
+}
+
+/* Long panels: the panel is the scroll container, the header stays pinned. */
+.station-panel,
+.case-panel,
+.augments-panel,
+.workbench-panel,
+.manual-panel,
+.pause-panel,
+.lifepath-panel,
+.ending-panel,
+.epilogue-panel {
+  max-height: 94vh;
+  overflow-y: auto;
+  padding-top: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--t-accent) rgba(255, 255, 255, 0.04);
+}
+.station-panel::-webkit-scrollbar,
+.case-panel::-webkit-scrollbar,
+.augments-panel::-webkit-scrollbar,
+.workbench-panel::-webkit-scrollbar,
+.manual-panel::-webkit-scrollbar,
+.pause-panel::-webkit-scrollbar,
+.lifepath-panel::-webkit-scrollbar,
+.ending-panel::-webkit-scrollbar,
+.epilogue-panel::-webkit-scrollbar {
+  width: 8px;
+}
+.station-panel::-webkit-scrollbar-thumb,
+.case-panel::-webkit-scrollbar-thumb,
+.augments-panel::-webkit-scrollbar-thumb,
+.workbench-panel::-webkit-scrollbar-thumb,
+.manual-panel::-webkit-scrollbar-thumb,
+.pause-panel::-webkit-scrollbar-thumb,
+.lifepath-panel::-webkit-scrollbar-thumb,
+.ending-panel::-webkit-scrollbar-thumb,
+.epilogue-panel::-webkit-scrollbar-thumb {
+  background: var(--t-accent);
+}
+.station-panel::-webkit-scrollbar-track,
+.case-panel::-webkit-scrollbar-track,
+.augments-panel::-webkit-scrollbar-track,
+.workbench-panel::-webkit-scrollbar-track,
+.manual-panel::-webkit-scrollbar-track,
+.pause-panel::-webkit-scrollbar-track,
+.lifepath-panel::-webkit-scrollbar-track,
+.ending-panel::-webkit-scrollbar-track,
+.epilogue-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+.station-panel > .station-header,
+.case-panel > .sh-header,
+.augments-panel > .aug-header,
+.workbench-panel > .aug-header,
+.manual-panel > .manual-header {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  padding-top: 22px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  background: linear-gradient(180deg, var(--t-bg-a) 82%, rgba(21, 14, 24, 0.92));
+  border-bottom: 2px solid var(--t-accent);
+}
+.pause-panel {
+  padding-top: 22px;
+}
+
+/* Section headings: one block (kicker over title), pink rule. */
+.station-col > .kicker {
+  margin: 4px 0 2px;
+  font-size: 8px;
+  opacity: 0.7;
+}
+.station-col > .kicker + h2 {
+  margin-top: 0;
+}
+.station-panel h2,
+.case-panel h2,
+.augments-panel h2,
+.workbench-panel h2,
+.manual-panel h2,
+.aug-col h2 {
+  border-bottom-color: var(--t-rule);
+}
+
+/* Buttons: one language everywhere. Close = quiet outline, primary = the
+   cyan/pink deploy gradient, danger = red outline. */
+.station-panel .sh-close,
+.case-panel .sh-close,
+.augments-panel .sh-close,
+.workbench-panel .sh-close,
+.manual-panel .sh-close {
+  border-color: rgba(223, 252, 255, 0.22);
+  color: rgba(223, 252, 255, 0.7);
+}
+.station-panel .sh-close:hover,
+.case-panel .sh-close:hover,
+.augments-panel .sh-close:hover,
+.workbench-panel .sh-close:hover,
+.manual-panel .sh-close:hover {
+  border-color: var(--t-accent);
+  color: var(--paper);
+}
+.pause-actions button {
+  border-radius: 0;
+}
+.pause-actions button:first-child {
+  background: var(--t-accent);
+  border-color: var(--t-accent);
+  color: #14090f;
+}
+
+/* Settings: pink accents on the native controls. */
+.pause-settings input[type='range'],
+.pause-settings input[type='checkbox'] {
+  accent-color: var(--t-accent);
+}
+.pause-settings select {
+  background: #140f18;
+  border: 1px solid var(--t-frame);
+  color: var(--paper);
+}
+
+/* The briefing card never peeks out from behind another overlay. */
+body:has(#overlay-death:not(.hidden)) #overlay-brief,
+body:has(#overlay-win:not(.hidden)) #overlay-brief,
+body:has(#overlay-pause:not(.hidden)) #overlay-brief,
+body:has(#overlay-breach:not(.hidden)) #overlay-brief,
+body:has(#overlay-dialogue:not(.hidden)) #overlay-brief,
+body:has(#overlay-manual:not(.hidden)) #overlay-brief {
+  display: none;
+}
+
+/* Attaché case: EQUIP is the primary action; filters are a segmented row. */
+.case-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.case-actions #case-equip {
+  order: -2;
+  grid-column: 1 / -1;
+  padding: 12px;
+  font-size: 11px;
+  background: linear-gradient(90deg, rgba(94, 241, 255, 0.16), rgba(255, 95, 162, 0.16));
+  border-color: var(--cyan);
+  color: var(--paper);
+}
+.case-actions #case-equip:disabled {
+  background: transparent;
+  border-color: rgba(223, 252, 255, 0.12);
+  color: rgba(223, 252, 255, 0.3);
+}
+.case-actions #case-auto,
+.case-actions #case-rotate {
+  order: -1;
+  grid-column: span 1;
+}
+.case-actions #case-auto {
+  grid-column: span 2;
+}
+.case-actions [data-act='case-filter'] {
+  border-color: rgba(223, 252, 255, 0.16);
+  color: rgba(223, 252, 255, 0.6);
+}

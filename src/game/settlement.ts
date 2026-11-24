@@ -20,6 +20,12 @@ import type { GunId } from './weapons';
 import type { World } from './world';
 import type { RewardSummary } from './results';
 
+/** Heist pay: a clean ghost job pays 1.6x, a blown one 0.8x. */
+export function heistMult(objective: string | undefined, blown: boolean): number {
+  if (objective !== 'heist') return 1;
+  return blown ? 0.8 : 1.6;
+}
+
 export interface Settlement {
   reward: RewardSummary;
   levelsGained: number;
@@ -43,7 +49,7 @@ export function settleRun(
       modifierPayBonus(contract?.modifiers ?? []) +
       setpiecePayBonus(setpiece) -
       collateralPenalty(collateral),
-  );
+  ) * heistMult(contract?.objective, world.heistBlown === true);
   const base = Math.round(
     (contract?.reward ?? 75) * modifierMult * approach.payoutMult * (1 + repPayBonus(factionRep)),
   );

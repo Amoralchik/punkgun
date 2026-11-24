@@ -7,7 +7,8 @@ const kib = (bytes) => bytes / 1024;
 
 const BUDGETS = {
   // 2026-11-23: 450 -> 475 for line-of-sight, civilians, setpieces, combat aids.
-  appKb: 475,
+  // 2026-11-24: 475 -> 520 for procedural biomes, biome art and heists.
+  appKb: 520,
   vendorKb: 620,
   totalJsKb: 1120,
   cssKb: 90,
